@@ -65,6 +65,25 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(@types/node@22.20.5)
 
+  packages/youtube:
+    dependencies:
+      '@planificador/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@planificador/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.7
+        version: 3.2.7(@types/node@22.20.5)
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':
