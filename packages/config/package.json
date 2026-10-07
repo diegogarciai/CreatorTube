@@ -1,0 +1,17 @@
+{
+  "name": "@planificador/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
