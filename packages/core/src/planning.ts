@@ -132,10 +132,7 @@ export function computeAlerts(
           episodeId: e.id,
           params: { title: e.title, days: -daysLeft },
         });
-      } else if (
-        daysLeft <= t.notReadyWarnDays &&
-        statusIndex(e.status) <= statusIndex("script")
-      ) {
+      } else if (daysLeft <= t.notReadyWarnDays && statusIndex(e.status) <= statusIndex("script")) {
         alerts.push({
           kind: "not_ready",
           severity: daysLeft <= t.notReadyCriticalDays ? "critical" : "warning",
@@ -212,12 +209,30 @@ export function upcomingDates(
   const out: UpcomingDate[] = [];
   for (const e of episodes) {
     if (!isActive(e)) continue;
-    if (e.recordDate && isWithin(e.recordDate, today, end) && statusIndex(e.status) <= statusIndex("to_record")) {
-      out.push({ date: e.recordDate, kind: "record", episodeId: e.id, title: e.title, status: e.status });
+    if (
+      e.recordDate &&
+      isWithin(e.recordDate, today, end) &&
+      statusIndex(e.status) <= statusIndex("to_record")
+    ) {
+      out.push({
+        date: e.recordDate,
+        kind: "record",
+        episodeId: e.id,
+        title: e.title,
+        status: e.status,
+      });
     }
     if (e.publishDate && isWithin(e.publishDate, today, end) && e.status !== "published") {
-      out.push({ date: e.publishDate, kind: "publish", episodeId: e.id, title: e.title, status: e.status });
+      out.push({
+        date: e.publishDate,
+        kind: "publish",
+        episodeId: e.id,
+        title: e.title,
+        status: e.status,
+      });
     }
   }
-  return out.sort((a, b) => (a.date === b.date ? a.kind.localeCompare(b.kind) : a.date < b.date ? -1 : 1));
+  return out.sort((a, b) =>
+    a.date === b.date ? a.kind.localeCompare(b.kind) : a.date < b.date ? -1 : 1,
+  );
 }

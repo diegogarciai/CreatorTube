@@ -34,7 +34,11 @@ export default async function IdeasPage({
   const t = await getTranslations();
   const supabase = await getSupabase();
   const [{ data: ideas }, pillars] = await Promise.all([
-    supabase.from("ideas").select("*").eq("channel_id", channelId).order("created_at", { ascending: false }),
+    supabase
+      .from("ideas")
+      .select("*")
+      .eq("channel_id", channelId)
+      .order("created_at", { ascending: false }),
     getPillars(channelId),
   ]);
   const all = ideas ?? [];
@@ -47,7 +51,11 @@ export default async function IdeasPage({
 
   return (
     <Page>
-      <PageHeader title={t("ideas.title")} description={t("ideas.subtitle")} actions={canWrite ? <NewIdeaButton channelId={channelId} /> : null} />
+      <PageHeader
+        title={t("ideas.title")}
+        description={t("ideas.subtitle")}
+        actions={canWrite ? <NewIdeaButton channelId={channelId} /> : null}
+      />
       <div className="mb-4 flex gap-1">
         {FILTERS.map((f) => (
           <Link
@@ -58,7 +66,8 @@ export default async function IdeasPage({
               filter === f.id ? "bg-surface-muted font-medium" : "text-muted hover:text-text",
             )}
           >
-            {t(`ideas.${f.key}`)} <span className="text-muted">{all.filter((i) => i.status === f.id).length}</span>
+            {t(`ideas.${f.key}`)}{" "}
+            <span className="text-muted">{all.filter((i) => i.status === f.id).length}</span>
           </Link>
         ))}
       </div>
@@ -75,12 +84,25 @@ export default async function IdeasPage({
             <li key={idea.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{idea.title}</p>
-                {idea.notes ? <p className="mt-0.5 line-clamp-2 text-sm text-muted">{idea.notes}</p> : null}
+                {idea.notes ? (
+                  <p className="mt-0.5 line-clamp-2 text-sm text-muted">{idea.notes}</p>
+                ) : null}
               </div>
-              <Badge tone={idea.origin === "pain_point" ? "warn" : idea.origin === "recommendation" ? "accent" : "neutral"}>
+              <Badge
+                tone={
+                  idea.origin === "pain_point"
+                    ? "warn"
+                    : idea.origin === "recommendation"
+                      ? "accent"
+                      : "neutral"
+                }
+              >
                 {t(`ideas.originValue.${idea.origin}`)}
               </Badge>
-              <span className="w-16 text-right text-sm tabular-nums text-muted" title={t("ideas.score")}>
+              <span
+                className="w-16 text-right text-sm tabular-nums text-muted"
+                title={t("ideas.score")}
+              >
                 {idea.score === null ? "—" : `${idea.score}/100`}
               </span>
               <div className="flex items-center gap-1">

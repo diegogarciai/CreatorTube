@@ -10,7 +10,9 @@ import { isDateKey, isValidTimeZone } from "./time";
  * Los mensajes son claves de traducción (`errors.*`).
  */
 const dateKey = z.string().refine(isDateKey, "errors.invalid_date");
-const optionalDateKey = z.union([dateKey, z.literal(""), z.null()]).transform((v) => (v ? v : null));
+const optionalDateKey = z
+  .union([dateKey, z.literal(""), z.null()])
+  .transform((v) => (v ? v : null));
 const timeZone = z.string().refine(isValidTimeZone, "errors.invalid_timezone");
 const uuid = z.uuid();
 const nonEmpty = (max: number) => z.string().trim().min(1, "errors.required").max(max);
@@ -28,7 +30,10 @@ export const episodeCreateSchema = z.object({
   format: z.enum(FORMATS).default("long"),
   publishDate: optionalDateKey.default(null),
   recordDate: optionalDateKey.default(null),
-  pillarId: z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null).default(null),
+  pillarId: z
+    .union([uuid, z.literal(""), z.null()])
+    .transform((v) => v || null)
+    .default(null),
   ideaId: uuid.nullable().default(null),
 });
 export type EpisodeCreateInput = z.infer<typeof episodeCreateSchema>;
@@ -42,7 +47,10 @@ export const episodeUpdateSchema = z.object({
   notes: z.string().max(20_000).optional(),
   publishDate: optionalDateKey.optional(),
   recordDate: optionalDateKey.optional(),
-  pillarId: z.union([uuid, z.literal(""), z.null()]).transform((v) => v || null).optional(),
+  pillarId: z
+    .union([uuid, z.literal(""), z.null()])
+    .transform((v) => v || null)
+    .optional(),
 });
 export type EpisodeUpdateInput = z.infer<typeof episodeUpdateSchema>;
 
@@ -91,9 +99,7 @@ export const ideaSchema = z.object({
   notes: z.string().max(5000).default(""),
   origin: z.enum(IDEA_ORIGINS).default("own"),
   status: z.enum(IDEA_STATUSES).default("new"),
-  signals: z
-    .partialRecord(z.enum(IDEA_SIGNALS), z.coerce.number().int().min(1).max(5))
-    .default({}),
+  signals: z.partialRecord(z.enum(IDEA_SIGNALS), z.coerce.number().int().min(1).max(5)).default({}),
 });
 
 export const workspaceSchema = z.object({

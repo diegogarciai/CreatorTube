@@ -17,7 +17,15 @@ export interface RhythmValues {
   formats: EpisodeFormat[];
 }
 
-function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+function Toggle({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -25,7 +33,9 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
       onClick={onClick}
       className={cn(
         "h-9 rounded-lg border px-3 text-sm",
-        on ? "border-accent bg-accent-soft font-medium text-accent" : "border-border bg-surface text-muted hover:bg-surface-muted",
+        on
+          ? "border-accent bg-accent-soft font-medium text-accent"
+          : "border-border bg-surface text-muted hover:bg-surface-muted",
       )}
     >
       {children}
@@ -33,12 +43,21 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
   );
 }
 
-export function RhythmForm({ channelId, initial, disabled }: { channelId: string; initial: RhythmValues; disabled?: boolean }) {
+export function RhythmForm({
+  channelId,
+  initial,
+  disabled,
+}: {
+  channelId: string;
+  initial: RhythmValues;
+  disabled?: boolean;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [v, setV] = useState(initial);
   const [pending, start] = useTransition();
-  const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
+  const toggle = <T,>(list: T[], item: T) =>
+    list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +85,11 @@ export function RhythmForm({ channelId, initial, disabled }: { channelId: string
         <Field label={t("settings.publishDays")}>
           <div className="flex flex-wrap gap-2">
             {WEEKDAYS.map((d) => (
-              <Toggle key={d} on={v.publishWeekdays.includes(d)} onClick={() => setV({ ...v, publishWeekdays: toggle(v.publishWeekdays, d) })}>
+              <Toggle
+                key={d}
+                on={v.publishWeekdays.includes(d)}
+                onClick={() => setV({ ...v, publishWeekdays: toggle(v.publishWeekdays, d) })}
+              >
                 {t(`weekdayShort.${d}`)}
               </Toggle>
             ))}
@@ -75,7 +98,11 @@ export function RhythmForm({ channelId, initial, disabled }: { channelId: string
         <Field label={t("settings.recordDays")}>
           <div className="flex flex-wrap gap-2">
             {WEEKDAYS.map((d) => (
-              <Toggle key={d} on={v.recordWeekdays.includes(d)} onClick={() => setV({ ...v, recordWeekdays: toggle(v.recordWeekdays, d) })}>
+              <Toggle
+                key={d}
+                on={v.recordWeekdays.includes(d)}
+                onClick={() => setV({ ...v, recordWeekdays: toggle(v.recordWeekdays, d) })}
+              >
                 {t(`weekdayShort.${d}`)}
               </Toggle>
             ))}
@@ -84,7 +111,11 @@ export function RhythmForm({ channelId, initial, disabled }: { channelId: string
         <Field label={t("settings.formats")}>
           <div className="flex flex-wrap gap-2">
             {FORMATS.map((f) => (
-              <Toggle key={f} on={v.formats.includes(f)} onClick={() => setV({ ...v, formats: toggle(v.formats, f) })}>
+              <Toggle
+                key={f}
+                on={v.formats.includes(f)}
+                onClick={() => setV({ ...v, formats: toggle(v.formats, f) })}
+              >
                 {t(`format.${f}`)}
               </Toggle>
             ))}

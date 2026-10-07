@@ -40,7 +40,10 @@ export default async function InvitePage({
       <p className="text-base text-text">
         {invite.kind === "platform"
           ? t("invite.platform")
-          : t("invite.workspace", { workspace: invite.workspace_name, role: t(`role.${invite.role}`) })}
+          : t("invite.workspace", {
+              workspace: invite.workspace_name,
+              role: t(`role.${invite.role}`),
+            })}
       </p>
       <p className="mt-1">{t("invite.forEmail", { email: invite.email_hint })}</p>
       {error ? (
@@ -53,7 +56,12 @@ export default async function InvitePage({
           {invite.kind === "platform" ? (
             <div>
               <Label htmlFor="workspaceName">{t("invite.workspaceName")}</Label>
-              <Input id="workspaceName" name="workspaceName" placeholder={t("invite.workspaceNamePlaceholder")} required />
+              <Input
+                id="workspaceName"
+                name="workspaceName"
+                placeholder={t("invite.workspaceNamePlaceholder")}
+                required
+              />
             </div>
           ) : null}
           <SubmitButton className="w-full">{t("invite.accept")}</SubmitButton>

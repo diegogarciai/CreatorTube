@@ -83,11 +83,19 @@ describe("episodios", () => {
       }),
     ).toEqual({ stage: "publication", status: "scheduled" });
     expect(
-      autoAdvanceFromYouTube(editing, { privacyStatus: "public", publishAt: null, publishedAt: new Date() }),
+      autoAdvanceFromYouTube(editing, {
+        privacyStatus: "public",
+        publishAt: null,
+        publishedAt: new Date(),
+      }),
     ).toEqual({ stage: "distribution", status: "published" });
     const published = ep({ status: "published", stage: "evaluation" });
     expect(
-      autoAdvanceFromYouTube(published, { privacyStatus: "private", publishAt: new Date(), publishedAt: null }),
+      autoAdvanceFromYouTube(published, {
+        privacyStatus: "private",
+        publishAt: new Date(),
+        publishedAt: null,
+      }),
     ).toBeNull();
   });
 });

@@ -9,7 +9,15 @@ import { setIdeaStatus } from "@/lib/actions/ideas";
 import { useActionError } from "@/lib/use-action-error";
 import { IdeaDialog, type IdeaValues } from "./idea-dialog";
 
-export function IdeaRowActions({ channelId, idea, canWrite }: { channelId: string; idea: IdeaValues & { id: string }; canWrite: boolean }) {
+export function IdeaRowActions({
+  channelId,
+  idea,
+  canWrite,
+}: {
+  channelId: string;
+  idea: IdeaValues & { id: string };
+  canWrite: boolean;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [pending, start] = useTransition();
@@ -45,5 +53,10 @@ export function IdeaRowActions({ channelId, idea, canWrite }: { channelId: strin
 
 export function NewIdeaButton({ channelId }: { channelId: string }) {
   const t = useTranslations("ideas");
-  return <IdeaDialog channelId={channelId} trigger={(open) => <Button onClick={open}>{t("new")}</Button>} />;
+  return (
+    <IdeaDialog
+      channelId={channelId}
+      trigger={(open) => <Button onClick={open}>{t("new")}</Button>}
+    />
+  );
 }

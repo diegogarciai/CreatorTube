@@ -90,7 +90,8 @@ export function MonthCalendar({
 
   const byDay = new Map<string, { ep: CalendarEpisode; kind: Kind }[]>();
   for (const ep of items) {
-    if (ep.publishDate) byDay.set(ep.publishDate, [...(byDay.get(ep.publishDate) ?? []), { ep, kind: "publish" }]);
+    if (ep.publishDate)
+      byDay.set(ep.publishDate, [...(byDay.get(ep.publishDate) ?? []), { ep, kind: "publish" }]);
     if (ep.recordDate && ["planned", "script", "to_record"].includes(ep.status)) {
       byDay.set(ep.recordDate, [...(byDay.get(ep.recordDate) ?? []), { ep, kind: "record" }]);
     }
@@ -119,11 +120,21 @@ export function MonthCalendar({
               ))}
             </div>
             {weeks.map((week) => (
-              <div key={week[0]} className="grid grid-cols-7 border-b border-border last:border-b-0">
+              <div
+                key={week[0]}
+                className="grid grid-cols-7 border-b border-border last:border-b-0"
+              >
                 {week.map((day) => (
                   <Day key={day} day={day} inMonth={day.startsWith(month)} isToday={day === today}>
                     {(byDay.get(day) ?? []).map(({ ep, kind }) => (
-                      <Chip key={dragId(ep.id, kind)} ep={ep} kind={kind} channelId={channelId} disabled={!canEdit} hidden={active?.ep.id === ep.id && active.kind === kind} />
+                      <Chip
+                        key={dragId(ep.id, kind)}
+                        ep={ep}
+                        kind={kind}
+                        channelId={channelId}
+                        disabled={!canEdit}
+                        hidden={active?.ep.id === ep.id && active.kind === kind}
+                      />
                     ))}
                   </Day>
                 ))}
@@ -133,7 +144,14 @@ export function MonthCalendar({
         </div>
         <Unscheduled title={t("calendar.unscheduled")} empty={t("calendar.unscheduledEmpty")}>
           {unscheduled.map((ep) => (
-            <Chip key={ep.id} ep={ep} kind="publish" channelId={channelId} disabled={!canEdit} hidden={active?.ep.id === ep.id} />
+            <Chip
+              key={ep.id}
+              ep={ep}
+              kind="publish"
+              channelId={channelId}
+              disabled={!canEdit}
+              hidden={active?.ep.id === ep.id}
+            />
           ))}
         </Unscheduled>
       </div>
@@ -142,7 +160,17 @@ export function MonthCalendar({
   );
 }
 
-function Day({ day, inMonth, isToday, children }: { day: string; inMonth: boolean; isToday: boolean; children: React.ReactNode }) {
+function Day({
+  day,
+  inMonth,
+  isToday,
+  children,
+}: {
+  day: string;
+  inMonth: boolean;
+  isToday: boolean;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: day });
   return (
     <div
@@ -153,7 +181,12 @@ function Day({ day, inMonth, isToday, children }: { day: string; inMonth: boolea
         isOver && "bg-accent-soft",
       )}
     >
-      <div className={cn("mb-1 flex size-6 items-center justify-center rounded-full text-xs", isToday && "bg-accent font-semibold text-accent-text")}>
+      <div
+        className={cn(
+          "mb-1 flex size-6 items-center justify-center rounded-full text-xs",
+          isToday && "bg-accent font-semibold text-accent-text",
+        )}
+      >
         {Number(day.slice(8))}
       </div>
       <div className="space-y-1">{children}</div>
@@ -161,12 +194,28 @@ function Day({ day, inMonth, isToday, children }: { day: string; inMonth: boolea
   );
 }
 
-function Unscheduled({ title, empty, children }: { title: string; empty: string; children: React.ReactNode[] }) {
+function Unscheduled({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: React.ReactNode[];
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: UNSCHEDULED });
   return (
-    <section ref={setNodeRef} className={cn("rounded-xl border border-border bg-surface p-3", isOver && "border-accent bg-accent-soft")}>
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "rounded-xl border border-border bg-surface p-3",
+        isOver && "border-accent bg-accent-soft",
+      )}
+    >
       <h2 className="mb-2 text-sm font-semibold">{title}</h2>
-      <div className="space-y-1">{children.length ? children : <p className="text-xs text-muted">{empty}</p>}</div>
+      <div className="space-y-1">
+        {children.length ? children : <p className="text-xs text-muted">{empty}</p>}
+      </div>
     </section>
   );
 }
@@ -175,12 +224,14 @@ function ChipBody({ ep, kind }: { ep: CalendarEpisode; kind: Kind }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 truncate rounded-md border px-1.5 py-1 text-xs",
-        kind === "publish" ? "border-border bg-surface" : "border-dashed border-border bg-surface-muted",
+        "flex items-start gap-1.5 rounded-md border px-1.5 py-1 text-xs leading-snug",
+        kind === "publish"
+          ? "border-border bg-surface"
+          : "border-dashed border-border bg-surface-muted",
       )}
     >
-      <span className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[ep.status])} />
-      <span className="truncate">
+      <span className={cn("mt-1 size-2 shrink-0 rounded-full", STATUS_DOT[ep.status])} />
+      <span className="line-clamp-2">
         {kind === "record" ? "● " : ""}
         {ep.title}
       </span>
@@ -188,10 +239,27 @@ function ChipBody({ ep, kind }: { ep: CalendarEpisode; kind: Kind }) {
   );
 }
 
-function Chip({ ep, kind, channelId, disabled, hidden }: { ep: CalendarEpisode; kind: Kind; channelId: string; disabled: boolean; hidden: boolean }) {
+function Chip({
+  ep,
+  kind,
+  channelId,
+  disabled,
+  hidden,
+}: {
+  ep: CalendarEpisode;
+  kind: Kind;
+  channelId: string;
+  disabled: boolean;
+  hidden: boolean;
+}) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: dragId(ep.id, kind), disabled });
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} className={cn("touch-manipulation", hidden && "opacity-30")}>
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn("touch-manipulation", hidden && "opacity-30")}
+    >
       <Link href={`/c/${channelId}/episodios/${ep.id}`} title={ep.title} draggable={false}>
         <ChipBody ep={ep} kind={kind} />
       </Link>

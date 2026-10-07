@@ -3,7 +3,13 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { IDEA_ORIGINS, IDEA_SIGNALS, type IdeaOrigin, type IdeaSignals, type IdeaStatus } from "@planificador/core";
+import {
+  IDEA_ORIGINS,
+  IDEA_SIGNALS,
+  type IdeaOrigin,
+  type IdeaSignals,
+  type IdeaStatus,
+} from "@planificador/core";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
@@ -61,10 +67,21 @@ export function IdeaDialog({
   return (
     <>
       {trigger(() => setOpen(true))}
-      <Dialog open={open} onClose={() => setOpen(false)} title={initial ? t("common.edit") : t("ideas.new")}>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={initial ? t("common.edit") : t("ideas.new")}
+      >
         <form action={submit} className="space-y-4">
           <Field label={t("ideas.titleField")} htmlFor="i-title">
-            <Input id="i-title" name="title" required maxLength={200} defaultValue={initial?.title} autoFocus />
+            <Input
+              id="i-title"
+              name="title"
+              required
+              maxLength={200}
+              defaultValue={initial?.title}
+              autoFocus
+            />
           </Field>
           <Field label={t("ideas.notes")} htmlFor="i-notes">
             <Textarea id="i-notes" name="notes" defaultValue={initial?.notes} maxLength={5000} />
@@ -82,8 +99,16 @@ export function IdeaDialog({
             <legend className="mb-1.5 text-sm font-medium">{t("ideas.signals")} (1–5)</legend>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {IDEA_SIGNALS.map((s) => (
-                <Field key={s} label={<span className="text-xs">{t(`ideas.signal.${s}`)}</span>} htmlFor={`i-${s}`}>
-                  <Select id={`i-${s}`} name={`signal-${s}`} defaultValue={initial?.signals[s] ? String(initial.signals[s]) : ""}>
+                <Field
+                  key={s}
+                  label={<span className="text-xs">{t(`ideas.signal.${s}`)}</span>}
+                  htmlFor={`i-${s}`}
+                >
+                  <Select
+                    id={`i-${s}`}
+                    name={`signal-${s}`}
+                    defaultValue={initial?.signals[s] ? String(initial.signals[s]) : ""}
+                  >
                     <option value="">—</option>
                     {[1, 2, 3, 4, 5].map((n) => (
                       <option key={n} value={n}>

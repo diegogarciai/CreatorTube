@@ -72,11 +72,17 @@ export class YouTubeClient {
   private async get(path: string, params: Record<string, string>): Promise<Json> {
     const url = `${API}/${path}?${new URLSearchParams(params)}`;
     this.quotaUsed += QUOTA_COST.read;
-    const res = await this.fetchImpl(url, { headers: { authorization: `Bearer ${this.accessToken}` } });
+    const res = await this.fetchImpl(url, {
+      headers: { authorization: `Bearer ${this.accessToken}` },
+    });
     const json = (await res.json().catch(() => ({}))) as Json;
     if (!res.ok) {
       const reason = json.error?.errors?.[0]?.reason ?? null;
-      throw new YouTubeApiError(json.error?.message ?? `YouTube respondió ${res.status}`, res.status, reason);
+      throw new YouTubeApiError(
+        json.error?.message ?? `YouTube respondió ${res.status}`,
+        res.status,
+        reason,
+      );
     }
     return json;
   }
@@ -123,11 +129,13 @@ export class YouTubeClient {
           id: v.id,
           title: v.snippet?.title ?? "",
           description: v.snippet?.description ?? "",
-          thumbnailUrl: v.snippet?.thumbnails?.medium?.url ?? v.snippet?.thumbnails?.default?.url ?? null,
+          thumbnailUrl:
+            v.snippet?.thumbnails?.medium?.url ?? v.snippet?.thumbnails?.default?.url ?? null,
           privacyStatus: privacy === "public" || privacy === "unlisted" ? privacy : "private",
           publishAt: v.status?.publishAt ? new Date(v.status.publishAt) : null,
           // snippet.publishedAt es la fecha de subida; solo cuenta como publicación si es público.
-          publishedAt: privacy === "public" && v.snippet?.publishedAt ? new Date(v.snippet.publishedAt) : null,
+          publishedAt:
+            privacy === "public" && v.snippet?.publishedAt ? new Date(v.snippet.publishedAt) : null,
           durationSeconds: parseIsoDuration(v.contentDetails?.duration),
           viewCount: num(v.statistics?.viewCount),
           likeCount: num(v.statistics?.likeCount),

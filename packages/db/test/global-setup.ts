@@ -3,7 +3,11 @@ import { join } from "node:path";
 import pg from "pg";
 import { readMigrations } from "../src/migrations";
 
-export default async function setup({ provide }: { provide: (key: string, value: string) => void }) {
+export default async function setup({
+  provide,
+}: {
+  provide: (key: string, value: string) => void;
+}) {
   const base = process.env.DATABASE_URL;
   if (!base) throw new Error("DATABASE_URL no definida: corre las pruebas con `pnpm test`.");
   const dbName = `planificador_test_${Date.now()}`;

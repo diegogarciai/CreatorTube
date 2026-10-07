@@ -31,7 +31,11 @@ export function Dialog({
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <h2 className="font-semibold">{title}</h2>
-        <button onClick={onClose} className="rounded p-1 text-muted hover:bg-surface-muted" aria-label="Cerrar">
+        <button
+          onClick={onClose}
+          className="rounded p-1 text-muted hover:bg-surface-muted"
+          aria-label="Cerrar"
+        >
           <X className="size-4" />
         </button>
       </div>

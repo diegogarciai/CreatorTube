@@ -14,7 +14,11 @@ if (!cmd) {
 }
 
 function run() {
-  const r = spawnSync(cmd, args, { stdio: "inherit", env: process.env, shell: process.platform === "win32" });
+  const r = spawnSync(cmd, args, {
+    stdio: "inherit",
+    env: process.env,
+    shell: process.platform === "win32",
+  });
   return r.status ?? 1;
 }
 
@@ -35,7 +39,11 @@ function findBin(name) {
 const isRoot = process.getuid?.() === 0;
 const asPg = (bin, binArgs) =>
   isRoot
-    ? execFileSync("su", ["postgres", "-s", "/bin/sh", "-c", [bin, ...binArgs].map((a) => `'${a}'`).join(" ")], { stdio: "pipe" })
+    ? execFileSync(
+        "su",
+        ["postgres", "-s", "/bin/sh", "-c", [bin, ...binArgs].map((a) => `'${a}'`).join(" ")],
+        { stdio: "pipe" },
+      )
     : execFileSync(bin, binArgs, { stdio: "pipe" });
 
 const dir = mkdtempSync(join(tmpdir(), "planificador-pg-"));
@@ -44,8 +52,26 @@ const data = join(dir, "data");
 const port = String(54000 + Math.floor(Math.random() * 900));
 let code = 1;
 try {
-  asPg(findBin("initdb"), ["-D", data, "-U", "postgres", "--auth=trust", "-E", "UTF8", "--locale=C"]);
-  asPg(findBin("pg_ctl"), ["-D", data, "-o", `-p ${port} -k ${dir} -c listen_addresses=127.0.0.1`, "-w", "-l", join(dir, "log"), "start"]);
+  asPg(findBin("initdb"), [
+    "-D",
+    data,
+    "-U",
+    "postgres",
+    "--auth=trust",
+    "-E",
+    "UTF8",
+    "--locale=C",
+  ]);
+  asPg(findBin("pg_ctl"), [
+    "-D",
+    data,
+    "-o",
+    `-p ${port} -k ${dir} -c listen_addresses=127.0.0.1`,
+    "-w",
+    "-l",
+    join(dir, "log"),
+    "start",
+  ]);
   process.env.DATABASE_URL = `postgres://postgres@127.0.0.1:${port}/postgres`;
   code = run();
 } catch (err) {

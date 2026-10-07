@@ -19,8 +19,16 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { StatusBadge } from "@/components/episodes/status-badge";
 import { formatDateKey } from "@/lib/utils";
 
-const SEVERITY_TONE: Record<Severity, Tone> = { critical: "critical", warning: "warn", info: "neutral" };
-const LEVEL_TONE: Record<Signal["level"], Tone> = { ok: "ok", warning: "warn", critical: "critical" };
+const SEVERITY_TONE: Record<Severity, Tone> = {
+  critical: "critical",
+  warning: "warn",
+  info: "neutral",
+};
+const LEVEL_TONE: Record<Signal["level"], Tone> = {
+  ok: "ok",
+  warning: "warn",
+  critical: "critical",
+};
 
 export interface OverviewInput {
   channelId: string;
@@ -59,10 +67,17 @@ export async function StatTiles({ overview }: { overview: ReturnType<typeof comp
             {coverage.planned}/{coverage.goal}
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-muted">
-            <div className={`h-full rounded-full ${pct >= 100 ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+            <div
+              className={`h-full rounded-full ${pct >= 100 ? "bg-ok" : "bg-accent"}`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
           <p className="mt-2 text-xs text-muted">
-            {t("weekGoalValue", { planned: coverage.planned, goal: coverage.goal, published: coverage.published })}
+            {t("weekGoalValue", {
+              planned: coverage.planned,
+              goal: coverage.goal,
+              published: coverage.published,
+            })}
           </p>
         </CardBody>
       </Card>
@@ -82,7 +97,9 @@ export async function StatTiles({ overview }: { overview: ReturnType<typeof comp
           <ul className="mt-2 space-y-1.5 text-sm">
             {nextWeeks.map((w) => (
               <li key={w.weekStart} className="flex items-center justify-between gap-2">
-                <span className="text-muted">{t("coverageWeek", { date: formatDateKey(w.weekStart) })}</span>
+                <span className="text-muted">
+                  {t("coverageWeek", { date: formatDateKey(w.weekStart) })}
+                </span>
                 <Badge tone={w.missing === 0 ? "ok" : "warn"}>
                   {w.planned}/{w.goal}
                 </Badge>
@@ -95,7 +112,15 @@ export async function StatTiles({ overview }: { overview: ReturnType<typeof comp
   );
 }
 
-export async function AlertsCard({ alerts, channelId, compact }: { alerts: Alert[]; channelId: string; compact?: boolean }) {
+export async function AlertsCard({
+  alerts,
+  channelId,
+  compact,
+}: {
+  alerts: Alert[];
+  channelId: string;
+  compact?: boolean;
+}) {
   const t = await getTranslations();
   const shown = compact ? alerts.slice(0, 5) : alerts;
   return (
@@ -109,7 +134,9 @@ export async function AlertsCard({ alerts, channelId, compact }: { alerts: Alert
             {shown.map((a, i) => {
               const params = {
                 ...a.params,
-                ...(typeof a.params.weekStart === "string" && { weekStart: formatDateKey(a.params.weekStart) }),
+                ...(typeof a.params.weekStart === "string" && {
+                  weekStart: formatDateKey(a.params.weekStart),
+                }),
               };
               const text = t(`alerts.${a.kind}`, params);
               return (
@@ -118,13 +145,18 @@ export async function AlertsCard({ alerts, channelId, compact }: { alerts: Alert
                     className={`mt-0.5 size-4 shrink-0 ${a.severity === "critical" ? "text-critical" : a.severity === "warning" ? "text-warn" : "text-muted"}`}
                   />
                   {a.episodeId ? (
-                    <Link href={`/c/${channelId}/episodios/${a.episodeId}`} className="flex-1 hover:underline">
+                    <Link
+                      href={`/c/${channelId}/episodios/${a.episodeId}`}
+                      className="flex-1 hover:underline"
+                    >
                       {text}
                     </Link>
                   ) : (
                     <span className="flex-1">{text}</span>
                   )}
-                  <Badge tone={SEVERITY_TONE[a.severity]}>{t(`signals.${a.severity === "info" ? "ok" : a.severity}`)}</Badge>
+                  <Badge tone={SEVERITY_TONE[a.severity]}>
+                    {t(`alerts.severity.${a.severity}`)}
+                  </Badge>
                 </li>
               );
             })}
@@ -152,10 +184,20 @@ export async function UpcomingCard({
         ) : (
           <ul className="divide-y divide-border">
             {upcoming.map((u) => (
-              <li key={`${u.episodeId}-${u.kind}`} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                <span className="w-16 shrink-0 text-muted">{formatDateKey(u.date, { weekday: "short", day: "numeric" })}</span>
-                <Badge tone={u.kind === "publish" ? "accent" : "neutral"}>{u.kind === "publish" ? t("publish") : t("record")}</Badge>
-                <Link href={`/c/${channelId}/episodios/${u.episodeId}`} className="min-w-0 flex-1 truncate hover:underline">
+              <li
+                key={`${u.episodeId}-${u.kind}`}
+                className="flex items-center gap-3 px-5 py-2.5 text-sm"
+              >
+                <span className="w-16 shrink-0 text-muted">
+                  {formatDateKey(u.date, { weekday: "short", day: "numeric" })}
+                </span>
+                <Badge tone={u.kind === "publish" ? "accent" : "neutral"}>
+                  {u.kind === "publish" ? t("publish") : t("record")}
+                </Badge>
+                <Link
+                  href={`/c/${channelId}/episodios/${u.episodeId}`}
+                  className="min-w-0 flex-1 truncate hover:underline"
+                >
                   {u.title}
                 </Link>
                 <StatusBadge status={u.status} />
@@ -173,7 +215,8 @@ export async function SignalsCard({ signals }: { signals: Signal[] }) {
   const th = await getTranslations("home");
   const format = (s: Signal) => {
     if (s.value === null) return t("noData");
-    if (s.kind === "week_coverage" || s.kind === "on_time_rate") return `${Math.round(s.value * 100)} %`;
+    if (s.kind === "week_coverage" || s.kind === "on_time_rate")
+      return `${Math.round(s.value * 100)} %`;
     return String(s.value);
   };
   return (

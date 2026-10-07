@@ -17,7 +17,15 @@ interface Pillar {
   archived: boolean;
 }
 
-export function PillarsEditor({ channelId, pillars, disabled }: { channelId: string; pillars: Pillar[]; disabled: boolean }) {
+export function PillarsEditor({
+  channelId,
+  pillars,
+  disabled,
+}: {
+  channelId: string;
+  pillars: Pillar[];
+  disabled: boolean;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [pending, start] = useTransition();
@@ -32,7 +40,9 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
 
   return (
     <div className="space-y-3">
-      {pillars.length === 0 ? <p className="text-sm text-muted">{t("settings.noPillars")}</p> : null}
+      {pillars.length === 0 ? (
+        <p className="text-sm text-muted">{t("settings.noPillars")}</p>
+      ) : null}
       <ul className="space-y-2">
         {pillars.map((p) => (
           <li key={p.id} className={`flex items-center gap-2 ${p.archived ? "opacity-50" : ""}`}>
@@ -42,7 +52,16 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
               disabled={disabled || p.archived}
               aria-label={t("settings.pillarColor")}
               className="size-9 shrink-0 cursor-pointer rounded border border-border bg-surface"
-              onBlur={(e) => e.target.value !== p.color && run(() => updatePillar(channelId, p.id, { name: p.name, description: p.description, color: e.target.value }))}
+              onBlur={(e) =>
+                e.target.value !== p.color &&
+                run(() =>
+                  updatePillar(channelId, p.id, {
+                    name: p.name,
+                    description: p.description,
+                    color: e.target.value,
+                  }),
+                )
+              }
             />
             <Input
               defaultValue={p.name}
@@ -50,7 +69,14 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
               aria-label={t("settings.pillarName")}
               onBlur={(e) => {
                 const v = e.target.value.trim();
-                if (v && v !== p.name) run(() => updatePillar(channelId, p.id, { name: v, description: p.description, color: p.color }));
+                if (v && v !== p.name)
+                  run(() =>
+                    updatePillar(channelId, p.id, {
+                      name: v,
+                      description: p.description,
+                      color: p.color,
+                    }),
+                  );
               }}
             />
             {!disabled ? (
@@ -61,7 +87,11 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
                 onClick={() => run(() => setPillarArchived(channelId, p.id, !p.archived))}
                 aria-label={p.archived ? t("common.restore") : t("common.archive")}
               >
-                {p.archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
+                {p.archived ? (
+                  <ArchiveRestore className="size-4" />
+                ) : (
+                  <Archive className="size-4" />
+                )}
               </Button>
             ) : null}
           </li>
@@ -72,7 +102,10 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
           className="flex items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => addPillar(channelId, { name, color, description: "" }), () => setName(""));
+            run(
+              () => addPillar(channelId, { name, color, description: "" }),
+              () => setName(""),
+            );
           }}
         >
           <input
@@ -82,7 +115,13 @@ export function PillarsEditor({ channelId, pillars, disabled }: { channelId: str
             aria-label={t("settings.pillarColor")}
             className="size-9 shrink-0 cursor-pointer rounded border border-border bg-surface"
           />
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.pillarName")} required maxLength={80} />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("settings.pillarName")}
+            required
+            maxLength={80}
+          />
           <Button type="submit" variant="secondary" disabled={pending}>
             <Plus className="size-4" /> {t("common.add")}
           </Button>

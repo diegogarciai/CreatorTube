@@ -13,7 +13,11 @@ export default async function AudiencePage({ params }: { params: Promise<{ chann
   return (
     <Page>
       <PageHeader title={t("title")} />
-      <EmptyState icon={<MessagesSquare className="size-8" />} title={t("emptyTitle")} description={t("emptyDesc")} />
+      <EmptyState
+        icon={<MessagesSquare className="size-8" />}
+        title={t("emptyTitle")}
+        description={t("emptyDesc")}
+      />
     </Page>
   );
 }

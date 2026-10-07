@@ -108,7 +108,11 @@ export class OAuthError extends Error {
 
 type Fetch = typeof fetch;
 
-async function tokenRequest(body: URLSearchParams, fetchImpl: Fetch, now: number): Promise<TokenSet> {
+async function tokenRequest(
+  body: URLSearchParams,
+  fetchImpl: Fetch,
+  now: number,
+): Promise<TokenSet> {
   const res = await fetchImpl(TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

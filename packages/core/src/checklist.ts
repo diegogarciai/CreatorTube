@@ -19,7 +19,10 @@ export interface ChecklistProgress {
   ratio: number;
 }
 
-export function activeSteps(steps: readonly ChecklistStep[], phase?: ChecklistPhase): ChecklistStep[] {
+export function activeSteps(
+  steps: readonly ChecklistStep[],
+  phase?: ChecklistPhase,
+): ChecklistStep[] {
   return steps
     .filter((s) => s.archivedAt === null && (phase === undefined || s.phase === phase))
     .sort((a, b) => a.position - b.position);

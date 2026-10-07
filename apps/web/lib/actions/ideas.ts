@@ -38,7 +38,13 @@ export async function updateIdea(ideaId: string, input: unknown): Promise<Action
     const supabase = await getSupabase();
     const { error } = await supabase
       .from("ideas")
-      .update({ title: p.title, notes: p.notes, origin: p.origin, status: p.status, signals: p.signals })
+      .update({
+        title: p.title,
+        notes: p.notes,
+        origin: p.origin,
+        status: p.status,
+        signals: p.signals,
+      })
       .eq("id", ideaId)
       .eq("channel_id", p.channelId);
     if (error) throw error;
@@ -49,12 +55,20 @@ export async function updateIdea(ideaId: string, input: unknown): Promise<Action
   }
 }
 
-export async function setIdeaStatus(channelId: string, ideaId: string, status: IdeaStatus): Promise<ActionResult> {
+export async function setIdeaStatus(
+  channelId: string,
+  ideaId: string,
+  status: IdeaStatus,
+): Promise<ActionResult> {
   try {
     if (!IDEA_STATUSES.includes(status)) throw new Error("errors.invalid_input");
     await requireChannelPermission(channelId, "write_script");
     const supabase = await getSupabase();
-    const { error } = await supabase.from("ideas").update({ status }).eq("id", ideaId).eq("channel_id", channelId);
+    const { error } = await supabase
+      .from("ideas")
+      .update({ status })
+      .eq("id", ideaId)
+      .eq("channel_id", channelId);
     if (error) throw error;
     revalidatePath(`/c/${channelId}/ideas`);
     return { ok: true };

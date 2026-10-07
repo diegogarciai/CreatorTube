@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 /**
  * Cifrado de tokens de Google con AES-256-GCM. La clave (32 bytes en base64)
@@ -19,15 +25,23 @@ export function encryptSecret(plaintext: string, key: Buffer): string {
   const cipher = createCipheriv("aes-256-gcm", key, iv);
   const enc = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return [VERSION, iv.toString("base64url"), tag.toString("base64url"), enc.toString("base64url")].join(".");
+  return [
+    VERSION,
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    enc.toString("base64url"),
+  ].join(".");
 }
 
 export function decryptSecret(payload: string, key: Buffer): string {
   const [version, iv, tag, enc] = payload.split(".");
-  if (version !== VERSION || !iv || !tag || enc === undefined) throw new Error("Secreto cifrado inválido");
+  if (version !== VERSION || !iv || !tag || enc === undefined)
+    throw new Error("Secreto cifrado inválido");
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
   decipher.setAuthTag(Buffer.from(tag, "base64url"));
-  return Buffer.concat([decipher.update(Buffer.from(enc, "base64url")), decipher.final()]).toString("utf8");
+  return Buffer.concat([decipher.update(Buffer.from(enc, "base64url")), decipher.final()]).toString(
+    "utf8",
+  );
 }
 
 /** Firma corta HMAC-SHA256 para el `state` de OAuth. */

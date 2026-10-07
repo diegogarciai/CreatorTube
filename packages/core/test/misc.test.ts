@@ -38,7 +38,11 @@ describe("checklist por identificador", () => {
     const renamed = steps.map((s) => (s.id === "s1" ? { ...s, label: "Uno renombrado" } : s));
     const done = new Set(["s1", "s4"]);
     expect(checklistProgress(steps, done)).toEqual(checklistProgress(renamed, done));
-    expect(checklistProgress(steps, done, "before_publish")).toEqual({ done: 1, total: 2, ratio: 0.5 });
+    expect(checklistProgress(steps, done, "before_publish")).toEqual({
+      done: 1,
+      total: 2,
+      ratio: 0.5,
+    });
   });
   it("reordena dentro de la fase", () => {
     expect(reorderSteps(steps, "s2", 0)).toEqual([
@@ -54,7 +58,9 @@ describe("ICS", () => {
       name: "Canal; prueba",
       prodId: "-//Planificador//ES",
       now: new Date("2026-10-07T00:00:00Z"),
-      events: [{ uid: "e1-publish@planificador", date: "2026-10-09", summary: "Publicar: Hola, mundo" }],
+      events: [
+        { uid: "e1-publish@planificador", date: "2026-10-09", summary: "Publicar: Hola, mundo" },
+      ],
     });
     expect(ics).toContain("DTSTART;VALUE=DATE:20261009\r\n");
     expect(ics).toContain("DTEND;VALUE=DATE:20261010\r\n");
@@ -98,9 +104,7 @@ describe("ideas y esquemas", () => {
       publishDate: "",
     });
     expect(ok).toMatchObject({ title: "Mi episodio", publishDate: null, format: "long" });
-    expect(() =>
-      episodeCreateSchema.parse({ channelId: "x", title: "a" }),
-    ).toThrow();
+    expect(() => episodeCreateSchema.parse({ channelId: "x", title: "a" })).toThrow();
     expect(() =>
       episodeCreateSchema.parse({
         channelId: "6f1c2b8e-1d2a-4c3b-9e4f-5a6b7c8d9e0f",

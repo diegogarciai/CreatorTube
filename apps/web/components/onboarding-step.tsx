@@ -22,7 +22,11 @@ export function Step({
         <CardBody className="flex gap-4">
           <span
             className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-              done ? "bg-ok text-white" : active ? "bg-accent text-accent-text" : "bg-surface-muted text-muted"
+              done
+                ? "bg-ok text-white"
+                : active
+                  ? "bg-accent text-accent-text"
+                  : "bg-surface-muted text-muted"
             }`}
           >
             {done ? <Check className="size-4" /> : n}

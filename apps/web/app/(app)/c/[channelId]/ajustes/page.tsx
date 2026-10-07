@@ -27,12 +27,19 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
   ]);
   const canConfigure = ctx.can("configure_channel");
   const connection = conn?.[0] ?? null;
-  const fmt = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short", timeZone: ctx.channel.timezone });
+  const fmt = new Intl.DateTimeFormat("es", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: ctx.channel.timezone,
+  });
   const icsUrl = `${env.appUrl}/api/ics/${ctx.channel.ics_token}.ics`;
 
   return (
     <Page>
-      <PageHeader title={t("title")} description={canConfigure ? ctx.channel.name : t("readOnly")} />
+      <PageHeader
+        title={t("title")}
+        description={canConfigure ? ctx.channel.name : t("readOnly")}
+      />
       <div className="space-y-6">
         <Card>
           <CardHeader title={t("youtube")} description={t("youtubeDesc")} />
@@ -40,7 +47,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             <ConnectionPanel
               channelId={channelId}
               status={connection?.status ?? null}
-              lastSync={connection?.last_synced_at ? fmt.format(new Date(connection.last_synced_at)) : null}
+              lastSync={
+                connection?.last_synced_at ? fmt.format(new Date(connection.last_synced_at)) : null
+              }
               lastError={connection?.last_error ?? null}
               youtubeConfigured={YOUTUBE_CONFIGURED()}
               canConfigure={canConfigure}
@@ -51,13 +60,21 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
         <Card>
           <CardHeader title={t("profile")} description={t("profileDesc")} />
           <CardBody>
-            <ProfileForm channelId={channelId} initial={channelProfile(ctx.channel)} disabled={!canConfigure} />
+            <ProfileForm
+              channelId={channelId}
+              initial={channelProfile(ctx.channel)}
+              disabled={!canConfigure}
+            />
           </CardBody>
         </Card>
         <Card>
           <CardHeader title={t("rhythm")} description={t("rhythmDesc")} />
           <CardBody>
-            <RhythmForm channelId={channelId} initial={channelRhythm(ctx.channel)} disabled={!canConfigure} />
+            <RhythmForm
+              channelId={channelId}
+              initial={channelRhythm(ctx.channel)}
+              disabled={!canConfigure}
+            />
           </CardBody>
         </Card>
         <Card>
@@ -66,7 +83,13 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             <PillarsEditor
               channelId={channelId}
               disabled={!canConfigure}
-              pillars={pillars.map((p) => ({ id: p.id, name: p.name, description: p.description, color: p.color, archived: Boolean(p.archived_at) }))}
+              pillars={pillars.map((p) => ({
+                id: p.id,
+                name: p.name,
+                description: p.description,
+                color: p.color,
+                archived: Boolean(p.archived_at),
+              }))}
             />
           </CardBody>
         </Card>
@@ -76,12 +99,22 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             <ChecklistEditor
               channelId={channelId}
               disabled={!canConfigure}
-              steps={steps.map((s) => ({ id: s.id, label: s.label, phase: s.phase, position: s.position, archived: s.archivedAt !== null }))}
+              steps={steps.map((s) => ({
+                id: s.id,
+                label: s.label,
+                phase: s.phase,
+                position: s.position,
+                archived: s.archivedAt !== null,
+              }))}
             />
           </CardBody>
         </Card>
         <Card>
-          <CardHeader title={t("calendar")} description={t("calendarDesc")} action={canConfigure ? <RegenerateIcsButton channelId={channelId} /> : null} />
+          <CardHeader
+            title={t("calendar")}
+            description={t("calendarDesc")}
+            action={canConfigure ? <RegenerateIcsButton channelId={channelId} /> : null}
+          />
           <CardBody>
             <CopyField value={icsUrl} label={t("calendar")} />
           </CardBody>

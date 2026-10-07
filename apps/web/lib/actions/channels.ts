@@ -38,14 +38,25 @@ export async function createManualChannel(workspaceId: string, formData: FormDat
   const name = String(formData.get("name") ?? "").trim();
   if (!name) redirect(`/onboarding?workspace=${workspaceId}&error=name`);
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from("channels").insert({ workspace_id: workspaceId, name }).select("id").single();
+  const { data, error } = await supabase
+    .from("channels")
+    .insert({ workspace_id: workspaceId, name })
+    .select("id")
+    .single();
   if (error) redirect(`/onboarding?workspace=${workspaceId}&error=create`);
   await seedChannelDefaults(createAdminClient(), data.id).catch(async () => {
     // Sin service role (entorno sin configurar): se siembra con la sesión.
     const { DEFAULT_CHECKLIST } = await import("@planificador/core");
     await supabase
       .from("checklist_steps")
-      .insert(DEFAULT_CHECKLIST.map((s, i) => ({ channel_id: data.id, label: s.label, phase: s.phase, position: i })));
+      .insert(
+        DEFAULT_CHECKLIST.map((s, i) => ({
+          channel_id: data.id,
+          label: s.label,
+          phase: s.phase,
+          position: i,
+        })),
+      );
   });
   revalidatePath("/", "layout");
   redirect(`/onboarding/canal/${data.id}`);
@@ -54,17 +65,27 @@ export async function createManualChannel(workspaceId: string, formData: FormDat
 export async function completeOnboarding(channelId: string) {
   await requireChannelPermission(channelId, "configure_channel");
   const supabase = await getSupabase();
-  await supabase.from("channels").update({ onboarding_completed_at: new Date().toISOString() }).eq("id", channelId);
+  await supabase
+    .from("channels")
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq("id", channelId);
   revalidatePath("/", "layout");
   redirect(`/c/${channelId}/inicio`);
 }
 
-export async function updateChannelProfile(channelId: string, input: unknown): Promise<ActionResult> {
+export async function updateChannelProfile(
+  channelId: string,
+  input: unknown,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const p = channelProfileSchema.parse(input);
     const supabase = await getSupabase();
-    const { data: current } = await supabase.from("channels").select("profile").eq("id", channelId).single();
+    const { data: current } = await supabase
+      .from("channels")
+      .select("profile")
+      .eq("id", channelId)
+      .single();
     const { error } = await supabase
       .from("channels")
       .update({
@@ -72,7 +93,12 @@ export async function updateChannelProfile(channelId: string, input: unknown): P
         language: p.language,
         timezone: p.timezone,
         code_prefix: p.codePrefix,
-        profile: { ...((current?.profile as object) ?? {}), hosts: p.hosts, audience: p.audience, tone: p.tone },
+        profile: {
+          ...((current?.profile as object) ?? {}),
+          hosts: p.hosts,
+          audience: p.audience,
+          tone: p.tone,
+        },
       })
       .eq("id", channelId);
     if (error) throw error;
@@ -80,7 +106,10 @@ export async function updateChannelProfile(channelId: string, input: unknown): P
   });
 }
 
-export async function updateChannelRhythm(channelId: string, input: unknown): Promise<ActionResult> {
+export async function updateChannelRhythm(
+  channelId: string,
+  input: unknown,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const r = channelRhythmSchema.parse(input);
@@ -104,25 +133,42 @@ export async function addPillar(channelId: string, input: unknown): Promise<Acti
     await requireChannelPermission(channelId, "configure_channel");
     const p = pillarSchema.parse(input);
     const supabase = await getSupabase();
-    const { count } = await supabase.from("pillars").select("id", { count: "exact", head: true }).eq("channel_id", channelId);
-    const { error } = await supabase.from("pillars").insert({ channel_id: channelId, ...p, position: count ?? 0 });
+    const { count } = await supabase
+      .from("pillars")
+      .select("id", { count: "exact", head: true })
+      .eq("channel_id", channelId);
+    const { error } = await supabase
+      .from("pillars")
+      .insert({ channel_id: channelId, ...p, position: count ?? 0 });
     if (error) throw error;
     revalidateChannel(channelId);
   });
 }
 
-export async function updatePillar(channelId: string, pillarId: string, input: unknown): Promise<ActionResult> {
+export async function updatePillar(
+  channelId: string,
+  pillarId: string,
+  input: unknown,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const p = pillarSchema.parse(input);
     const supabase = await getSupabase();
-    const { error } = await supabase.from("pillars").update(p).eq("id", pillarId).eq("channel_id", channelId);
+    const { error } = await supabase
+      .from("pillars")
+      .update(p)
+      .eq("id", pillarId)
+      .eq("channel_id", channelId);
     if (error) throw error;
     revalidateChannel(channelId);
   });
 }
 
-export async function setPillarArchived(channelId: string, pillarId: string, archived: boolean): Promise<ActionResult> {
+export async function setPillarArchived(
+  channelId: string,
+  pillarId: string,
+  archived: boolean,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const supabase = await getSupabase();
@@ -151,29 +197,49 @@ export async function addChecklistStep(channelId: string, input: unknown): Promi
       .maybeSingle();
     const { error } = await supabase
       .from("checklist_steps")
-      .insert({ channel_id: channelId, label: s.label, phase: s.phase, position: (last?.position ?? -1) + 1 });
+      .insert({
+        channel_id: channelId,
+        label: s.label,
+        phase: s.phase,
+        position: (last?.position ?? -1) + 1,
+      });
     if (error) throw error;
     revalidateChannel(channelId);
   });
 }
 
 /** Renombrar conserva el identificador: los episodios no se desmarcan. */
-export async function renameChecklistStep(channelId: string, stepId: string, label: string): Promise<ActionResult> {
+export async function renameChecklistStep(
+  channelId: string,
+  stepId: string,
+  label: string,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const parsed = checklistStepSchema.shape.label.parse(label);
     const supabase = await getSupabase();
-    const { error } = await supabase.from("checklist_steps").update({ label: parsed }).eq("id", stepId).eq("channel_id", channelId);
+    const { error } = await supabase
+      .from("checklist_steps")
+      .update({ label: parsed })
+      .eq("id", stepId)
+      .eq("channel_id", channelId);
     if (error) throw error;
     revalidateChannel(channelId);
   });
 }
 
-export async function moveChecklistStep(channelId: string, stepId: string, toIndex: number): Promise<ActionResult> {
+export async function moveChecklistStep(
+  channelId: string,
+  stepId: string,
+  toIndex: number,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const supabase = await getSupabase();
-    const { data, error } = await supabase.from("checklist_steps").select("*").eq("channel_id", channelId);
+    const { data, error } = await supabase
+      .from("checklist_steps")
+      .select("*")
+      .eq("channel_id", channelId);
     if (error) throw error;
     const steps: ChecklistStep[] = (data ?? []).map((s) => ({
       id: s.id,
@@ -190,7 +256,11 @@ export async function moveChecklistStep(channelId: string, stepId: string, toInd
   });
 }
 
-export async function setChecklistStepArchived(channelId: string, stepId: string, archived: boolean): Promise<ActionResult> {
+export async function setChecklistStepArchived(
+  channelId: string,
+  stepId: string,
+  archived: boolean,
+): Promise<ActionResult> {
   return run(async () => {
     await requireChannelPermission(channelId, "configure_channel");
     const supabase = await getSupabase();
@@ -213,7 +283,9 @@ export async function regenerateIcsToken(channelId: string): Promise<ActionResul
   });
 }
 
-export async function syncChannelNow(channelId: string): Promise<ActionResult<{ videos: number; advanced: number }>> {
+export async function syncChannelNow(
+  channelId: string,
+): Promise<ActionResult<{ videos: number; advanced: number }>> {
   try {
     await requireChannelPermission(channelId, "configure_channel");
     const result = await syncChannelById(createAdminClient(), channelId);

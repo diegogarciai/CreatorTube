@@ -1,10 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import {
-  DEFAULT_CHECKLIST,
-  localDateKey,
-  type EpisodeStatus,
-} from "@planificador/core";
+import { DEFAULT_CHECKLIST, localDateKey, type EpisodeStatus } from "@planificador/core";
 import {
   decryptSecret,
   encryptSecret,
@@ -40,7 +36,12 @@ export const NONCE_COOKIE = "yt_oauth_nonce";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-export async function saveConnection(admin: Admin, channelId: string, tokens: TokenSet, previousRefresh: string | null = null) {
+export async function saveConnection(
+  admin: Admin,
+  channelId: string,
+  tokens: TokenSet,
+  previousRefresh: string | null = null,
+) {
   const key = encryptionKey();
   const refresh = tokens.refreshToken ?? previousRefresh;
   const { error } = await admin.from("channel_connections").upsert({
@@ -57,9 +58,17 @@ export async function saveConnection(admin: Admin, channelId: string, tokens: To
 }
 
 export async function seedChannelDefaults(admin: Admin, channelId: string) {
-  const { count } = await admin.from("checklist_steps").select("id", { count: "exact", head: true }).eq("channel_id", channelId);
+  const { count } = await admin
+    .from("checklist_steps")
+    .select("id", { count: "exact", head: true })
+    .eq("channel_id", channelId);
   if (count) return;
-  const rows = DEFAULT_CHECKLIST.map((s, i) => ({ channel_id: channelId, label: s.label, phase: s.phase, position: i }));
+  const rows = DEFAULT_CHECKLIST.map((s, i) => ({
+    channel_id: channelId,
+    label: s.label,
+    phase: s.phase,
+    position: i,
+  }));
   await admin.from("checklist_steps").insert(rows);
 }
 
@@ -69,7 +78,10 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
       await saveConnection(admin, channelId, tokens);
     },
     async markNeedsReauth(channelId, error) {
-      await admin.from("channel_connections").update({ status: "needs_reauth", last_error: error }).eq("channel_id", channelId);
+      await admin
+        .from("channel_connections")
+        .update({ status: "needs_reauth", last_error: error })
+        .eq("channel_id", channelId);
     },
     async upsertVideos(channelId, videos, fetchedAt) {
       if (videos.length === 0) return;
@@ -96,7 +108,9 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
       if (videoIds.length === 0) return [];
       const { data, error } = await admin
         .from("episodes")
-        .select("id, status, stage, publish_date, record_date, youtube_video_id, published_at, evaluated_at, archived_at")
+        .select(
+          "id, status, stage, publish_date, record_date, youtube_video_id, published_at, evaluated_at, archived_at",
+        )
         .eq("channel_id", channelId)
         .in("youtube_video_id", videoIds);
       if (error) throw error;
@@ -126,7 +140,11 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
     },
     async recordSync(channelId, result) {
       const today = new Date().toISOString().slice(0, 10);
-      const { data } = await admin.from("channel_connections").select("quota_day, quota_used").eq("channel_id", channelId).single();
+      const { data } = await admin
+        .from("channel_connections")
+        .select("quota_day, quota_used")
+        .eq("channel_id", channelId)
+        .single();
       const used = data?.quota_day === today ? data.quota_used : 0;
       await admin
         .from("channel_connections")
@@ -145,7 +163,9 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
 export async function syncChannelById(admin: Admin, channelId: string): Promise<SyncResult | null> {
   const { data: conn } = await admin
     .from("channel_connections")
-    .select("channel_id, access_token_enc, refresh_token_enc, token_expires_at, status, channel:channels(timezone)")
+    .select(
+      "channel_id, access_token_enc, refresh_token_enc, token_expires_at, status, channel:channels(timezone)",
+    )
     .eq("channel_id", channelId)
     .maybeSingle();
   if (!conn || conn.status === "revoked") return null;
@@ -164,12 +184,19 @@ export async function syncChannelById(admin: Admin, channelId: string): Promise<
 }
 
 /** Token guardado, descifrado. `"refresh"` solo el de refresco; `"revocable"` el de refresco o, si falta, el de acceso. */
-export async function decryptedToken(admin: Admin, channelId: string, kind: "refresh" | "revocable"): Promise<string | null> {
+export async function decryptedToken(
+  admin: Admin,
+  channelId: string,
+  kind: "refresh" | "revocable",
+): Promise<string | null> {
   const { data } = await admin
     .from("channel_connections")
     .select("refresh_token_enc, access_token_enc")
     .eq("channel_id", channelId)
     .maybeSingle();
-  const enc = kind === "refresh" ? data?.refresh_token_enc : (data?.refresh_token_enc ?? data?.access_token_enc);
+  const enc =
+    kind === "refresh"
+      ? data?.refresh_token_enc
+      : (data?.refresh_token_enc ?? data?.access_token_enc);
   return enc ? decryptSecret(enc, encryptionKey()) : null;
 }

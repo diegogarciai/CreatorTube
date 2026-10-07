@@ -12,7 +12,11 @@ function required(name: string): string {
 
 export const env = {
   get appUrl() {
-    return (process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+    return (
+      process.env.APP_URL ??
+      process.env.NEXT_PUBLIC_APP_URL ??
+      "http://localhost:3000"
+    ).replace(/\/$/, "");
   },
   get supabaseUrl() {
     return required("NEXT_PUBLIC_SUPABASE_URL");
@@ -45,4 +49,9 @@ export const SUPABASE_CONFIGURED = () =>
   isConfigured("NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
 export const YOUTUBE_CONFIGURED = () =>
-  isConfigured("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY", "SUPABASE_SERVICE_ROLE_KEY");
+  isConfigured(
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "TOKEN_ENCRYPTION_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  );

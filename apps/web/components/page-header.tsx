@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 
-export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 pb-6">
       <div className="min-w-0">
@@ -13,5 +21,9 @@ export function PageHeader({ title, description, actions }: { title: ReactNode; 
 }
 
 export function Page({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  return <main className={wide ? "px-4 py-6 sm:px-8" : "mx-auto max-w-6xl px-4 py-6 sm:px-8"}>{children}</main>;
+  return (
+    <main className={wide ? "px-4 py-6 sm:px-8" : "mx-auto max-w-6xl px-4 py-6 sm:px-8"}>
+      {children}
+    </main>
+  );
 }

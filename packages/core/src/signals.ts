@@ -34,7 +34,10 @@ function levelLow(value: number, t: { ok: number; warn: number }): SignalLevel {
   return "critical";
 }
 
-export function daysSinceLastPublish(episodes: readonly EpisodeLike[], today: DateKey): number | null {
+export function daysSinceLastPublish(
+  episodes: readonly EpisodeLike[],
+  today: DateKey,
+): number | null {
   let last: DateKey | null = null;
   for (const e of episodes) {
     if (!isActive(e) || e.status !== "published") continue;
@@ -66,10 +69,19 @@ export function pipelineWeeks(
   return count;
 }
 
-export function onTimeRate(episodes: readonly EpisodeLike[], today: DateKey, weeks = 8): number | null {
+export function onTimeRate(
+  episodes: readonly EpisodeLike[],
+  today: DateKey,
+  weeks = 8,
+): number | null {
   const from = addDays(today, -weeks * 7);
   const relevant = episodes.filter(
-    (e) => isActive(e) && e.status === "published" && e.publishDate && e.publishedOn && e.publishedOn >= from,
+    (e) =>
+      isActive(e) &&
+      e.status === "published" &&
+      e.publishDate &&
+      e.publishedOn &&
+      e.publishedOn >= from,
   );
   if (relevant.length === 0) return null;
   const onTime = relevant.filter((e) => e.publishedOn! <= e.publishDate!).length;

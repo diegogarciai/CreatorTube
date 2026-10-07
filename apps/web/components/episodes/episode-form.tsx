@@ -64,7 +64,12 @@ export function EpisodeForm({
           <Input id="e-title" name="title" defaultValue={initial.title} required maxLength={200} />
         </Field>
         <Field label={t("episode.publishDate")} htmlFor="e-pub">
-          <Input id="e-pub" name="publishDate" type="date" defaultValue={initial.publishDate ?? ""} />
+          <Input
+            id="e-pub"
+            name="publishDate"
+            type="date"
+            defaultValue={initial.publishDate ?? ""}
+          />
         </Field>
         <Field label={t("episode.recordDate")} htmlFor="e-rec">
           <Input id="e-rec" name="recordDate" type="date" defaultValue={initial.recordDate ?? ""} />
@@ -98,10 +103,21 @@ export function EpisodeForm({
           </Select>
         </Field>
         <Field label={t("episode.keywords")} htmlFor="e-kw">
-          <Input id="e-kw" name="keywords" defaultValue={initial.keywords.join(", ")} placeholder={t("episode.keywordsPlaceholder")} />
+          <Input
+            id="e-kw"
+            name="keywords"
+            defaultValue={initial.keywords.join(", ")}
+            placeholder={t("episode.keywordsPlaceholder")}
+          />
         </Field>
         <Field label={t("episode.stance")} htmlFor="e-stance" className="sm:col-span-2">
-          <Input id="e-stance" name="stance" defaultValue={initial.stance} placeholder={t("episode.stancePlaceholder")} maxLength={500} />
+          <Input
+            id="e-stance"
+            name="stance"
+            defaultValue={initial.stance}
+            placeholder={t("episode.stancePlaceholder")}
+            maxLength={500}
+          />
         </Field>
         <Field label={t("episode.notes")} htmlFor="e-notes" className="sm:col-span-2">
           <Textarea id="e-notes" name="notes" defaultValue={initial.notes} rows={5} />

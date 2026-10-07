@@ -21,9 +21,7 @@ describe("señales del canal", () => {
   });
 
   it("niveles Bien / Atención / Crítico", () => {
-    const eps = [
-      ep({ status: "published", publishDate: "2026-09-10", publishedOn: "2026-09-10" }),
-    ];
+    const eps = [ep({ status: "published", publishDate: "2026-09-10", publishedOn: "2026-09-10" })];
     const signals = Object.fromEntries(
       channelSignals(eps, today, { weeklyGoal: 1 }).map((s) => [s.kind, s.level]),
     );

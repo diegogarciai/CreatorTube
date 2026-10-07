@@ -199,9 +199,14 @@
     "overdue_publish": "«{title}» debía publicarse hace {days, plural, one {# día} other {# días}}",
     "not_ready": "«{title}» se publica {days, plural, =0 {hoy} one {mañana} other {en # días}} y sigue sin guion listo",
     "record_overdue": "«{title}» debía grabarse hace {days, plural, one {# día} other {# días}}",
-    "week_uncovered": "Faltan {missing, plural, one {# episodio} other {# episodios}} para la meta de la semana del {weekStart}",
+    "week_uncovered": "{missing, plural, one {Falta # episodio} other {Faltan # episodios}} para la meta de la semana del {weekStart}",
     "stale_episode": "«{title}» lleva {days} días sin moverse",
-    "scheduled_without_video": "«{title}» está Programado pero sin video vinculado"
+    "scheduled_without_video": "«{title}» está Programado pero sin video vinculado",
+    "severity": {
+      "critical": "Crítico",
+      "warning": "Atención",
+      "info": "Aviso"
+    }
   },
   "signals": {
     "ok": "Bien",
@@ -314,9 +319,9 @@
       "metrics": "Vistas, retención con el párrafo del guion y evaluación a 7 días. Llega en la Fase 4."
     },
     "activityAction": {
-      "episode.created": "creó el episodio",
-      "episode.status_changed": "cambió el estado",
-      "episode.stage_changed": "cambió la etapa"
+      "episode_created": "creó el episodio",
+      "episode_status_changed": "cambió el estado",
+      "episode_stage_changed": "cambió la etapa"
     },
     "someone": "Alguien",
     "system": "Sincronización",

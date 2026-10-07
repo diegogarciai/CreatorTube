@@ -24,6 +24,7 @@ export function NewEpisodeButton({
   idea,
   label,
   variant = "primary",
+  autoOpen = false,
 }: {
   channelId: string;
   pillars: PillarOption[];
@@ -31,12 +32,14 @@ export function NewEpisodeButton({
   idea?: { id: string; title: string };
   label?: string;
   variant?: "primary" | "secondary";
+  /** Abre el diálogo si la URL trae ?nuevo=1 (barra de comandos). Solo una instancia por página. */
+  autoOpen?: boolean;
 }) {
   const t = useTranslations();
   const router = useRouter();
   const params = useSearchParams();
   const errorText = useActionError();
-  const [open, setOpen] = useState(() => !idea && params.get("nuevo") === "1");
+  const [open, setOpen] = useState(() => autoOpen && params.get("nuevo") === "1");
   const [pending, start] = useTransition();
 
   function submit(form: FormData) {
@@ -66,9 +69,20 @@ export function NewEpisodeButton({
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)} title={t("episode.new")}>
         <form action={submit} className="grid gap-4 sm:grid-cols-2">
-          {idea ? <p className="text-sm text-muted sm:col-span-2">{t("episode.fromIdea", { title: idea.title })}</p> : null}
+          {idea ? (
+            <p className="text-sm text-muted sm:col-span-2">
+              {t("episode.fromIdea", { title: idea.title })}
+            </p>
+          ) : null}
           <Field label={t("episode.title")} htmlFor="ne-title" className="sm:col-span-2">
-            <Input id="ne-title" name="title" required maxLength={200} defaultValue={idea?.title} autoFocus />
+            <Input
+              id="ne-title"
+              name="title"
+              required
+              maxLength={200}
+              defaultValue={idea?.title}
+              autoFocus
+            />
           </Field>
           <Field label={t("episode.publishDate")} htmlFor="ne-pub">
             <Input id="ne-pub" name="publishDate" type="date" />

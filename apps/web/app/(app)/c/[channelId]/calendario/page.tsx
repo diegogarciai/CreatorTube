@@ -13,6 +13,8 @@ import { env } from "@/lib/env";
 import { getEpisodes } from "@/lib/data/queries";
 import { formatDateKey } from "@/lib/utils";
 
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export const metadata: Metadata = { title: "Calendario" };
 
 export default async function CalendarPage({
@@ -39,11 +41,21 @@ export default async function CalendarPage({
         description={t("subtitle")}
         actions={
           <div className="flex items-center gap-2">
-            <Link href={nav(addMonths(month, -1))} className={buttonClass("secondary", "sm")} aria-label={t("prev")}>
+            <Link
+              href={nav(addMonths(month, -1))}
+              className={buttonClass("secondary", "sm")}
+              aria-label={t("prev")}
+            >
               <ChevronLeft className="size-4" />
             </Link>
-            <span className="min-w-36 text-center font-medium capitalize">{formatDateKey(month, { month: "long", year: "numeric" })}</span>
-            <Link href={nav(addMonths(month, 1))} className={buttonClass("secondary", "sm")} aria-label={t("next")}>
+            <span className="min-w-36 text-center font-medium">
+              {capitalize(formatDateKey(month, { month: "long", year: "numeric" }))}
+            </span>
+            <Link
+              href={nav(addMonths(month, 1))}
+              className={buttonClass("secondary", "sm")}
+              aria-label={t("next")}
+            >
               <ChevronRight className="size-4" />
             </Link>
             <Link href={nav(today)} className={buttonClass("ghost", "sm")}>
@@ -72,7 +84,10 @@ export default async function CalendarPage({
           <h2 className="font-semibold">{t("subscribe")}</h2>
           <p className="mb-3 mt-0.5 text-sm text-muted">{t("subscribeDesc")}</p>
           <CopyField value={icsUrl} label={t("subscribe")} />
-          <a href={icsUrl.replace(/^https?:/, "webcal:")} className="mt-2 inline-block text-sm text-accent hover:underline">
+          <a
+            href={icsUrl.replace(/^https?:/, "webcal:")}
+            className="mt-2 inline-block text-sm text-accent hover:underline"
+          >
             webcal://
           </a>
         </CardBody>

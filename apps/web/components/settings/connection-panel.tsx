@@ -10,8 +10,18 @@ import { disconnectYouTube, regenerateIcsToken, syncChannelNow } from "@/lib/act
 import { useActionError } from "@/lib/use-action-error";
 
 type Status = "active" | "needs_reauth" | "revoked" | null;
-const TONE: Record<string, Tone> = { active: "ok", needs_reauth: "critical", revoked: "neutral", none: "neutral" };
-const LABEL: Record<string, string> = { active: "connected", needs_reauth: "needsReauth", revoked: "revoked", none: "notConnected" };
+const TONE: Record<string, Tone> = {
+  active: "ok",
+  needs_reauth: "critical",
+  revoked: "neutral",
+  none: "neutral",
+};
+const LABEL: Record<string, string> = {
+  active: "connected",
+  needs_reauth: "needsReauth",
+  revoked: "revoked",
+  none: "notConnected",
+};
 
 export function ConnectionPanel({
   channelId,
@@ -39,13 +49,20 @@ export function ConnectionPanel({
     <div className="space-y-3 text-sm">
       <div className="flex flex-wrap items-center gap-3">
         <Badge tone={TONE[key]}>{t(LABEL[key]!)}</Badge>
-        <span className="text-muted">{lastSync ? t("lastSync", { date: lastSync }) : t("neverSynced")}</span>
+        <span className="text-muted">
+          {lastSync ? t("lastSync", { date: lastSync }) : t("neverSynced")}
+        </span>
       </div>
-      {lastError ? <p className="rounded-lg bg-critical-soft px-3 py-2 text-critical">{lastError}</p> : null}
+      {lastError ? (
+        <p className="rounded-lg bg-critical-soft px-3 py-2 text-critical">{lastError}</p>
+      ) : null}
       {canConfigure ? (
         <div className="flex flex-wrap gap-2">
           {youtubeConfigured ? (
-            <a href={`/api/youtube/connect?channel=${channelId}`} className={buttonClass(status === "active" ? "secondary" : "primary", "sm")}>
+            <a
+              href={`/api/youtube/connect?channel=${channelId}`}
+              className={buttonClass(status === "active" ? "secondary" : "primary", "sm")}
+            >
               {status ? t("reconnect") : t("connect")}
             </a>
           ) : null}

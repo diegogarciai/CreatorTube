@@ -1,14 +1,23 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/login", "/auth", "/invite", "/privacidad", "/terminos", "/api/ics", "/api/cron"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/auth",
+  "/invite",
+  "/privacidad",
+  "/terminos",
+  "/api/ics",
+  "/api/cron",
+];
 
 /** Refresca la sesión en cada petición y protege las rutas privadas. */
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/" || PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+  const isPublic =
+    path === "/" || PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
 
   if (!url || !key) {
     // Sin Supabase configurado solo se sirven las páginas públicas.

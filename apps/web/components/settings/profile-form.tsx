@@ -25,14 +25,27 @@ const LANGUAGES = [
   ["fr", "Français"],
 ] as const;
 
-export function ProfileForm({ channelId, initial, disabled }: { channelId: string; initial: ProfileValues; disabled?: boolean }) {
+export function ProfileForm({
+  channelId,
+  initial,
+  disabled,
+}: {
+  channelId: string;
+  initial: ProfileValues;
+  disabled?: boolean;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [values, setValues] = useState({ ...initial, hostsText: initial.hosts.join(", ") });
   const [pending, start] = useTransition();
-  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [initial.timezone];
-  const set = (k: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setValues((v) => ({ ...v, [k]: e.target.value }));
+  const zones =
+    typeof Intl.supportedValuesOf === "function"
+      ? Intl.supportedValuesOf("timeZone")
+      : [initial.timezone];
+  const set =
+    (k: keyof typeof values) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setValues((v) => ({ ...v, [k]: e.target.value }));
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,7 +55,10 @@ export function ProfileForm({ channelId, initial, disabled }: { channelId: strin
         language: values.language,
         timezone: values.timezone,
         codePrefix: values.codePrefix,
-        hosts: values.hostsText.split(",").map((h) => h.trim()).filter(Boolean),
+        hosts: values.hostsText
+          .split(",")
+          .map((h) => h.trim())
+          .filter(Boolean),
         audience: values.audience,
         tone: values.tone,
       });
@@ -75,7 +91,11 @@ export function ProfileForm({ channelId, initial, disabled }: { channelId: strin
             ))}
           </Select>
         </Field>
-        <Field label={t("settings.codePrefix")} hint={t("settings.codePrefixHint")} htmlFor="p-prefix">
+        <Field
+          label={t("settings.codePrefix")}
+          hint={t("settings.codePrefixHint")}
+          htmlFor="p-prefix"
+        >
           <Input
             id="p-prefix"
             value={values.codePrefix}
@@ -85,10 +105,20 @@ export function ProfileForm({ channelId, initial, disabled }: { channelId: strin
           />
         </Field>
         <Field label={t("settings.hosts")} htmlFor="p-hosts" className="sm:col-span-2">
-          <Input id="p-hosts" value={values.hostsText} onChange={set("hostsText")} placeholder={t("settings.hostsPlaceholder")} />
+          <Input
+            id="p-hosts"
+            value={values.hostsText}
+            onChange={set("hostsText")}
+            placeholder={t("settings.hostsPlaceholder")}
+          />
         </Field>
         <Field label={t("settings.audience")} htmlFor="p-aud">
-          <Textarea id="p-aud" value={values.audience} onChange={set("audience")} maxLength={1000} />
+          <Textarea
+            id="p-aud"
+            value={values.audience}
+            onChange={set("audience")}
+            maxLength={1000}
+          />
         </Field>
         <Field label={t("settings.tone")} htmlFor="p-tone">
           <Textarea id="p-tone" value={values.tone} onChange={set("tone")} maxLength={1000} />

@@ -23,12 +23,23 @@ interface Step {
   archived: boolean;
 }
 
-export function ChecklistEditor({ channelId, steps, disabled }: { channelId: string; steps: Step[]; disabled: boolean }) {
+export function ChecklistEditor({
+  channelId,
+  steps,
+  disabled,
+}: {
+  channelId: string;
+  steps: Step[];
+  disabled: boolean;
+}) {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
   const errorText = useActionError();
   const [pending, start] = useTransition();
-  const [drafts, setDrafts] = useState<Record<ChecklistPhase, string>>({ before_publish: "", after_publish: "" });
+  const [drafts, setDrafts] = useState<Record<ChecklistPhase, string>>({
+    before_publish: "",
+    after_publish: "",
+  });
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) =>
     start(async () => {
       const res = await fn();
@@ -39,11 +50,15 @@ export function ChecklistEditor({ channelId, steps, disabled }: { channelId: str
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {CHECKLIST_PHASES.map((phase) => {
-        const active = steps.filter((s) => s.phase === phase && !s.archived).sort((a, b) => a.position - b.position);
+        const active = steps
+          .filter((s) => s.phase === phase && !s.archived)
+          .sort((a, b) => a.position - b.position);
         const archived = steps.filter((s) => s.phase === phase && s.archived);
         return (
           <div key={phase}>
-            <h3 className="mb-2 text-sm font-semibold">{t(phase === "before_publish" ? "phaseBefore" : "phaseAfter")}</h3>
+            <h3 className="mb-2 text-sm font-semibold">
+              {t(phase === "before_publish" ? "phaseBefore" : "phaseAfter")}
+            </h3>
             <ul className="space-y-1.5">
               {active.map((s, i) => (
                 <li key={s.id} className="flex items-center gap-1">
@@ -59,13 +74,31 @@ export function ChecklistEditor({ channelId, steps, disabled }: { channelId: str
                   />
                   {!disabled ? (
                     <>
-                      <Button variant="ghost" size="sm" aria-label={t("moveUp")} disabled={pending || i === 0} onClick={() => run(() => moveChecklistStep(channelId, s.id, i - 1))}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t("moveUp")}
+                        disabled={pending || i === 0}
+                        onClick={() => run(() => moveChecklistStep(channelId, s.id, i - 1))}
+                      >
                         <ArrowUp className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" aria-label={t("moveDown")} disabled={pending || i === active.length - 1} onClick={() => run(() => moveChecklistStep(channelId, s.id, i + 1))}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t("moveDown")}
+                        disabled={pending || i === active.length - 1}
+                        onClick={() => run(() => moveChecklistStep(channelId, s.id, i + 1))}
+                      >
                         <ArrowDown className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" aria-label={tc("archive")} disabled={pending} onClick={() => run(() => setChecklistStepArchived(channelId, s.id, true))}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={tc("archive")}
+                        disabled={pending}
+                        onClick={() => run(() => setChecklistStepArchived(channelId, s.id, true))}
+                      >
                         <Archive className="size-4" />
                       </Button>
                     </>
@@ -92,7 +125,13 @@ export function ChecklistEditor({ channelId, steps, disabled }: { channelId: str
                   required
                   maxLength={120}
                 />
-                <Button type="submit" variant="secondary" size="sm" disabled={pending} aria-label={tc("add")}>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  size="sm"
+                  disabled={pending}
+                  aria-label={tc("add")}
+                >
                   <Plus className="size-4" />
                 </Button>
               </form>
@@ -106,7 +145,12 @@ export function ChecklistEditor({ channelId, steps, disabled }: { channelId: str
                   {archived.map((s) => (
                     <li key={s.id} className="flex items-center justify-between gap-2 text-muted">
                       <span className="truncate">{s.label}</span>
-                      <Button variant="ghost" size="sm" disabled={pending} onClick={() => run(() => setChecklistStepArchived(channelId, s.id, false))}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() => run(() => setChecklistStepArchived(channelId, s.id, false))}
+                      >
                         <ArchiveRestore className="size-4" /> {tc("restore")}
                       </Button>
                     </li>

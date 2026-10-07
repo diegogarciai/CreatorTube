@@ -8,7 +8,15 @@ import { FileText } from "lucide-react";
 import { commandIndex, type CommandEpisode } from "@/lib/actions/search";
 import type { ShellChannel } from "./sidebar";
 
-const SECTIONS = ["inicio", "ideas", "produccion", "calendario", "audiencia", "analitica", "ajustes"] as const;
+const SECTIONS = [
+  "inicio",
+  "ideas",
+  "produccion",
+  "calendario",
+  "audiencia",
+  "analitica",
+  "ajustes",
+] as const;
 const SECTION_KEYS: Record<(typeof SECTIONS)[number], string> = {
   inicio: "home",
   ideas: "ideas",
@@ -45,7 +53,10 @@ export function CommandPalette({ channels }: { channels: ShellChannel[] }) {
   }, []);
 
   useEffect(() => {
-    if (open && episodes === null) commandIndex().then(setEpisodes).catch(() => setEpisodes([]));
+    if (open && episodes === null)
+      commandIndex()
+        .then(setEpisodes)
+        .catch(() => setEpisodes([]));
   }, [open, episodes]);
 
   const go = (href: string) => {
@@ -66,20 +77,30 @@ export function CommandPalette({ channels }: { channels: ShellChannel[] }) {
         className="w-full border-b border-border bg-transparent px-4 py-3 text-sm outline-none"
       />
       <Command.List className="max-h-[50vh] overflow-y-auto p-2 text-sm">
-        <Command.Empty className="px-3 py-6 text-center text-muted">{t("command.empty")}</Command.Empty>
+        <Command.Empty className="px-3 py-6 text-center text-muted">
+          {t("command.empty")}
+        </Command.Empty>
         {channelId ? (
-          <Command.Group heading={t("command.navigation")} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted">
+          <Command.Group
+            heading={t("command.navigation")}
+            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted"
+          >
             {SECTIONS.map((s) => (
               <Item key={s} onSelect={() => go(`/c/${channelId}/${s}`)}>
                 {t(`nav.${SECTION_KEYS[s]}`)}
               </Item>
             ))}
-            <Item onSelect={() => go(`/c/${channelId}/produccion?nuevo=1`)}>{t("production.newEpisode")}</Item>
+            <Item onSelect={() => go(`/c/${channelId}/produccion?nuevo=1`)}>
+              {t("production.newEpisode")}
+            </Item>
             <Item onSelect={() => go("/todos")}>{t("nav.allChannels")}</Item>
           </Command.Group>
         ) : null}
         {channels.length > 1 ? (
-          <Command.Group heading={t("command.channels")} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted">
+          <Command.Group
+            heading={t("command.channels")}
+            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted"
+          >
             {channels.map((c) => (
               <Item key={c.id} value={`canal ${c.name}`} onSelect={() => go(`/c/${c.id}/inicio`)}>
                 {c.name}
@@ -88,7 +109,10 @@ export function CommandPalette({ channels }: { channels: ShellChannel[] }) {
           </Command.Group>
         ) : null}
         {episodes && episodes.length > 0 ? (
-          <Command.Group heading={t("command.episodes")} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted">
+          <Command.Group
+            heading={t("command.episodes")}
+            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted"
+          >
             {episodes.map((e) => (
               <Item
                 key={e.id}
@@ -109,7 +133,15 @@ export function CommandPalette({ channels }: { channels: ShellChannel[] }) {
   );
 }
 
-function Item({ children, onSelect, value }: { children: React.ReactNode; onSelect: () => void; value?: string }) {
+function Item({
+  children,
+  onSelect,
+  value,
+}: {
+  children: React.ReactNode;
+  onSelect: () => void;
+  value?: string;
+}) {
   return (
     <Command.Item
       value={value}

@@ -31,7 +31,12 @@ export const metadata: Metadata = { title: "Episodio" };
 const TABS = ["summary", "script", "production", "publication", "distribution", "metrics"] as const;
 type Tab = (typeof TABS)[number];
 type TabState = "ready" | "missing" | "outdated" | "notApplicable";
-const TAB_TONE: Record<TabState, Tone> = { ready: "ok", missing: "warn", outdated: "critical", notApplicable: "neutral" };
+const TAB_TONE: Record<TabState, Tone> = {
+  ready: "ok",
+  missing: "warn",
+  outdated: "critical",
+  notApplicable: "neutral",
+};
 
 export default async function EpisodePage({
   params,
@@ -41,12 +46,19 @@ export default async function EpisodePage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { channelId, episodeId } = await params;
-  const tab: Tab = (TABS as readonly string[]).includes((await searchParams).tab ?? "") ? ((await searchParams).tab as Tab) : "summary";
+  const tab: Tab = (TABS as readonly string[]).includes((await searchParams).tab ?? "")
+    ? ((await searchParams).tab as Tab)
+    : "summary";
   const ctx = await getChannelContext(channelId);
   const supabase = await getSupabase();
   const t = await getTranslations();
 
-  const { data: row } = await supabase.from("episodes").select("*").eq("id", episodeId).eq("channel_id", channelId).maybeSingle();
+  const { data: row } = await supabase
+    .from("episodes")
+    .select("*")
+    .eq("id", episodeId)
+    .eq("channel_id", channelId)
+    .maybeSingle();
   if (!row) notFound();
 
   const [steps, pillars, doneRows, activity, video, idea] = await Promise.all([
@@ -60,9 +72,16 @@ export default async function EpisodePage({
       .order("created_at", { ascending: false })
       .limit(20),
     row.youtube_video_id
-      ? supabase.from("youtube_videos").select("*").eq("channel_id", channelId).eq("video_id", row.youtube_video_id).maybeSingle()
+      ? supabase
+          .from("youtube_videos")
+          .select("*")
+          .eq("channel_id", channelId)
+          .eq("video_id", row.youtube_video_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
-    row.idea_id ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle() : Promise.resolve({ data: null }),
+    row.idea_id
+      ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const tz = ctx.channel.timezone;
@@ -91,7 +110,10 @@ export default async function EpisodePage({
 
   return (
     <Page>
-      <Link href={`/c/${channelId}/produccion`} className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-text">
+      <Link
+        href={`/c/${channelId}/produccion`}
+        className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
+      >
         <ChevronLeft className="size-4" /> {t("nav.production")}
       </Link>
 
@@ -105,13 +127,35 @@ export default async function EpisodePage({
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
             <StatusBadge status={row.status} />
             {row.archived_at ? <Badge>{t("episode.archived")}</Badge> : null}
-            {row.publish_date ? <span className="text-muted">▶ {formatDateKey(row.publish_date, { weekday: "short", day: "numeric", month: "short" })}</span> : null}
-            {row.record_date ? <span className="text-muted">● {formatDateKey(row.record_date, { weekday: "short", day: "numeric", month: "short" })}</span> : null}
+            {row.publish_date ? (
+              <span className="text-muted">
+                ▶{" "}
+                {formatDateKey(row.publish_date, {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            ) : null}
+            {row.record_date ? (
+              <span className="text-muted">
+                ●{" "}
+                {formatDateKey(row.record_date, {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {canManage || ctx.can("edit_video") ? <StatusSelect episodeId={row.id} status={row.status} role={ctx.role} /> : null}
-          {canManage ? <ArchiveButton episodeId={row.id} archived={Boolean(row.archived_at)} /> : null}
+          {canManage || ctx.can("edit_video") ? (
+            <StatusSelect episodeId={row.id} status={row.status} role={ctx.role} />
+          ) : null}
+          {canManage ? (
+            <ArchiveButton episodeId={row.id} archived={Boolean(row.archived_at)} />
+          ) : null}
         </div>
       </div>
 
@@ -120,7 +164,10 @@ export default async function EpisodePage({
         <NextStepPanel episodeId={row.id} step={step} canAct={canAct} canSkip={canManage} />
       </div>
 
-      <nav className="mt-8 flex gap-1 overflow-x-auto border-b border-border" aria-label="Pestañas del episodio">
+      <nav
+        className="mt-8 flex gap-1 overflow-x-auto border-b border-border"
+        aria-label="Pestañas del episodio"
+      >
         {TABS.map((id) => (
           <Link
             key={id}
@@ -128,7 +175,9 @@ export default async function EpisodePage({
             scroll={false}
             className={cn(
               "-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3 py-2 text-sm",
-              tab === id ? "border-accent font-medium" : "border-transparent text-muted hover:text-text",
+              tab === id
+                ? "border-accent font-medium"
+                : "border-transparent text-muted hover:text-text",
             )}
           >
             {t(`episode.tabs.${id}`)}
@@ -181,12 +230,21 @@ export default async function EpisodePage({
                     {(activity.data ?? []).map((a) => {
                       const d = (a.details ?? {}) as { from?: string; to?: string };
                       const who = a.actor?.full_name || a.actor?.email || t("episode.system");
-                      const key = `episode.activityAction.${a.action}`;
-                      const from = d.from ? (a.action === "episode.status_changed" ? t(`status.${d.from}`) : t(`stage.${d.from}`)) : "";
-                      const to = d.to ? (a.action === "episode.status_changed" ? t(`status.${d.to}`) : t(`stage.${d.to}`)) : "";
+                      const key = `episode.activityAction.${a.action.replace(/\./g, "_")}`;
+                      const from = d.from
+                        ? a.action === "episode.status_changed"
+                          ? t(`status.${d.from}`)
+                          : t(`stage.${d.from}`)
+                        : "";
+                      const to = d.to
+                        ? a.action === "episode.status_changed"
+                          ? t(`status.${d.to}`)
+                          : t(`stage.${d.to}`)
+                        : "";
                       return (
                         <li key={a.id} className="px-5 py-2.5">
-                          <span className="font-medium">{who}</span> {t.has(key) ? t(key) : a.action}
+                          <span className="font-medium">{who}</span>{" "}
+                          {t.has(key) ? t(key) : a.action}
                           {from && to ? (
                             <span className="text-muted">
                               {" "}
@@ -194,7 +252,11 @@ export default async function EpisodePage({
                             </span>
                           ) : null}
                           <time className="block text-xs text-muted">
-                            {new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short", timeZone: tz }).format(new Date(a.created_at))}
+                            {new Intl.DateTimeFormat("es", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: tz,
+                            }).format(new Date(a.created_at))}
                           </time>
                         </li>
                       );
@@ -217,11 +279,21 @@ export default async function EpisodePage({
                   </div>
                   <div>
                     <dt className="text-muted">{t("episode.status")}</dt>
-                    <dd>{video.data.privacy_status ? t(`episode.youtubePrivacy.${video.data.privacy_status as "public"}`) : "—"}</dd>
+                    <dd>
+                      {video.data.privacy_status
+                        ? t(`episode.youtubePrivacy.${video.data.privacy_status as "public"}`)
+                        : "—"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted">{t("episode.fetchedLabel")}</dt>
-                    <dd>{new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short", timeZone: tz }).format(new Date(video.data.fetched_at))}</dd>
+                    <dd>
+                      {new Intl.DateTimeFormat("es", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: tz,
+                      }).format(new Date(video.data.fetched_at))}
+                    </dd>
                   </div>
                 </dl>
               ) : null}
@@ -231,10 +303,19 @@ export default async function EpisodePage({
           <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
             <Card>
               <CardBody>
-                <ChecklistPanel episodeId={row.id} steps={steps} done={[...done]} phase="after_publish" disabled={!canManage} />
+                <ChecklistPanel
+                  episodeId={row.id}
+                  steps={steps}
+                  done={[...done]}
+                  phase="after_publish"
+                  disabled={!canManage}
+                />
               </CardBody>
             </Card>
-            <EmptyState title={t("episode.tabs.distribution")} description={t("episode.tabPlaceholder.distribution")} />
+            <EmptyState
+              title={t("episode.tabs.distribution")}
+              description={t("episode.tabPlaceholder.distribution")}
+            />
           </div>
         ) : tab === "metrics" && video.data ? (
           <div className="space-y-6">
@@ -243,12 +324,17 @@ export default async function EpisodePage({
                 <Card key={k}>
                   <CardBody>
                     <p className="text-sm text-muted">{t(`episode.metric.${k}`)}</p>
-                    <p className="mt-1 text-2xl font-semibold">{video.data?.[k]?.toLocaleString("es") ?? "—"}</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {video.data?.[k]?.toLocaleString("es") ?? "—"}
+                    </p>
                   </CardBody>
                 </Card>
               ))}
             </div>
-            <EmptyState title={t("episode.tabs.metrics")} description={t("episode.tabPlaceholder.metrics")} />
+            <EmptyState
+              title={t("episode.tabs.metrics")}
+              description={t("episode.tabPlaceholder.metrics")}
+            />
           </div>
         ) : (
           <EmptyState

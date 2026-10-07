@@ -16,7 +16,12 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center rounded-xl border border-dashed border-border px-6 py-12 text-center", className)}>
+    <div
+      className={cn(
+        "flex flex-col items-center rounded-xl border border-dashed border-border px-6 py-12 text-center",
+        className,
+      )}
+    >
       {icon ? <div className="mb-3 text-muted">{icon}</div> : null}
       <h3 className="font-semibold">{title}</h3>
       <p className="mt-1 max-w-md text-sm text-muted">{description}</p>

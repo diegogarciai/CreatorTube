@@ -2,10 +2,23 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-xl border border-border bg-surface", className)} {...props} />;
+  return (
+    <div
+      className={cn("min-w-0 rounded-xl border border-border bg-surface", className)}
+      {...props}
+    />
+  );
 }
 
-export function CardHeader({ title, description, action }: { title: ReactNode; description?: ReactNode; action?: ReactNode }) {
+export function CardHeader({
+  title,
+  description,
+  action,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
       <div>

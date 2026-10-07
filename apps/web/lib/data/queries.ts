@@ -23,7 +23,11 @@ export const getPillars = cache(async (channelId: string, includeArchived = fals
 
 export const getChecklistSteps = cache(async (channelId: string): Promise<ChecklistStep[]> => {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from("checklist_steps").select("*").eq("channel_id", channelId).order("position");
+  const { data, error } = await supabase
+    .from("checklist_steps")
+    .select("*")
+    .eq("channel_id", channelId)
+    .order("position");
   if (error) throw error;
   return (data ?? []).map((s) => ({
     id: s.id,
@@ -37,7 +41,10 @@ export const getChecklistSteps = cache(async (channelId: string): Promise<Checkl
 /** Pasos marcados por episodio, para mostrar el progreso en listas. */
 export const getChecklistDone = cache(async (channelId: string) => {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from("episode_checklist_items").select("episode_id, step_id").eq("channel_id", channelId);
+  const { data, error } = await supabase
+    .from("episode_checklist_items")
+    .select("episode_id, step_id")
+    .eq("channel_id", channelId);
   if (error) throw error;
   const map = new Map<string, Set<string>>();
   for (const r of data ?? []) {

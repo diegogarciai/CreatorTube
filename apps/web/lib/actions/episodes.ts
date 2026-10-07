@@ -98,15 +98,18 @@ export async function changeEpisodeStatus(
   try {
     const to = episodeStatusSchema.parse(status);
     const { supabase, row, ctx, episode } = await loadEpisode(episodeId);
-    if (!canChangeStatus(ctx.role, episode.status, to) || !ctx.can("read")) throw new PermissionError();
-    if (episode.status !== to && !ctx.can("manage_episodes") && !ctx.can("edit_video")) throw new PermissionError();
+    if (!canChangeStatus(ctx.role, episode.status, to) || !ctx.can("read"))
+      throw new PermissionError();
+    if (episode.status !== to && !ctx.can("manage_episodes") && !ctx.can("edit_video"))
+      throw new PermissionError();
     const next = changeStatus(episode, to);
     const { error } = await supabase
       .from("episodes")
       .update({
         status: next.status,
         stage: next.stage,
-        ...(boardPosition !== undefined && ctx.can("manage_episodes") && { board_position: boardPosition }),
+        ...(boardPosition !== undefined &&
+          ctx.can("manage_episodes") && { board_position: boardPosition }),
       })
       .eq("id", episodeId);
     if (error) throw error;
@@ -193,7 +196,10 @@ export async function unlinkEpisodeVideo(episodeId: string): Promise<ActionResul
   try {
     const { supabase, row, ctx } = await loadEpisode(episodeId);
     if (!ctx.can("manage_episodes")) throw new PermissionError();
-    const { error } = await supabase.from("episodes").update({ youtube_video_id: null }).eq("id", episodeId);
+    const { error } = await supabase
+      .from("episodes")
+      .update({ youtube_video_id: null })
+      .eq("id", episodeId);
     if (error) throw error;
     revalidateEpisode(row.channel_id);
     return { ok: true };
@@ -202,7 +208,10 @@ export async function unlinkEpisodeVideo(episodeId: string): Promise<ActionResul
   }
 }
 
-export async function setEpisodeArchived(episodeId: string, archived: boolean): Promise<ActionResult> {
+export async function setEpisodeArchived(
+  episodeId: string,
+  archived: boolean,
+): Promise<ActionResult> {
   try {
     const { supabase, row, ctx } = await loadEpisode(episodeId);
     if (!ctx.can("manage_episodes")) throw new PermissionError();
@@ -240,15 +249,26 @@ export async function rescheduleEpisode(
   }
 }
 
-export async function toggleChecklistItem(episodeId: string, stepId: string, done: boolean): Promise<ActionResult> {
+export async function toggleChecklistItem(
+  episodeId: string,
+  stepId: string,
+  done: boolean,
+): Promise<ActionResult> {
   try {
     const { supabase, row, ctx } = await loadEpisode(episodeId);
     if (!ctx.can("manage_episodes") && !ctx.can("edit_video")) throw new PermissionError();
     const { error } = done
       ? await supabase
           .from("episode_checklist_items")
-          .upsert({ episode_id: episodeId, step_id: stepId, done_by: ctx.userId }, { onConflict: "episode_id,step_id", ignoreDuplicates: true })
-      : await supabase.from("episode_checklist_items").delete().eq("episode_id", episodeId).eq("step_id", stepId);
+          .upsert(
+            { episode_id: episodeId, step_id: stepId, done_by: ctx.userId },
+            { onConflict: "episode_id,step_id", ignoreDuplicates: true },
+          )
+      : await supabase
+          .from("episode_checklist_items")
+          .delete()
+          .eq("episode_id", episodeId)
+          .eq("step_id", stepId);
     if (error) throw error;
     revalidateEpisode(row.channel_id);
     return { ok: true };

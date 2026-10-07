@@ -6,7 +6,15 @@ import { CalendarDays, CircleCheck, SquarePlay } from "lucide-react";
 import { formatDateKey, cn } from "@/lib/utils";
 import type { ProductionEpisode } from "./types";
 
-export function EpisodeCard({ episode, channelId, dragging }: { episode: ProductionEpisode; channelId: string; dragging?: boolean }) {
+export function EpisodeCard({
+  episode,
+  channelId,
+  dragging,
+}: {
+  episode: ProductionEpisode;
+  channelId: string;
+  dragging?: boolean;
+}) {
   const t = useTranslations();
   return (
     <div
@@ -17,7 +25,11 @@ export function EpisodeCard({ episode, channelId, dragging }: { episode: Product
     >
       <div className="flex items-start gap-2">
         {episode.pillar ? (
-          <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: episode.pillar.color }} title={episode.pillar.name} />
+          <span
+            className="mt-1.5 size-2 shrink-0 rounded-full"
+            style={{ background: episode.pillar.color }}
+            title={episode.pillar.name}
+          />
         ) : null}
         <Link
           href={`/c/${channelId}/episodios/${episode.id}`}
@@ -38,7 +50,9 @@ export function EpisodeCard({ episode, channelId, dragging }: { episode: Product
             <CircleCheck className="size-3" /> {episode.checklist.done}/{episode.checklist.total}
           </span>
         ) : null}
-        {episode.hasVideo ? <SquarePlay className="size-3" aria-label={t("episode.videoLinked")} /> : null}
+        {episode.hasVideo ? (
+          <SquarePlay className="size-3" aria-label={t("episode.videoLinked")} />
+        ) : null}
         <span className="ml-auto">{t(`format.${episode.format}`)}</span>
       </div>
     </div>

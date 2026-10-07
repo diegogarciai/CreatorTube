@@ -57,7 +57,10 @@ export function foldIcsLine(line: string): string {
 const compactDate = (key: DateKey) => key.replace(/-/g, "");
 
 function utcStamp(d: Date): string {
-  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return d
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
 }
 
 export function buildIcs(cal: IcsCalendar): string {

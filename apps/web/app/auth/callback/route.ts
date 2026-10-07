@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   const { error } = code
     ? await supabase.auth.exchangeCodeForSession(code)
     : tokenHash && type
-      ? await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as "magiclink" | "email" })
+      ? await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: type as "magiclink" | "email",
+        })
       : { error: new Error("missing code") };
 
   if (error) return NextResponse.redirect(new URL("/login?error=callback", origin));

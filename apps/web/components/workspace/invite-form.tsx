@@ -29,7 +29,11 @@ export function InviteForm({
     start(async () => {
       const email = String(form.get("email") ?? "");
       const res = workspaceId
-        ? await inviteMember(workspaceId, { email, role: String(form.get("role")), channelIds: selected.length ? selected : null })
+        ? await inviteMember(workspaceId, {
+            email,
+            role: String(form.get("role")),
+            channelIds: selected.length ? selected : null,
+          })
         : await inviteCreator({ email });
       if (!res.ok) toast.error(errorText(res.error));
       else setLink(res.data.link);
@@ -62,14 +66,20 @@ export function InviteForm({
           <fieldset className="sm:col-span-3">
             <legend className="mb-1.5 text-sm font-medium">{t("workspace.channels")}</legend>
             <div className="flex flex-wrap gap-3 text-sm">
-              <span className="text-muted">{selected.length === 0 ? t("workspace.allChannels") : null}</span>
+              <span className="text-muted">
+                {selected.length === 0 ? t("workspace.allChannels") : null}
+              </span>
               {channels.map((c) => (
                 <label key={c.id} className="flex items-center gap-1.5">
                   <input
                     type="checkbox"
                     className="accent-[var(--accent)]"
                     checked={selected.includes(c.id)}
-                    onChange={(e) => setSelected((s) => (e.target.checked ? [...s, c.id] : s.filter((x) => x !== c.id)))}
+                    onChange={(e) =>
+                      setSelected((s) =>
+                        e.target.checked ? [...s, c.id] : s.filter((x) => x !== c.id),
+                      )
+                    }
                   />
                   {c.name}
                 </label>

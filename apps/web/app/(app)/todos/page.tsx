@@ -18,7 +18,14 @@ export default async function AllChannelsPage() {
   const [channels, memberships] = await Promise.all([getMyChannels(), getMyMemberships()]);
   const supabase = await getSupabase();
   const { data: rows } = channels.length
-    ? await supabase.from("episodes").select("*").in("channel_id", channels.map((c) => c.id)).is("archived_at", null)
+    ? await supabase
+        .from("episodes")
+        .select("*")
+        .in(
+          "channel_id",
+          channels.map((c) => c.id),
+        )
+        .is("archived_at", null)
     : { data: [] };
   const now = new Date();
 
@@ -32,18 +39,31 @@ export default async function AllChannelsPage() {
           return (
             <section key={m.workspaceId}>
               {memberships.length > 1 ? (
-                <h2 className="mb-3 text-sm font-semibold text-muted">{t("allChannels.workspaceGroup", { name: m.workspaceName })}</h2>
+                <h2 className="mb-3 text-sm font-semibold text-muted">
+                  {t("allChannels.workspaceGroup", { name: m.workspaceName })}
+                </h2>
               ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 {wsChannels.map((c) => {
-                  const eps = (rows ?? []).filter((r) => r.channel_id === c.id).map((r) => toPlannedEpisode(r, c.timezone));
-                  const o = computeOverview({ channelId: c.id, weeklyGoal: c.weekly_goal, episodes: eps, today: localDateKey(now, c.timezone), now });
+                  const eps = (rows ?? [])
+                    .filter((r) => r.channel_id === c.id)
+                    .map((r) => toPlannedEpisode(r, c.timezone));
+                  const o = computeOverview({
+                    channelId: c.id,
+                    weeklyGoal: c.weekly_goal,
+                    episodes: eps,
+                    today: localDateKey(now, c.timezone),
+                    now,
+                  });
                   const critical = o.alerts.filter((a) => a.severity === "critical").length;
                   return (
                     <Card key={c.id}>
                       <CardBody>
                         <div className="flex items-start justify-between gap-3">
-                          <Link href={`/c/${c.id}/inicio`} className="font-semibold hover:underline">
+                          <Link
+                            href={`/c/${c.id}/inicio`}
+                            className="font-semibold hover:underline"
+                          >
                             {c.name}
                           </Link>
                           <Badge tone={o.coverage.missing === 0 ? "ok" : "warn"}>
@@ -56,10 +76,21 @@ export default async function AllChannelsPage() {
                         </p>
                         <ul className="mt-3 space-y-1 text-sm">
                           {o.alerts.slice(0, 3).map((a, i) => (
-                            <li key={i} className={a.severity === "critical" ? "text-critical" : a.severity === "warning" ? "text-warn" : "text-muted"}>
+                            <li
+                              key={i}
+                              className={
+                                a.severity === "critical"
+                                  ? "text-critical"
+                                  : a.severity === "warning"
+                                    ? "text-warn"
+                                    : "text-muted"
+                              }
+                            >
                               {t(`alerts.${a.kind}`, {
                                 ...a.params,
-                                ...(typeof a.params.weekStart === "string" && { weekStart: formatDateKey(a.params.weekStart) }),
+                                ...(typeof a.params.weekStart === "string" && {
+                                  weekStart: formatDateKey(a.params.weekStart),
+                                }),
                               })}
                             </li>
                           ))}
@@ -68,9 +99,16 @@ export default async function AllChannelsPage() {
                           <ul className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
                             {o.upcoming.slice(0, 4).map((u) => (
                               <li key={`${u.episodeId}-${u.kind}`} className="flex gap-2">
-                                <span className="w-16 shrink-0 text-muted">{formatDateKey(u.date, { weekday: "short", day: "numeric" })}</span>
-                                <span className="text-muted">{u.kind === "publish" ? "▶" : "●"}</span>
-                                <Link href={`/c/${c.id}/episodios/${u.episodeId}`} className="truncate hover:underline">
+                                <span className="w-16 shrink-0 text-muted">
+                                  {formatDateKey(u.date, { weekday: "short", day: "numeric" })}
+                                </span>
+                                <span className="text-muted">
+                                  {u.kind === "publish" ? "▶" : "●"}
+                                </span>
+                                <Link
+                                  href={`/c/${c.id}/episodios/${u.episodeId}`}
+                                  className="truncate hover:underline"
+                                >
                                   {u.title}
                                 </Link>
                               </li>

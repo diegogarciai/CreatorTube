@@ -26,7 +26,8 @@ export function MemberControls({
   const t = useTranslations();
   const errorText = useActionError();
   const [pending, start] = useTransition();
-  if (!assignable.includes(role)) return <span className="text-sm text-muted">{t(`role.${role}`)}</span>;
+  if (!assignable.includes(role))
+    return <span className="text-sm text-muted">{t(`role.${role}`)}</span>;
   return (
     <div className="flex items-center gap-2">
       <Select
@@ -36,7 +37,10 @@ export function MemberControls({
         disabled={pending}
         onChange={(e) =>
           start(async () => {
-            const res = await updateMember(workspaceId, userId, { role: e.target.value as Role, channelIds });
+            const res = await updateMember(workspaceId, userId, {
+              role: e.target.value as Role,
+              channelIds,
+            });
             if (!res.ok) toast.error(errorText(res.error));
           })
         }

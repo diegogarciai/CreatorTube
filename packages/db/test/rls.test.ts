@@ -50,9 +50,9 @@ describe("registro por invitación", () => {
 
   it("solo supabase_auth_admin ejecuta el hook", async () => {
     const u = await createUser();
-    await expect(as(u.id, (q) => q("select public.hook_before_user_created('{}')"))).rejects.toThrow(
-      /permission denied/,
-    );
+    await expect(
+      as(u.id, (q) => q("select public.hook_before_user_created('{}')")),
+    ).rejects.toThrow(/permission denied/);
   });
 });
 
@@ -72,10 +72,18 @@ describe("invitaciones", () => {
     expect(preview).toMatchObject({ kind: "platform", expired: false, accepted: false });
     expect(preview.email_hint).toMatch(/\*\*\*@example\.com$/);
 
-    const ws = await as(guest.id, async (q) => (await q("select public.accept_invitation('tok-a', 'Mi agencia') as ws"))[0].ws);
-    const [m] = await sql("select role from public.memberships where workspace_id = $1 and user_id = $2", [ws, guest.id]);
+    const ws = await as(
+      guest.id,
+      async (q) => (await q("select public.accept_invitation('tok-a', 'Mi agencia') as ws"))[0].ws,
+    );
+    const [m] = await sql(
+      "select role from public.memberships where workspace_id = $1 and user_id = $2",
+      [ws, guest.id],
+    );
     expect(m.role).toBe("owner");
-    await expect(as(guest.id, (q) => q("select public.accept_invitation('tok-a')"))).rejects.toThrow(/ya fue usada/);
+    await expect(
+      as(guest.id, (q) => q("select public.accept_invitation('tok-a')")),
+    ).rejects.toThrow(/ya fue usada/);
   });
 
   it("no se acepta con otro correo", async () => {
@@ -83,7 +91,9 @@ describe("invitaciones", () => {
     await sql(
       "insert into public.invitations (kind, email, token_hash) values ('platform', 'otra@example.com', public.hash_invitation_token('tok-b'))",
     );
-    await expect(as(intruder.id, (q) => q("select public.accept_invitation('tok-b')"))).rejects.toThrow(/otro correo/);
+    await expect(
+      as(intruder.id, (q) => q("select public.accept_invitation('tok-b')")),
+    ).rejects.toThrow(/otro correo/);
   });
 
   it("administradores invitan a su espacio; productores no; nadie invita propietarios", async () => {
@@ -103,14 +113,15 @@ describe("invitaciones", () => {
     await expect(insert(owner.id, "owner", "tok-e")).rejects.toThrow();
 
     const editor = await createUser();
-    await sql("update public.invitations set email = $1 where token_hash = public.hash_invitation_token('tok-c')", [
-      editor.email,
-    ]);
+    await sql(
+      "update public.invitations set email = $1 where token_hash = public.hash_invitation_token('tok-c')",
+      [editor.email],
+    );
     await as(editor.id, (q) => q("select public.accept_invitation('tok-c')"));
-    const [m] = await sql("select role from public.memberships where workspace_id = $1 and user_id = $2", [
-      ws,
-      editor.id,
-    ]);
+    const [m] = await sql(
+      "select role from public.memberships where workspace_id = $1 and user_id = $2",
+      [ws, editor.id],
+    );
     expect(m.role).toBe("video_editor");
   });
 });
@@ -139,11 +150,16 @@ describe("aislamiento entre espacios", () => {
 
   it("no puede escribir en canales ajenos ni falsear el espacio", async () => {
     await expect(
-      as(alice.id, (q) => q("insert into public.episodes (channel_id, title) values ($1, 'x')", [chB])),
+      as(alice.id, (q) =>
+        q("insert into public.episodes (channel_id, title) values ($1, 'x')", [chB]),
+      ),
     ).rejects.toThrow(/row-level security/);
     await expect(
       as(alice.id, (q) =>
-        q("insert into public.episodes (channel_id, workspace_id, title) values ($1, $2, 'x')", [chB, wsA]),
+        q("insert into public.episodes (channel_id, workspace_id, title) values ($1, $2, 'x')", [
+          chB,
+          wsA,
+        ]),
       ),
     ).rejects.toThrow(/row-level security/);
     const updated = await as(alice.id, (q) =>
@@ -154,20 +170,25 @@ describe("aislamiento entre espacios", () => {
 
   it("el espacio de una fila siempre sale del canal", async () => {
     const [row] = await as(alice.id, (q) =>
-      q("insert into public.episodes (channel_id, workspace_id, title) values ($1, $1, 'ok') returning workspace_id", [
-        chA,
-      ]),
+      q(
+        "insert into public.episodes (channel_id, workspace_id, title) values ($1, $1, 'ok') returning workspace_id",
+        [chA],
+      ),
     );
     expect(row.workspace_id).toBe(wsA);
   });
 
   it("crear un canal devuelve la fila (insert ... returning)", async () => {
     const rows = await as(alice.id, (q) =>
-      q("insert into public.channels (workspace_id, name) values ($1, 'Nuevo') returning id", [wsA]),
+      q("insert into public.channels (workspace_id, name) values ($1, 'Nuevo') returning id", [
+        wsA,
+      ]),
     );
     expect(rows).toHaveLength(1);
     await expect(
-      as(alice.id, (q) => q("insert into public.channels (workspace_id, name) values ($1, 'Intruso')", [wsB])),
+      as(alice.id, (q) =>
+        q("insert into public.channels (workspace_id, name) values ($1, 'Intruso')", [wsB]),
+      ),
     ).rejects.toThrow(/row-level security/);
   });
 
@@ -188,11 +209,15 @@ describe("aislamiento entre espacios", () => {
   });
 
   it("los visitantes sin sesión no leen nada", async () => {
-    await expect(as(null, (q) => q("select * from public.episodes"))).rejects.toThrow(/permission denied/);
+    await expect(as(null, (q) => q("select * from public.episodes"))).rejects.toThrow(
+      /permission denied/,
+    );
   });
 
   it("la purga solo la ejecuta el servidor", async () => {
-    await expect(as(alice.id, (q) => q("select public.purge_youtube_data()"))).rejects.toThrow(/permission denied/);
+    await expect(as(alice.id, (q) => q("select public.purge_youtube_data()"))).rejects.toThrow(
+      /permission denied/,
+    );
   });
 });
 
@@ -221,28 +246,40 @@ describe("roles dentro de un espacio", () => {
 
   it("el editor de video pasa a En edición pero no cambia otra cosa", async () => {
     await as(editor.id, (q) =>
-      q("update public.episodes set status = 'editing', stage = 'publication' where id = $1", [ep1]),
+      q("update public.episodes set status = 'editing', stage = 'publication' where id = $1", [
+        ep1,
+      ]),
     );
     await expect(
       as(editor.id, (q) => q("update public.episodes set title = 'otro' where id = $1", [ep1])),
     ).rejects.toThrow(/solo puede cambiar el estado/);
     await expect(
-      as(editor.id, (q) => q("update public.episodes set status = 'published' where id = $1", [ep1])),
+      as(editor.id, (q) =>
+        q("update public.episodes set status = 'published' where id = $1", [ep1]),
+      ),
     ).rejects.toThrow(/no puede mover/);
   });
 
   it("el guionista crea ideas pero no episodios", async () => {
-    await as(writer.id, (q) => q("insert into public.ideas (channel_id, title) values ($1, 'Idea')", [ch2]));
+    await as(writer.id, (q) =>
+      q("insert into public.ideas (channel_id, title) values ($1, 'Idea')", [ch2]),
+    );
     await expect(
-      as(writer.id, (q) => q("insert into public.episodes (channel_id, title) values ($1, 'x')", [ch2])),
+      as(writer.id, (q) =>
+        q("insert into public.episodes (channel_id, title) values ($1, 'x')", [ch2]),
+      ),
     ).rejects.toThrow(/row-level security/);
   });
 
   it("el lector no cambia nada", async () => {
-    const rows = await as(viewer.id, (q) => q("update public.episodes set title = 'x' where id = $1 returning id", [ep1]));
+    const rows = await as(viewer.id, (q) =>
+      q("update public.episodes set title = 'x' where id = $1 returning id", [ep1]),
+    );
     expect(rows).toEqual([]);
     await expect(
-      as(viewer.id, (q) => q("insert into public.ideas (channel_id, title) values ($1, 'x')", [ch1])),
+      as(viewer.id, (q) =>
+        q("insert into public.ideas (channel_id, title) values ($1, 'x')", [ch1]),
+      ),
     ).rejects.toThrow(/row-level security/);
   });
 
@@ -251,7 +288,9 @@ describe("roles dentro de un espacio", () => {
     const [r] = await as(owner.id, (q) => q("select public.regenerate_ics_token($1) as t", [ch1]));
     expect(r.t).not.toBe(before.ics_token);
     expect(r.t).toMatch(/^[0-9a-f]{64}$/);
-    await expect(as(viewer.id, (q) => q("select public.regenerate_ics_token($1)", [ch1]))).rejects.toThrow(/Sin permiso/);
+    await expect(
+      as(viewer.id, (q) => q("select public.regenerate_ics_token($1)", [ch1])),
+    ).rejects.toThrow(/Sin permiso/);
   });
 });
 
@@ -267,9 +306,18 @@ describe("episodios y checklists", () => {
 
   it("número consecutivo por canal y código con prefijo", async () => {
     const rows = await as(owner.id, async (q) => [
-      ...(await q("insert into public.episodes (channel_id, title) values ($1, 'a') returning number, code", [ch])),
-      ...(await q("insert into public.episodes (channel_id, title) values ($1, 'b') returning number, code", [ch])),
-      ...(await q("insert into public.episodes (channel_id, title) values ($1, 'c') returning number, code", [other])),
+      ...(await q(
+        "insert into public.episodes (channel_id, title) values ($1, 'a') returning number, code",
+        [ch],
+      )),
+      ...(await q(
+        "insert into public.episodes (channel_id, title) values ($1, 'b') returning number, code",
+        [ch],
+      )),
+      ...(await q(
+        "insert into public.episodes (channel_id, title) values ($1, 'c') returning number, code",
+        [other],
+      )),
     ]);
     expect(rows.map((r) => r.number)).toEqual([1, 2, 1]);
     expect(rows[0].code).toMatch(/^GT-\d{6}-\d{4}$/);
@@ -278,16 +326,23 @@ describe("episodios y checklists", () => {
 
   it("el número y el código no se pueden cambiar; el estado registra su fecha y actividad", async () => {
     const ep = await createEpisode(ch, "Inmutable");
-    await sql("update public.episodes set status_changed_at = now() - interval '10 days' where id = $1", [ep]);
+    await sql(
+      "update public.episodes set status_changed_at = now() - interval '10 days' where id = $1",
+      [ep],
+    );
     const [row] = await as(owner.id, (q) =>
-      q("update public.episodes set number = 999, code = 'X', status = 'script' where id = $1 returning number, code, status_changed_at", [
-        ep,
-      ]),
+      q(
+        "update public.episodes set number = 999, code = 'X', status = 'script' where id = $1 returning number, code, status_changed_at",
+        [ep],
+      ),
     );
     expect(row.number).not.toBe(999);
     expect(row.code).not.toBe("X");
     expect(Date.now() - new Date(row.status_changed_at).getTime()).toBeLessThan(60_000);
-    const log = await sql("select action, details from public.activity_log where episode_id = $1 order by id", [ep]);
+    const log = await sql(
+      "select action, details from public.activity_log where episode_id = $1 order by id",
+      [ep],
+    );
     expect(log.map((l) => l.action)).toEqual(["episode.created", "episode.status_changed"]);
     expect(log[1].details).toMatchObject({ from: "planned", to: "script" });
   });
@@ -303,18 +358,25 @@ describe("episodios y checklists", () => {
     );
     const ep = await createEpisode(ch, "Con checklist");
     await as(owner.id, (q) =>
-      q("insert into public.episode_checklist_items (episode_id, step_id, done_by) values ($1, $2, $3)", [
-        ep,
-        step!.id,
-        owner.id,
-      ]),
+      q(
+        "insert into public.episode_checklist_items (episode_id, step_id, done_by) values ($1, $2, $3)",
+        [ep, step!.id, owner.id],
+      ),
     );
-    await sql("update public.checklist_steps set label = 'Miniatura final' where id = $1", [step!.id]);
-    const items = await sql("select step_id, channel_id from public.episode_checklist_items where episode_id = $1", [ep]);
+    await sql("update public.checklist_steps set label = 'Miniatura final' where id = $1", [
+      step!.id,
+    ]);
+    const items = await sql(
+      "select step_id, channel_id from public.episode_checklist_items where episode_id = $1",
+      [ep],
+    );
     expect(items).toEqual([{ step_id: step!.id, channel_id: ch }]);
     await expect(
       as(owner.id, (q) =>
-        q("insert into public.episode_checklist_items (episode_id, step_id) values ($1, $2)", [ep, foreign!.id]),
+        q("insert into public.episode_checklist_items (episode_id, step_id) values ($1, $2)", [
+          ep,
+          foreign!.id,
+        ]),
       ),
     ).rejects.toThrow(/no pertenece al canal/);
   });
@@ -322,7 +384,9 @@ describe("episodios y checklists", () => {
   it("una fila no se muda de canal", async () => {
     const ep = await createEpisode(ch, "Fijo");
     await expect(
-      as(owner.id, (q) => q("update public.episodes set channel_id = $1 where id = $2", [other, ep])),
+      as(owner.id, (q) =>
+        q("update public.episodes set channel_id = $1 where id = $2", [other, ep]),
+      ),
     ).rejects.toThrow(/otro canal/);
   });
 });
@@ -343,9 +407,10 @@ describe("retención de datos de YouTube", () => {
     await sql("update public.channels set disconnected_at = now() where id = $1", [gone]);
     const [r] = await sql("select public.purge_youtube_data() as r");
     expect(r.r.disconnected_deleted).toBeGreaterThanOrEqual(1);
-    const rows = await sql("select video_id, title from public.youtube_videos where channel_id = any($1) order by video_id", [
-      [live, gone],
-    ]);
+    const rows = await sql(
+      "select video_id, title from public.youtube_videos where channel_id = any($1) order by video_id",
+      [[live, gone]],
+    );
     expect(rows).toEqual([
       { video_id: "aaaaaaaaaaa", title: null },
       { video_id: "bbbbbbbbbbb", title: "nuevo" },

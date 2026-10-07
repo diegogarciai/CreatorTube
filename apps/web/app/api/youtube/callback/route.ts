@@ -25,7 +25,11 @@ export async function GET(request: NextRequest) {
   const user = await getUser();
   if (!user) return NextResponse.redirect(new URL("/login", origin));
 
-  const state = verifyState(searchParams.get("state") ?? "", stateKey(), request.cookies.get(NONCE_COOKIE)?.value);
+  const state = verifyState(
+    searchParams.get("state") ?? "",
+    stateKey(),
+    request.cookies.get(NONCE_COOKIE)?.value,
+  );
   if (!state || state.userId !== user.id) return fail("youtube_state");
 
   // Permiso revalidado al volver de Google.
@@ -44,7 +48,8 @@ export async function GET(request: NextRequest) {
       .eq("youtube_channel_id", info.id)
       .maybeSingle();
     if (existing && existing.workspace_id !== state.workspaceId) return fail("youtube_taken");
-    if (state.channelId && existing && existing.id !== state.channelId) return fail("youtube_taken");
+    if (state.channelId && existing && existing.id !== state.channelId)
+      return fail("youtube_taken");
 
     let channelId = state.channelId ?? existing?.id ?? null;
     const isNew = !channelId;
@@ -55,7 +60,11 @@ export async function GET(request: NextRequest) {
       disconnected_at: null,
     };
     if (channelId) {
-      const { data: ch } = await admin.from("channels").select("workspace_id").eq("id", channelId).single();
+      const { data: ch } = await admin
+        .from("channels")
+        .select("workspace_id")
+        .eq("id", channelId)
+        .single();
       if (ch?.workspace_id !== state.workspaceId) return fail("forbidden");
       const { error } = await admin.from("channels").update(youtubeFields).eq("id", channelId);
       if (error) throw error;

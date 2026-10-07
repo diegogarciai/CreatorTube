@@ -65,10 +65,16 @@ export default async function ProductionPage({
       };
     });
 
-  const href = (v: string, arch = showArchived) => `/c/${channelId}/produccion?vista=${v}${arch ? "&archivados=1" : ""}`;
-  const newButton = ctx.can("manage_episodes") ? (
-    <NewEpisodeButton channelId={channelId} pillars={pillars.filter((p) => !p.archived_at).map((p) => ({ id: p.id, name: p.name }))} />
-  ) : null;
+  const href = (v: string, arch = showArchived) =>
+    `/c/${channelId}/produccion?vista=${v}${arch ? "&archivados=1" : ""}`;
+  const newButton = (autoOpen: boolean) =>
+    ctx.can("manage_episodes") ? (
+      <NewEpisodeButton
+        autoOpen={autoOpen}
+        channelId={channelId}
+        pillars={pillars.filter((p) => !p.archived_at).map((p) => ({ id: p.id, name: p.name }))}
+      />
+    ) : null;
 
   return (
     <Page wide>
@@ -90,15 +96,26 @@ export default async function ProductionPage({
                 </Link>
               ))}
             </div>
-            <Link href={href(view, !showArchived)} className={cn("self-center text-sm", showArchived ? "text-accent" : "text-muted hover:text-text")}>
+            <Link
+              href={href(view, !showArchived)}
+              className={cn(
+                "self-center text-sm",
+                showArchived ? "text-accent" : "text-muted hover:text-text",
+              )}
+            >
               {t("showArchived")}
             </Link>
-            {newButton}
+            {newButton(true)}
           </>
         }
       />
       {episodes.length === 0 && !showArchived ? (
-        <EmptyState icon={<Clapperboard className="size-8" />} title={t("emptyTitle")} description={t("emptyDesc")} action={newButton} />
+        <EmptyState
+          icon={<Clapperboard className="size-8" />}
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
+          action={newButton(false)}
+        />
       ) : view === "tablero" ? (
         <Board episodes={episodes} channelId={channelId} role={ctx.role} />
       ) : view === "lista" ? (

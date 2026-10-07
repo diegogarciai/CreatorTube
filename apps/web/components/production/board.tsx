@@ -16,7 +16,12 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { canChangeStatus, EPISODE_STATUSES, type EpisodeStatus, type Role } from "@planificador/core";
+import {
+  canChangeStatus,
+  EPISODE_STATUSES,
+  type EpisodeStatus,
+  type Role,
+} from "@planificador/core";
 import { changeEpisodeStatus } from "@/lib/actions/episodes";
 import { useActionError } from "@/lib/use-action-error";
 import { cn } from "@/lib/utils";
@@ -27,7 +32,15 @@ import type { ProductionEpisode } from "./types";
  * Tablero con los 6 estados. Arrastre con ratón, teclado y pantalla táctil
  * (mantener presionado 200 ms para arrastrar sin bloquear el desplazamiento).
  */
-export function Board({ episodes, channelId, role }: { episodes: ProductionEpisode[]; channelId: string; role: Role }) {
+export function Board({
+  episodes,
+  channelId,
+  role,
+}: {
+  episodes: ProductionEpisode[];
+  channelId: string;
+  role: Role;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [items, setItems] = useState(episodes);
@@ -73,24 +86,51 @@ export function Board({ episodes, channelId, role }: { episodes: ProductionEpiso
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
         {EPISODE_STATUSES.map((status) => (
-          <Column key={status} status={status} title={t(`status.${status}`)} emptyText={t("production.emptyColumn")}>
+          <Column
+            key={status}
+            status={status}
+            title={t(`status.${status}`)}
+            emptyText={t("production.emptyColumn")}
+          >
             {items
               .filter((e) => e.status === status)
               .map((e) => (
-                <DraggableCard key={e.id} episode={e} channelId={channelId} hidden={e.id === activeId} />
+                <DraggableCard
+                  key={e.id}
+                  episode={e}
+                  channelId={channelId}
+                  hidden={e.id === activeId}
+                />
               ))}
           </Column>
         ))}
       </div>
-      <DragOverlay>{active ? <EpisodeCard episode={active} channelId={channelId} dragging /> : null}</DragOverlay>
+      <DragOverlay>
+        {active ? <EpisodeCard episode={active} channelId={channelId} dragging /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }
 
-function Column({ status, title, emptyText, children }: { status: EpisodeStatus; title: string; emptyText: string; children: React.ReactNode[] }) {
+function Column({
+  status,
+  title,
+  emptyText,
+  children,
+}: {
+  status: EpisodeStatus;
+  title: string;
+  emptyText: string;
+  children: React.ReactNode[];
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
     <section
@@ -105,16 +145,33 @@ function Column({ status, title, emptyText, children }: { status: EpisodeStatus;
         {title} <span className="text-xs font-normal text-muted">{children.length}</span>
       </h2>
       <div className="flex min-h-24 flex-1 flex-col gap-2">
-        {children.length ? children : <p className="px-2 py-6 text-center text-xs text-muted">{emptyText}</p>}
+        {children.length ? (
+          children
+        ) : (
+          <p className="px-2 py-6 text-center text-xs text-muted">{emptyText}</p>
+        )}
       </div>
     </section>
   );
 }
 
-function DraggableCard({ episode, channelId, hidden }: { episode: ProductionEpisode; channelId: string; hidden: boolean }) {
+function DraggableCard({
+  episode,
+  channelId,
+  hidden,
+}: {
+  episode: ProductionEpisode;
+  channelId: string;
+  hidden: boolean;
+}) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: episode.id });
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} className={cn("touch-manipulation", hidden && "opacity-30")}>
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn("touch-manipulation", hidden && "opacity-30")}
+    >
       <EpisodeCard episode={episode} channelId={channelId} />
     </div>
   );

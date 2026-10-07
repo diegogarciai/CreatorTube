@@ -22,11 +22,16 @@ export async function GET(request: NextRequest) {
 
   const { data: conns, error } = await admin
     .from("channel_connections")
-    .select("channel_id, last_synced_at, quota_day, quota_used, channel:channels(timezone, disconnected_at)")
+    .select(
+      "channel_id, last_synced_at, quota_day, quota_used, channel:channels(timezone, disconnected_at)",
+    )
     .eq("status", "active");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let usedToday = (conns ?? []).reduce((sum, c) => sum + (c.quota_day === today ? c.quota_used : 0), 0);
+  let usedToday = (conns ?? []).reduce(
+    (sum, c) => sum + (c.quota_day === today ? c.quota_used : 0),
+    0,
+  );
   const results = [];
   for (const conn of conns ?? []) {
     if (!conn.channel || conn.channel.disconnected_at) continue;
@@ -44,14 +49,22 @@ export async function GET(request: NextRequest) {
       lastSyncedAt: conn.last_synced_at ? new Date(conn.last_synced_at) : null,
       now,
       timezone: tz,
-      upcomingPublishDates: (upcoming ?? []).flatMap((e) => (e.publish_date ? [e.publish_date] : [])),
+      upcomingPublishDates: (upcoming ?? []).flatMap((e) =>
+        e.publish_date ? [e.publish_date] : [],
+      ),
       hasScheduled: (upcoming ?? []).some((e) => e.status === "scheduled"),
     });
     if (!due) continue;
     const r = await syncChannelById(admin, conn.channel_id);
     if (r) {
       usedToday += r.quotaUsed;
-      results.push({ channel: r.channelId, ok: r.ok, videos: r.videos, advanced: r.advanced, error: r.error });
+      results.push({
+        channel: r.channelId,
+        ok: r.ok,
+        videos: r.videos,
+        advanced: r.advanced,
+        error: r.error,
+      });
     }
   }
   return NextResponse.json({ synced: results.length, quotaUsedToday: usedToday, results });

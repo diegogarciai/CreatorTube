@@ -13,7 +13,9 @@ export default async function LandingPage() {
   return (
     <div className="mx-auto max-w-5xl px-6">
       <section className="py-16 sm:py-24">
-        <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">{t("title")}</h1>
+        <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">
+          {t("title")}
+        </h1>
         <p className="mt-5 max-w-2xl text-lg text-muted">{t("subtitle")}</p>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link href="/login" className={buttonClass("primary", "lg")}>

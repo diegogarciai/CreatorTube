@@ -913,8 +913,7 @@ export type Database = {
           email?: string;
           created_at?: string;
         };
-        Relationships: [
-        ];
+        Relationships: [];
       };
       profiles: {
         Row: {
@@ -944,8 +943,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [
-        ];
+        Relationships: [];
       };
       tasks: {
         Row: {
@@ -1379,7 +1377,13 @@ export type Database = {
       };
       channel_connection_info: {
         Args: { ch: string };
-        Returns: { status: Database["public"]["Enums"]["connection_status"]; scopes: string[]; last_verified_at: string; last_synced_at: string; last_error: string }[];
+        Returns: {
+          status: Database["public"]["Enums"]["connection_status"];
+          scopes: string[];
+          last_verified_at: string;
+          last_synced_at: string;
+          last_error: string;
+        }[];
       };
       create_workspace: {
         Args: { workspace_name: string };
@@ -1411,7 +1415,14 @@ export type Database = {
       };
       invitation_preview: {
         Args: { token: string };
-        Returns: { kind: Database["public"]["Enums"]["invitation_kind"]; workspace_name: string; role: Database["public"]["Enums"]["workspace_role"]; email_hint: string; expired: boolean; accepted: boolean }[];
+        Returns: {
+          kind: Database["public"]["Enums"]["invitation_kind"];
+          workspace_name: string;
+          role: Database["public"]["Enums"]["workspace_role"];
+          email_hint: string;
+          expired: boolean;
+          accepted: boolean;
+        }[];
       };
       is_platform_admin: {
         Args: Record<PropertyKey, never>;
@@ -1441,7 +1452,16 @@ export type Database = {
     Enums: {
       checklist_phase: "before_publish" | "after_publish";
       connection_status: "active" | "needs_reauth" | "revoked";
-      episode_stage: "planning" | "direction" | "script" | "verification" | "preparation" | "recording" | "publication" | "distribution" | "evaluation";
+      episode_stage:
+        | "planning"
+        | "direction"
+        | "script"
+        | "verification"
+        | "preparation"
+        | "recording"
+        | "publication"
+        | "distribution"
+        | "evaluation";
       episode_status: "planned" | "script" | "to_record" | "editing" | "scheduled" | "published";
       idea_origin: "recommendation" | "own" | "pain_point";
       idea_status: "new" | "in_progress" | "discarded";
@@ -1455,6 +1475,8 @@ export type Database = {
 
 type PublicSchema = Database["public"];
 export type Tables<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];
-export type TablesInsert<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Insert"];
-export type TablesUpdate<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Update"];
+export type TablesInsert<T extends keyof PublicSchema["Tables"]> =
+  PublicSchema["Tables"][T]["Insert"];
+export type TablesUpdate<T extends keyof PublicSchema["Tables"]> =
+  PublicSchema["Tables"][T]["Update"];
 export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T];

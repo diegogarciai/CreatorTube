@@ -11,7 +11,11 @@ import { getMyChannels, getMyMemberships, getSupabase, requireUser } from "@/lib
 
 export const metadata: Metadata = { title: "Espacio y equipo" };
 
-export default async function WorkspacePage({ params }: { params: Promise<{ workspaceId: string }> }) {
+export default async function WorkspacePage({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>;
+}) {
   const { workspaceId } = await params;
   const me = await requireUser();
   const mine = (await getMyMemberships()).find((m) => m.workspaceId === workspaceId);
@@ -21,7 +25,10 @@ export default async function WorkspacePage({ params }: { params: Promise<{ work
   const assignable = assignableRoles(mine.role);
   const canManage = assignable.length > 0;
   const [{ data: members }, { data: invitations }, channels] = await Promise.all([
-    supabase.from("memberships").select("user_id, role, channel_ids, profile:profiles(full_name, email)").eq("workspace_id", workspaceId),
+    supabase
+      .from("memberships")
+      .select("user_id, role, channel_ids, profile:profiles(full_name, email)")
+      .eq("workspace_id", workspaceId),
     canManage
       ? supabase
           .from("invitations")
@@ -38,7 +45,10 @@ export default async function WorkspacePage({ params }: { params: Promise<{ work
 
   return (
     <Page>
-      <PageHeader title={t("workspace.title")} description={canManage ? mine.workspaceName : t("workspace.readOnly")} />
+      <PageHeader
+        title={t("workspace.title")}
+        description={canManage ? mine.workspaceName : t("workspace.readOnly")}
+      />
       <div className="space-y-6">
         <Card>
           <CardHeader title={t("workspace.members")} />
@@ -48,15 +58,25 @@ export default async function WorkspacePage({ params }: { params: Promise<{ work
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">
                     {m.profile?.full_name || m.profile?.email}
-                    {m.user_id === me.id ? <span className="ml-2 text-xs text-muted">({t("workspace.you")})</span> : null}
+                    {m.user_id === me.id ? (
+                      <span className="ml-2 text-xs text-muted">({t("workspace.you")})</span>
+                    ) : null}
                   </p>
                   <p className="text-xs text-muted">
                     {m.profile?.email} ·{" "}
-                    {m.channel_ids ? m.channel_ids.map((id) => channelName.get(id) ?? "—").join(", ") : t("workspace.allChannels")}
+                    {m.channel_ids
+                      ? m.channel_ids.map((id) => channelName.get(id) ?? "—").join(", ")
+                      : t("workspace.allChannels")}
                   </p>
                 </div>
                 {canManage && m.user_id !== me.id ? (
-                  <MemberControls workspaceId={workspaceId} userId={m.user_id} role={m.role} channelIds={m.channel_ids} assignable={assignable} />
+                  <MemberControls
+                    workspaceId={workspaceId}
+                    userId={m.user_id}
+                    role={m.role}
+                    channelIds={m.channel_ids}
+                    assignable={assignable}
+                  />
                 ) : (
                   <Badge>{t(`role.${m.role}`)}</Badge>
                 )}
@@ -69,7 +89,11 @@ export default async function WorkspacePage({ params }: { params: Promise<{ work
             <Card>
               <CardHeader title={t("workspace.invite")} description={t("workspace.inviteDesc")} />
               <CardBody>
-                <InviteForm workspaceId={workspaceId} roles={assignable} channels={wsChannels.map((c) => ({ id: c.id, name: c.name }))} />
+                <InviteForm
+                  workspaceId={workspaceId}
+                  roles={assignable}
+                  channels={wsChannels.map((c) => ({ id: c.id, name: c.name }))}
+                />
               </CardBody>
             </Card>
             <Card>
@@ -80,7 +104,9 @@ export default async function WorkspacePage({ params }: { params: Promise<{ work
                     <li key={i.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
                       <span className="flex-1">{i.email}</span>
                       <Badge>{t(`role.${i.role}`)}</Badge>
-                      <span className="text-xs text-muted">{t("workspace.expires", { date: fmt.format(new Date(i.expires_at)) })}</span>
+                      <span className="text-xs text-muted">
+                        {t("workspace.expires", { date: fmt.format(new Date(i.expires_at)) })}
+                      </span>
                       <RevokeInvitationButton invitationId={i.id} />
                     </li>
                   ))}

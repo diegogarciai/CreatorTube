@@ -23,19 +23,26 @@ export function ChecklistPanel({
   const t = useTranslations();
   const errorText = useActionError();
   const [, start] = useTransition();
-  const [optimistic, setOptimistic] = useOptimistic(new Set(done), (state, { id, on }: { id: string; on: boolean }) => {
-    const next = new Set(state);
-    if (on) next.add(id);
-    else next.delete(id);
-    return next;
-  });
-  const active = steps.filter((s) => s.phase === phase && !s.archivedAt).sort((a, b) => a.position - b.position);
+  const [optimistic, setOptimistic] = useOptimistic(
+    new Set(done),
+    (state, { id, on }: { id: string; on: boolean }) => {
+      const next = new Set(state);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    },
+  );
+  const active = steps
+    .filter((s) => s.phase === phase && !s.archivedAt)
+    .sort((a, b) => a.position - b.position);
   const progress = checklistProgress(steps, optimistic, phase);
 
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-sm">
-        <h3 className="font-medium">{t(phase === "before_publish" ? "episode.checklistBefore" : "episode.checklistAfter")}</h3>
+        <h3 className="font-medium">
+          {t(phase === "before_publish" ? "episode.checklistBefore" : "episode.checklistAfter")}
+        </h3>
         <span className="text-muted">
           {progress.done}/{progress.total}
         </span>
@@ -61,7 +68,9 @@ export function ChecklistPanel({
                     });
                   }}
                 />
-                <span className={optimistic.has(s.id) ? "text-muted line-through" : ""}>{s.label}</span>
+                <span className={optimistic.has(s.id) ? "text-muted line-through" : ""}>
+                  {s.label}
+                </span>
               </label>
             </li>
           ))}

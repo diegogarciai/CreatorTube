@@ -230,9 +230,7 @@ export function canChangeStatus(role: Role, from: EpisodeStatus, to: EpisodeStat
   if (from === to) return true;
   if (can(role, "manage_episodes")) return true;
   if (can(role, "edit_video")) {
-    return (
-      (from === "to_record" && to === "editing") || (from === "editing" && to === "to_record")
-    );
+    return (from === "to_record" && to === "editing") || (from === "editing" && to === "to_record");
   }
   return false;
 }

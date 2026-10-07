@@ -78,10 +78,22 @@ export async function syncChannel(conn: StoredConnection, opts: SyncOptions): Pr
   let client: YouTubeClient | null = null;
   try {
     let accessToken = conn.accessToken;
-    if (!accessToken || !conn.tokenExpiresAt || conn.tokenExpiresAt.getTime() - now.getTime() < REFRESH_MARGIN_MS) {
+    if (
+      !accessToken ||
+      !conn.tokenExpiresAt ||
+      conn.tokenExpiresAt.getTime() - now.getTime() < REFRESH_MARGIN_MS
+    ) {
       if (!conn.refreshToken) throw new OAuthError("Sin refresh token", "invalid_grant", 400);
-      const tokens = await refreshAccessToken(opts.oauth, conn.refreshToken, fetchImpl, now.getTime());
-      await opts.store.saveTokens(conn.channelId, { ...tokens, refreshToken: tokens.refreshToken ?? conn.refreshToken });
+      const tokens = await refreshAccessToken(
+        opts.oauth,
+        conn.refreshToken,
+        fetchImpl,
+        now.getTime(),
+      );
+      await opts.store.saveTokens(conn.channelId, {
+        ...tokens,
+        refreshToken: tokens.refreshToken ?? conn.refreshToken,
+      });
       accessToken = tokens.accessToken;
     }
 
@@ -110,7 +122,10 @@ export async function syncChannel(conn: StoredConnection, opts: SyncOptions): Pr
     result.ok = true;
   } catch (err) {
     result.error = err instanceof Error ? err.message : String(err);
-    if ((err instanceof OAuthError && err.needsReauth) || (err instanceof YouTubeApiError && err.unauthorized)) {
+    if (
+      (err instanceof OAuthError && err.needsReauth) ||
+      (err instanceof YouTubeApiError && err.unauthorized)
+    ) {
       result.needsReauth = true;
       await opts.store.markNeedsReauth(conn.channelId, result.error);
     }

@@ -11,7 +11,13 @@ export function CopyField({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="flex gap-2">
-      <Input readOnly value={value} aria-label={label} onFocus={(e) => e.target.select()} className="font-mono text-xs" />
+      <Input
+        readOnly
+        value={value}
+        aria-label={label}
+        onFocus={(e) => e.target.select()}
+        className="font-mono text-xs"
+      />
       <Button
         variant="secondary"
         onClick={async () => {

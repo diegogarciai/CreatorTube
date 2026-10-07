@@ -32,7 +32,15 @@ export function ArchiveButton({ episodeId, archived }: { episodeId: string; arch
   );
 }
 
-export function VideoLink({ episodeId, videoId, canEdit }: { episodeId: string; videoId: string | null; canEdit: boolean }) {
+export function VideoLink({
+  episodeId,
+  videoId,
+  canEdit,
+}: {
+  episodeId: string;
+  videoId: string | null;
+  canEdit: boolean;
+}) {
   const t = useTranslations("episode");
   const errorText = useActionError();
   const [pending, start] = useTransition();
@@ -46,12 +54,22 @@ export function VideoLink({ episodeId, videoId, canEdit }: { episodeId: string; 
   if (videoId) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <a href={youTubeWatchUrl(videoId)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-accent hover:underline">
+        <a
+          href={youTubeWatchUrl(videoId)}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1 text-accent hover:underline"
+        >
           {t("videoLinked")} <ExternalLink className="size-3.5" />
         </a>
         <code className="rounded bg-surface-muted px-1.5 py-0.5 text-xs">{videoId}</code>
         {canEdit ? (
-          <Button variant="ghost" size="sm" disabled={pending} onClick={() => run(() => unlinkEpisodeVideo(episodeId))}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={pending}
+            onClick={() => run(() => unlinkEpisodeVideo(episodeId))}
+          >
             <Unlink className="size-4" /> {t("unlinkVideo")}
           </Button>
         ) : null}

@@ -12,7 +12,9 @@ export default async function AppEntry() {
   const last = (await cookies()).get("last_channel")?.value;
   const target = channels.find((c) => c.id === last) ?? channels[0];
   if (target) {
-    redirect(target.onboarding_completed_at ? `/c/${target.id}/inicio` : `/onboarding/canal/${target.id}`);
+    redirect(
+      target.onboarding_completed_at ? `/c/${target.id}/inicio` : `/onboarding/canal/${target.id}`,
+    );
   }
   if (memberships.some((m) => can(m.role, "configure_channel"))) redirect("/onboarding");
   const t = await getTranslations("onboarding");

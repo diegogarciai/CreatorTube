@@ -21,6 +21,8 @@ export function channelRhythm(c: Tables<"channels">): RhythmValues {
     weeklyGoal: c.weekly_goal,
     publishWeekdays: c.publish_weekdays,
     recordWeekdays: c.record_weekdays,
-    formats: c.formats.filter((f): f is EpisodeFormat => (FORMATS as readonly string[]).includes(f)),
+    formats: c.formats.filter((f): f is EpisodeFormat =>
+      (FORMATS as readonly string[]).includes(f),
+    ),
   };
 }

@@ -39,7 +39,9 @@ export function NextStepPanel({
 
   return (
     <div className="rounded-xl border border-accent/30 bg-accent-soft/50 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("episode.nextStep")}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+        {t("episode.nextStep")}
+      </p>
       {step.action === "link_video" && canAct ? (
         <form
           className="mt-2 flex flex-wrap gap-2"
@@ -71,11 +73,18 @@ export function NextStepPanel({
           </Button>
           {!step.available && step.action !== "done" && step.action !== "await_publication" ? (
             <span className="text-sm text-muted">
-              {step.availableFrom ? t("action.availableFrom", { date: formatDateKey(step.availableFrom) }) : t("common.comingInPhase", { phase })}
+              {step.availableFrom
+                ? t("action.availableFrom", { date: formatDateKey(step.availableFrom) })
+                : t("common.comingInPhase", { phase })}
             </span>
           ) : null}
           {step.canSkip && canSkip ? (
-            <Button variant="ghost" size="sm" disabled={pending} onClick={() => run(() => completeEpisodeStage(episodeId))}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              onClick={() => run(() => completeEpisodeStage(episodeId))}
+            >
               {t("action.skipStage")}
             </Button>
           ) : null}

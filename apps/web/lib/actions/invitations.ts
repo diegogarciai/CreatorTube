@@ -17,7 +17,8 @@ export async function acceptInvitation(token: string, formData: FormData) {
     token,
     workspace_name: workspaceName,
   });
-  if (error) redirect(`/invite/${encodeURIComponent(token)}?error=${encodeURIComponent(error.message)}`);
+  if (error)
+    redirect(`/invite/${encodeURIComponent(token)}?error=${encodeURIComponent(error.message)}`);
   revalidatePath("/", "layout");
   redirect(preview?.[0]?.kind === "platform" ? `/onboarding?workspace=${workspaceId}` : "/app");
 }
@@ -31,7 +32,11 @@ export async function inviteMember(
     const user = await requireUser();
     const parsed = invitationSchema.parse(input);
     const membership = (await getMyMemberships()).find((m) => m.workspaceId === workspaceId);
-    if (!membership || !assignableRoles(membership.role).includes(parsed.role) || parsed.role === "owner") {
+    if (
+      !membership ||
+      !assignableRoles(membership.role).includes(parsed.role) ||
+      parsed.role === "owner"
+    ) {
       return { ok: false, error: "errors.forbidden" };
     }
     const { token, hash } = newInvitationToken();
@@ -54,7 +59,9 @@ export async function inviteMember(
 }
 
 /** Invitación de plataforma: la persona crea su propio espacio. */
-export async function inviteCreator(input: { email: string }): Promise<ActionResult<{ link: string }>> {
+export async function inviteCreator(input: {
+  email: string;
+}): Promise<ActionResult<{ link: string }>> {
   try {
     const user = await requireUser();
     if (!(await isPlatformAdmin())) return { ok: false, error: "errors.forbidden" };
@@ -79,7 +86,10 @@ export async function inviteCreator(input: { email: string }): Promise<ActionRes
 export async function revokeInvitation(invitationId: string): Promise<ActionResult> {
   try {
     const supabase = await getSupabase();
-    const { error, count } = await supabase.from("invitations").delete({ count: "exact" }).eq("id", invitationId);
+    const { error, count } = await supabase
+      .from("invitations")
+      .delete({ count: "exact" })
+      .eq("id", invitationId);
     if (error) throw error;
     if (!count) return { ok: false, error: "errors.forbidden" };
     revalidatePath("/", "layout");

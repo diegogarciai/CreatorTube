@@ -23,7 +23,9 @@ await db.connect();
 try {
   await db.query(readFileSync(join(root, "test", "supabase-shim.sql"), "utf8"));
   const migDir = join(root, "supabase", "migrations");
-  for (const f of readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort()) {
+  for (const f of readdirSync(migDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
     await db.query(readFileSync(join(migDir, f), "utf8"));
   }
 
@@ -90,9 +92,36 @@ try {
   const scalar = (type) => {
     const t = type.replace(/^public\./, "");
     if (enumNames.has(t)) return `Database["public"]["Enums"]["${t}"]`;
-    if (["uuid", "text", "date", "timestamptz", "timestamp with time zone", "varchar", "character varying", "citext", "time", "bytea"].includes(t))
+    if (
+      [
+        "uuid",
+        "text",
+        "date",
+        "timestamptz",
+        "timestamp with time zone",
+        "varchar",
+        "character varying",
+        "citext",
+        "time",
+        "bytea",
+      ].includes(t)
+    )
       return "string";
-    if (["int2", "int4", "int8", "smallint", "integer", "bigint", "float4", "float8", "real", "double precision", "numeric"].includes(t))
+    if (
+      [
+        "int2",
+        "int4",
+        "int8",
+        "smallint",
+        "integer",
+        "bigint",
+        "float4",
+        "float8",
+        "real",
+        "double precision",
+        "numeric",
+      ].includes(t)
+    )
       return "number";
     if (["bool", "boolean"].includes(t)) return "boolean";
     if (["json", "jsonb"].includes(t)) return "Json";
@@ -100,7 +129,8 @@ try {
     return "unknown";
   };
   const fromFormatType = (ft) => (ft.endsWith("[]") ? `${scalar(ft.slice(0, -2))}[]` : scalar(ft));
-  const colType = (c) => (c.category === "A" ? `${scalar(c.elem_type.replace(/^_/, ""))}[]` : scalar(c.type));
+  const colType = (c) =>
+    c.category === "A" ? `${scalar(c.elem_type.replace(/^_/, ""))}[]` : scalar(c.type);
 
   const tables = new Map();
   for (const c of columns) {
@@ -113,7 +143,9 @@ try {
   p("// Archivo generado por scripts/gen-types.mjs a partir de las migraciones. No editar a mano.");
   p("// Regenerar con: pnpm --filter @planificador/db gen:types");
   p();
-  p("export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];");
+  p(
+    "export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];",
+  );
   p();
   p("export type Database = {");
   p("  public: {");
@@ -128,14 +160,22 @@ try {
     const hasChannel = cols.some((c) => c.column === "channel_id");
     const hasEpisode = cols.some((c) => c.column === "episode_id");
     const filledByTrigger = (col) =>
-      (col === "workspace_id" && (hasChannel || hasEpisode) && table !== "channels" && table !== "tasks" && table !== "usage_ledger" && table !== "activity_log") ||
-      (col === "channel_id" && ["episode_checklist_items", "episode_evaluations"].includes(table)) ||
+      (col === "workspace_id" &&
+        (hasChannel || hasEpisode) &&
+        table !== "channels" &&
+        table !== "tasks" &&
+        table !== "usage_ledger" &&
+        table !== "activity_log") ||
+      (col === "channel_id" &&
+        ["episode_checklist_items", "episode_evaluations"].includes(table)) ||
       (table === "episodes" && (col === "number" || col === "code"));
     for (const c of cols) {
       if (c.identity_always) p(`          ${c.column}?: never;`);
       else {
         const optional = c.nullable || c.has_default || filledByTrigger(c.column);
-        p(`          ${c.column}${optional ? "?" : ""}: ${colType(c)}${c.nullable ? " | null" : ""};`);
+        p(
+          `          ${c.column}${optional ? "?" : ""}: ${colType(c)}${c.nullable ? " | null" : ""};`,
+        );
       }
     }
     p("        };");
@@ -170,7 +210,8 @@ try {
     names.forEach((n, i) => {
       const mode = modes[i];
       if (mode === "i" || mode === "b") inArgs.push({ name: n, type: allTypes[i] });
-      if (mode === "o" || mode === "t" || mode === "b") outCols.push({ name: n, type: allTypes[i] });
+      if (mode === "o" || mode === "t" || mode === "b")
+        outCols.push({ name: n, type: allTypes[i] });
     });
     const firstDefault = inArgs.length - f.n_defaults;
     p(`      ${f.name}: {`);
@@ -182,7 +223,8 @@ try {
       };`,
     );
     let ret;
-    if (outCols.length) ret = `{ ${outCols.map((c) => `${c.name}: ${fromFormatType(c.type)}`).join("; ")} }[]`;
+    if (outCols.length)
+      ret = `{ ${outCols.map((c) => `${c.name}: ${fromFormatType(c.type)}`).join("; ")} }[]`;
     else ret = fromFormatType(f.return_type) + (f.returns_set ? "[]" : "");
     p(`        Returns: ${ret};`);
     p("      };");
@@ -196,12 +238,20 @@ try {
   p("};");
   p();
   p('type PublicSchema = Database["public"];');
-  p('export type Tables<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];');
-  p('export type TablesInsert<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Insert"];');
-  p('export type TablesUpdate<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Update"];');
+  p(
+    'export type Tables<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];',
+  );
+  p(
+    'export type TablesInsert<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Insert"];',
+  );
+  p(
+    'export type TablesUpdate<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Update"];',
+  );
   p('export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T];');
   writeFileSync(join(root, "src", "types.ts"), lines.join("\n") + "\n");
-  console.log(`Tipos generados: ${tables.size} tablas, ${functions.length} funciones, ${enums.length} enums.`);
+  console.log(
+    `Tipos generados: ${tables.size} tablas, ${functions.length} funciones, ${enums.length} enums.`,
+  );
 } finally {
   await db.end();
   const cleanup = new pg.Client({ connectionString: base });

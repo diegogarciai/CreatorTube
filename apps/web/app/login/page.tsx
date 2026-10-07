@@ -14,7 +14,11 @@ function safeNext(next: string | undefined) {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/app";
 }
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; error?: string }>;
+}) {
   const { next, error } = await searchParams;
   const t = await getTranslations("auth");
   const configured = SUPABASE_CONFIGURED();
@@ -37,7 +41,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <p className="mt-1 text-sm text-muted">{t("subtitle")}</p>
       {errorText ? (
-        <p role="alert" className="mt-4 rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">
+        <p
+          role="alert"
+          className="mt-4 rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical"
+        >
           {errorText}
         </p>
       ) : null}

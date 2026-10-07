@@ -77,7 +77,8 @@ export function Sidebar({
   }
 
   useEffect(() => {
-    if (channelId) document.cookie = `last_channel=${channelId}; path=/; max-age=31536000; samesite=lax`;
+    if (channelId)
+      document.cookie = `last_channel=${channelId}; path=/; max-age=31536000; samesite=lax`;
   }, [channelId]);
 
   const nav = (
@@ -86,7 +87,11 @@ export function Sidebar({
         <Link href="/app" className="flex items-center gap-2 font-semibold">
           <Logo size={22} /> {BRAND.name}
         </Link>
-        <button className="rounded p-1 text-muted lg:hidden" onClick={() => setOpen(false)} aria-label={t("menu")}>
+        <button
+          className="rounded p-1 text-muted lg:hidden"
+          onClick={() => setOpen(false)}
+          aria-label={t("menu")}
+        >
           <X className="size-5" />
         </button>
       </div>
@@ -103,7 +108,10 @@ export function Sidebar({
         </button>
         {switcher ? (
           <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-lg border border-border bg-surface p-1 shadow-lg">
-            <Link href="/todos" className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-muted">
+            <Link
+              href="/todos"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-muted"
+            >
               <LayoutGrid className="size-4 text-muted" /> {t("allChannels")}
             </Link>
             <div className="my-1 h-px bg-border" />
@@ -169,23 +177,30 @@ export function Sidebar({
             <Settings className="size-4" /> {t("channelSettings")}
           </Link>
         ) : null}
-        {(current ? workspaces.filter((w) => w.id === current.workspaceId) : workspaces).map((w) => (
+        {(current ? workspaces.filter((w) => w.id === current.workspaceId) : workspaces).map(
+          (w) => (
+            <Link
+              key={w.id}
+              href={`/espacio/${w.id}`}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-muted"
+            >
+              <Users className="size-4" />{" "}
+              <span className="truncate">{workspaces.length > 1 ? w.name : t("workspace")}</span>
+            </Link>
+          ),
+        )}
+        {isAdmin ? (
           <Link
-            key={w.id}
-            href={`/espacio/${w.id}`}
+            href="/admin"
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-muted"
           >
-            <Users className="size-4" /> <span className="truncate">{workspaces.length > 1 ? w.name : t("workspace")}</span>
-          </Link>
-        ))}
-        {isAdmin ? (
-          <Link href="/admin" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-surface-muted">
             <Shield className="size-4" /> {t("admin")}
           </Link>
         ) : null}
         <form action="/auth/signout" method="post">
           <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted hover:bg-surface-muted">
-            <LogOut className="size-4" /> <span className="flex-1 truncate text-left">{t("signOut")}</span>
+            <LogOut className="size-4" />{" "}
+            <span className="flex-1 truncate text-left">{t("signOut")}</span>
           </button>
         </form>
         <p className="truncate px-2.5 text-xs text-muted" title={userEmail}>
@@ -203,10 +218,12 @@ export function Sidebar({
         </button>
         <span className="truncate font-medium">{current?.name ?? BRAND.name}</span>
       </header>
-      {open ? <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setOpen(false)} /> : null}
+      {open ? (
+        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
+      ) : null}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-surface transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 h-dvh w-64 overflow-y-auto border-r border-border bg-surface transition-transform lg:sticky lg:top-0 lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >

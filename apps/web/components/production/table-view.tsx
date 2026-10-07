@@ -17,7 +17,13 @@ import { StatusBadge } from "@/components/episodes/status-badge";
 import { formatDateKey } from "@/lib/utils";
 import type { ProductionEpisode } from "./types";
 
-export function TableView({ episodes, channelId }: { episodes: ProductionEpisode[]; channelId: string }) {
+export function TableView({
+  episodes,
+  channelId,
+}: {
+  episodes: ProductionEpisode[];
+  channelId: string;
+}) {
   const t = useTranslations();
   const [sorting, setSorting] = useState<SortingState>([{ id: "publishDate", desc: false }]);
   const columns = useMemo<ColumnDef<ProductionEpisode>[]>(
@@ -27,7 +33,10 @@ export function TableView({ episodes, channelId }: { episodes: ProductionEpisode
         accessorKey: "title",
         header: t("production.columns.title"),
         cell: (c) => (
-          <Link href={`/c/${channelId}/episodios/${c.row.original.id}`} className="font-medium hover:underline">
+          <Link
+            href={`/c/${channelId}/episodios/${c.row.original.id}`}
+            className="font-medium hover:underline"
+          >
             {c.row.original.title}
           </Link>
         ),
@@ -56,7 +65,11 @@ export function TableView({ episodes, channelId }: { episodes: ProductionEpisode
         sortUndefined: "last",
         cell: (c) => formatDateKey(c.row.original.recordDate),
       },
-      { accessorKey: "format", header: t("production.columns.format"), cell: (c) => t(`format.${c.row.original.format}`) },
+      {
+        accessorKey: "format",
+        header: t("production.columns.format"),
+        cell: (c) => t(`format.${c.row.original.format}`),
+      },
       {
         id: "pillar",
         accessorFn: (e) => e.pillar?.name ?? "",
@@ -73,7 +86,12 @@ export function TableView({ episodes, channelId }: { episodes: ProductionEpisode
   );
 
   const data = useMemo(
-    () => episodes.map((e) => ({ ...e, publishDate: e.publishDate ?? undefined, recordDate: e.recordDate ?? undefined })) as ProductionEpisode[],
+    () =>
+      episodes.map((e) => ({
+        ...e,
+        publishDate: e.publishDate ?? undefined,
+        recordDate: e.recordDate ?? undefined,
+      })) as ProductionEpisode[],
     [episodes],
   );
 
@@ -95,7 +113,10 @@ export function TableView({ episodes, channelId }: { episodes: ProductionEpisode
             <tr key={hg.id}>
               {hg.headers.map((h) => (
                 <th key={h.id} className="px-3 py-2 font-medium">
-                  <button className="flex items-center gap-1" onClick={h.column.getToggleSortingHandler()}>
+                  <button
+                    className="flex items-center gap-1"
+                    onClick={h.column.getToggleSortingHandler()}
+                  >
                     {flexRender(h.column.columnDef.header, h.getContext())}
                     {h.column.getIsSorted() === "asc" ? <ArrowUp className="size-3" /> : null}
                     {h.column.getIsSorted() === "desc" ? <ArrowDown className="size-3" /> : null}

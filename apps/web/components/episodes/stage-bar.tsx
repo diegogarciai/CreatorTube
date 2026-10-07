@@ -19,7 +19,11 @@ export function StageBar({ stage }: { stage: EpisodeStage }) {
             i > current && "bg-surface-muted text-muted",
           )}
         >
-          {i < current ? <Check className="size-3" /> : <span className="tabular-nums">{i + 1}</span>}
+          {i < current ? (
+            <Check className="size-3" />
+          ) : (
+            <span className="tabular-nums">{i + 1}</span>
+          )}
           {t(s)}
         </li>
       ))}

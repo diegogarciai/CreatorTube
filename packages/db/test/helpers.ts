@@ -8,7 +8,10 @@ export async function sql<T extends pg.QueryResultRow = any>(text: string, param
   return (await pool.query<T>(text, params)).rows;
 }
 
-export type Q = <T extends pg.QueryResultRow = any>(text: string, params?: unknown[]) => Promise<T[]>;
+export type Q = <T extends pg.QueryResultRow = any>(
+  text: string,
+  params?: unknown[],
+) => Promise<T[]>;
 
 /** Ejecuta `fn` como un usuario autenticado, con RLS activo, en una transacción. */
 export async function as<R>(userId: string | null, fn: (q: Q) => Promise<R>): Promise<R> {
@@ -16,7 +19,8 @@ export async function as<R>(userId: string | null, fn: (q: Q) => Promise<R>): Pr
   try {
     await client.query("begin");
     await client.query(`set local role ${userId ? "authenticated" : "anon"}`);
-    if (userId) await client.query("select set_config('request.jwt.claim.sub', $1, true)", [userId]);
+    if (userId)
+      await client.query("select set_config('request.jwt.claim.sub', $1, true)", [userId]);
     const q: Q = async (text, params = []) => (await client.query(text, params)).rows;
     const result = await fn(q);
     await client.query("commit");
@@ -41,7 +45,10 @@ export async function createUser(prefix = "user"): Promise<{ id: string; email: 
 }
 
 export async function createWorkspace(ownerId: string, name = "Espacio") {
-  const [row] = await sql<{ id: string }>("select public.create_workspace_for($1, $2) as id", [ownerId, name]);
+  const [row] = await sql<{ id: string }>("select public.create_workspace_for($1, $2) as id", [
+    ownerId,
+    name,
+  ]);
   return row!.id;
 }
 
@@ -51,12 +58,10 @@ export async function addMember(
   role: string,
   channelIds: string[] | null = null,
 ) {
-  await sql("insert into public.memberships (workspace_id, user_id, role, channel_ids) values ($1, $2, $3, $4)", [
-    workspaceId,
-    userId,
-    role,
-    channelIds,
-  ]);
+  await sql(
+    "insert into public.memberships (workspace_id, user_id, role, channel_ids) values ($1, $2, $3, $4)",
+    [workspaceId, userId, role, channelIds],
+  );
 }
 
 export async function createChannel(workspaceId: string, name = "Canal", prefix = "EP") {
@@ -67,7 +72,11 @@ export async function createChannel(workspaceId: string, name = "Canal", prefix 
   return row!.id;
 }
 
-export async function createEpisode(channelId: string, title = "Episodio", extra: Record<string, unknown> = {}) {
+export async function createEpisode(
+  channelId: string,
+  title = "Episodio",
+  extra: Record<string, unknown> = {},
+) {
   const cols = ["channel_id", "title", ...Object.keys(extra)];
   const vals = [channelId, title, ...Object.values(extra)];
   const [row] = await sql<{ id: string }>(

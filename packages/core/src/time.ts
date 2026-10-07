@@ -148,6 +148,10 @@ export function monthGrid(key: DateKey): DateKey[][] {
  */
 export function episodeCode(prefix: string, createdAt: Date, timeZone: string): string {
   const p = zonedParts(createdAt, timeZone);
-  const clean = prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "EP";
+  const clean =
+    prefix
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "") || "EP";
   return `${clean}-${pad(p.year % 100)}${pad(p.month)}${pad(p.day)}-${pad(p.hour)}${pad(p.minute)}`;
 }

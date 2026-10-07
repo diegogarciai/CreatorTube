@@ -20,5 +20,11 @@ export async function commandIndex(): Promise<CommandEpisode[]> {
     .is("archived_at", null)
     .order("updated_at", { ascending: false })
     .limit(300);
-  return (data ?? []).map((e) => ({ id: e.id, channelId: e.channel_id, title: e.title, code: e.code, number: e.number }));
+  return (data ?? []).map((e) => ({
+    id: e.id,
+    channelId: e.channel_id,
+    title: e.title,
+    code: e.code,
+    number: e.number,
+  }));
 }

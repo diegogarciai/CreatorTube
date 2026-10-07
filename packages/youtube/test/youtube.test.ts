@@ -51,7 +51,9 @@ describe("state de OAuth", () => {
     expect(verifyState(state, randomBytes(32), nonce, 2000)).toBeNull();
   });
   it("URL de autorización con acceso offline y permisos de lectura", () => {
-    const url = new URL(buildAuthUrl({ clientId: "cid", clientSecret: "s", redirectUri: "https://app/cb" }, "st"));
+    const url = new URL(
+      buildAuthUrl({ clientId: "cid", clientSecret: "s", redirectUri: "https://app/cb" }, "st"),
+    );
     expect(url.searchParams.get("access_type")).toBe("offline");
     expect(url.searchParams.get("scope")).toContain("youtube.readonly");
     expect(url.searchParams.get("state")).toBe("st");
@@ -68,10 +70,15 @@ describe("API", () => {
 });
 
 function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
-function fakeYouTube(videos: Record<string, { privacy: string; publishAt?: string; publishedAt?: string }>) {
+function fakeYouTube(
+  videos: Record<string, { privacy: string; publishAt?: string; publishedAt?: string }>,
+) {
   return vi.fn(async (input: string | URL | Request) => {
     const url = new URL(String(input));
     if (url.hostname === "oauth2.googleapis.com") {
@@ -79,18 +86,30 @@ function fakeYouTube(videos: Record<string, { privacy: string; publishAt?: strin
     }
     if (url.pathname.endsWith("/channels")) {
       return jsonResponse({
-        items: [{ id: "UC1", snippet: { title: "Canal" }, contentDetails: { relatedPlaylists: { uploads: "UU1" } } }],
+        items: [
+          {
+            id: "UC1",
+            snippet: { title: "Canal" },
+            contentDetails: { relatedPlaylists: { uploads: "UU1" } },
+          },
+        ],
       });
     }
     if (url.pathname.endsWith("/playlistItems")) {
-      return jsonResponse({ items: Object.keys(videos).map((id) => ({ contentDetails: { videoId: id } })) });
+      return jsonResponse({
+        items: Object.keys(videos).map((id) => ({ contentDetails: { videoId: id } })),
+      });
     }
     if (url.pathname.endsWith("/videos")) {
       const ids = url.searchParams.get("id")!.split(",");
       return jsonResponse({
         items: ids.map((id) => ({
           id,
-          snippet: { title: `Video ${id}`, description: "", publishedAt: videos[id]!.publishedAt ?? "2026-10-01T00:00:00Z" },
+          snippet: {
+            title: `Video ${id}`,
+            description: "",
+            publishedAt: videos[id]!.publishedAt ?? "2026-10-01T00:00:00Z",
+          },
           status: { privacyStatus: videos[id]!.privacy, publishAt: videos[id]!.publishAt },
           statistics: { viewCount: "10" },
           contentDetails: { duration: "PT10M" },
@@ -113,7 +132,8 @@ function memoryStore(episodes: LinkedEpisode[]) {
     saveTokens: async (_c, t) => void calls.tokens.push(t),
     markNeedsReauth: async (_c, e) => void calls.reauth.push(e),
     upsertVideos: async (_c, v) => void (calls.videos += v.length),
-    linkedEpisodes: async (_c, ids) => episodes.filter((e) => e.youtubeVideoId && ids.includes(e.youtubeVideoId)),
+    linkedEpisodes: async (_c, ids) =>
+      episodes.filter((e) => e.youtubeVideoId && ids.includes(e.youtubeVideoId)),
     updateEpisode: async (id, change) => void calls.updates.push({ id, status: change.status }),
     recordSync: async (_c, r) => void calls.syncs.push(r),
   };
@@ -139,12 +159,36 @@ describe("sincronización", () => {
       ccccccccccc: { privacy: "private" },
     });
     const { store, calls } = memoryStore([
-      { ...baseEpisode, id: "e1", youtubeVideoId: "aaaaaaaaaaa", status: "scheduled", stage: "publication" },
-      { ...baseEpisode, id: "e2", youtubeVideoId: "bbbbbbbbbbb", status: "editing", stage: "publication" },
-      { ...baseEpisode, id: "e3", youtubeVideoId: "ccccccccccc", status: "editing", stage: "publication" },
+      {
+        ...baseEpisode,
+        id: "e1",
+        youtubeVideoId: "aaaaaaaaaaa",
+        status: "scheduled",
+        stage: "publication",
+      },
+      {
+        ...baseEpisode,
+        id: "e2",
+        youtubeVideoId: "bbbbbbbbbbb",
+        status: "editing",
+        stage: "publication",
+      },
+      {
+        ...baseEpisode,
+        id: "e3",
+        youtubeVideoId: "ccccccccccc",
+        status: "editing",
+        stage: "publication",
+      },
     ]);
     const result = await syncChannel(
-      { channelId: "ch", timezone: "America/Bogota", accessToken: "viejo", refreshToken: "r", tokenExpiresAt: new Date(now.getTime() + 30_000) },
+      {
+        channelId: "ch",
+        timezone: "America/Bogota",
+        accessToken: "viejo",
+        refreshToken: "r",
+        tokenExpiresAt: new Date(now.getTime() + 30_000),
+      },
       { oauth, store, fetchImpl: fetchImpl as unknown as typeof fetch, now },
     );
     expect(result).toMatchObject({ ok: true, videos: 3, advanced: 2, quotaUsed: 3 });
@@ -160,7 +204,13 @@ describe("sincronización", () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: "invalid_grant" }, 400));
     const { store, calls } = memoryStore([]);
     const result = await syncChannel(
-      { channelId: "ch", timezone: "UTC", accessToken: null, refreshToken: "r", tokenExpiresAt: null },
+      {
+        channelId: "ch",
+        timezone: "UTC",
+        accessToken: null,
+        refreshToken: "r",
+        tokenExpiresAt: null,
+      },
       { oauth, store, fetchImpl: fetchImpl as unknown as typeof fetch, now },
     );
     expect(result).toMatchObject({ ok: false, needsReauth: true });
@@ -171,8 +221,12 @@ describe("sincronización", () => {
     const base = { now, timezone: "America/Bogota", hasScheduled: false };
     const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600_000);
     expect(shouldSync({ ...base, lastSyncedAt: null, upcomingPublishDates: [] })).toBe(true);
-    expect(shouldSync({ ...base, lastSyncedAt: hoursAgo(1), upcomingPublishDates: ["2026-10-08"] })).toBe(true);
-    expect(shouldSync({ ...base, lastSyncedAt: hoursAgo(1), upcomingPublishDates: ["2026-10-30"] })).toBe(false);
+    expect(
+      shouldSync({ ...base, lastSyncedAt: hoursAgo(1), upcomingPublishDates: ["2026-10-08"] }),
+    ).toBe(true);
+    expect(
+      shouldSync({ ...base, lastSyncedAt: hoursAgo(1), upcomingPublishDates: ["2026-10-30"] }),
+    ).toBe(false);
     expect(shouldSync({ ...base, lastSyncedAt: hoursAgo(6), upcomingPublishDates: [] })).toBe(true);
   });
 });

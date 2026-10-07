@@ -12,18 +12,19 @@ export default function TermsPage() {
       <p className="text-sm text-muted">Borrador · última actualización: 7 de octubre de 2026</p>
       <h2>El servicio</h2>
       <p>
-        {BRAND.name} se ofrece en beta cerrada por invitación. Puede cambiar, tener interrupciones y perder
-        funcionalidades mientras se desarrolla.
+        {BRAND.name} se ofrece en beta cerrada por invitación. Puede cambiar, tener interrupciones y
+        perder funcionalidades mientras se desarrolla.
       </p>
       <h2>Tu cuenta y tu equipo</h2>
       <p>
-        Eres responsable de las personas que invitas a tu espacio y de los permisos que les das. El contenido que
-        creas en {BRAND.name} es tuyo.
+        Eres responsable de las personas que invitas a tu espacio y de los permisos que les das. El
+        contenido que creas en {BRAND.name} es tuyo.
       </p>
       <h2>YouTube</h2>
       <p>
-        Al conectar un canal aceptas los <a href="https://www.youtube.com/t/terms">Términos de Servicio de YouTube</a>.
-        {BRAND.name} no está afiliado a YouTube ni a Google.
+        Al conectar un canal aceptas los{" "}
+        <a href="https://www.youtube.com/t/terms">Términos de Servicio de YouTube</a>.{BRAND.name}{" "}
+        no está afiliado a YouTube ni a Google.
       </p>
       <h2>Contacto</h2>
       <p>

@@ -34,10 +34,14 @@ export async function updateMember(
 ): Promise<ActionResult> {
   try {
     const { admin, target, mine } = await guard(workspaceId, userId);
-    if (!ROLES.includes(input.role) || !assignableRoles(mine.role).includes(input.role)) throw new Error("errors.forbidden");
+    if (!ROLES.includes(input.role) || !assignableRoles(mine.role).includes(input.role))
+      throw new Error("errors.forbidden");
     const { error } = await admin
       .from("memberships")
-      .update({ role: input.role, channel_ids: input.channelIds && input.channelIds.length ? input.channelIds : null })
+      .update({
+        role: input.role,
+        channel_ids: input.channelIds && input.channelIds.length ? input.channelIds : null,
+      })
       .eq("id", target.id);
     if (error) throw error;
     revalidatePath(`/espacio/${workspaceId}`);

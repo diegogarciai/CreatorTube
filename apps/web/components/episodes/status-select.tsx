@@ -3,12 +3,25 @@
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { canChangeStatus, EPISODE_STATUSES, type EpisodeStatus, type Role } from "@planificador/core";
+import {
+  canChangeStatus,
+  EPISODE_STATUSES,
+  type EpisodeStatus,
+  type Role,
+} from "@planificador/core";
 import { Select } from "@/components/ui/form";
 import { changeEpisodeStatus } from "@/lib/actions/episodes";
 import { useActionError } from "@/lib/use-action-error";
 
-export function StatusSelect({ episodeId, status, role }: { episodeId: string; status: EpisodeStatus; role: Role }) {
+export function StatusSelect({
+  episodeId,
+  status,
+  role,
+}: {
+  episodeId: string;
+  status: EpisodeStatus;
+  role: Role;
+}) {
   const t = useTranslations();
   const errorText = useActionError();
   const [pending, start] = useTransition();
