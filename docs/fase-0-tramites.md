@@ -16,6 +16,8 @@ Estos trámites deciden el calendario y no dependen del código. Google no publi
 
 ## Google Cloud: configuración técnica
 
+El paso a paso completo está en [`configurar-google.md`](configurar-google.md).
+
 **APIs a habilitar:** YouTube Data API v3 y YouTube Analytics API. (YouTube Reporting API se agrega en la Fase 4 para impresiones y CTR).
 
 **Cliente OAuth (aplicación web):**
