@@ -34,7 +34,7 @@ El paso a paso completo está en [`configurar-google.md`](configurar-google.md).
 
 Los permisos de escritura (`youtube.force-ssl` para responder comentarios, cambiar privacidad y subir la miniatura principal) se pedirán con autorización incremental en la Fase 4, cuando existan esas funciones; así la primera verificación es más simple.
 
-**Inicio de sesión con Google (Supabase Auth):** es un cliente OAuth distinto o el mismo con la redirección de Supabase (`https://<proyecto>.supabase.co/auth/v1/callback`). Solo pide `email` y `profile`, que no son sensibles.
+**Inicio de sesión con Google (Supabase Auth):** es un cliente OAuth distinto o el mismo con la redirección de Supabase (`https://TU-PROJECT-ID.supabase.co/auth/v1/callback`, reemplazando `TU-PROJECT-ID`). Solo pide `email` y `profile`, que no son sensibles.
 
 ## Puente para la beta
 
