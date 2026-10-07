@@ -42,4 +42,4 @@ Mientras llega la verificación, publicar la app en producción sin verificar: m
 
 ## Cuota
 
-10.000 unidades diarias compartidas por todos los canales. Leer cuesta 1 unidad; responder un comentario, cambiar la privacidad o subir una miniatura cuestan 50. La sincronización de la app usa unas 3 unidades por canal y corrida, cada hora solo cuando hay algo por publicar cerca y cada 6 horas en canales quietos, y se detiene al llegar a 9.000 unidades en el día. Pedir ampliación con el formulario de auditoría antes de pasar de 20 canales. Prohibido repartir la carga en varios proyectos de Google.
+10.000 unidades diarias compartidas por todos los canales. Leer cuesta 1 unidad; responder un comentario, cambiar la privacidad o subir una miniatura cuestan 50. La sincronización de la app usa unas 3 unidades por canal y corrida; hoy corre una vez al día (plan Hobby de Vercel) y con Vercel Pro puede correr cada hora cuando hay algo por publicar cerca y cada 6 horas en canales quietos, y se detiene al llegar a 9.000 unidades en el día. Pedir ampliación con el formulario de auditoría antes de pasar de 20 canales. Prohibido repartir la carga en varios proyectos de Google.

@@ -11,7 +11,9 @@ export const maxDuration = 300;
 const DAILY_QUOTA_BUDGET = 9_000;
 
 /**
- * Sincronización horaria (Vercel Cron). En la Fase 2 pasa al motor de tareas;
+ * Sincronización diaria (Vercel Cron; el plan Hobby solo permite una corrida al
+ * día, a las 11:05 UTC = 6:05 en Bogotá). Con Vercel Pro puede volver a ser
+ * horaria cambiando `apps/web/vercel.json`. En la Fase 2 pasa al motor de tareas;
  * la lógica vive en @planificador/youtube para moverla sin reescribirla.
  */
 export async function GET(request: NextRequest) {
