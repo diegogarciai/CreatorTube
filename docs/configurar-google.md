@@ -3,7 +3,7 @@
 Google se usa en dos lugares:
 
 1. **Conectar el canal de YouTube.** Lo hace la app con su propio OAuth (`/api/youtube/connect` → `/api/youtube/callback`), con los permisos `youtube.readonly` y `yt-analytics.readonly`.
-2. **Entrar con Google.** Lo hace Supabase Auth, con su redirección `https://<proyecto>.supabase.co/auth/v1/callback`.
+2. **Entrar con Google.** Lo hace Supabase Auth, con su redirección `https://TU-PROJECT-ID.supabase.co/auth/v1/callback`.
 
 Recomendación: **un solo proyecto de Google Cloud y un solo cliente OAuth** con las redirecciones de los dos usos. Así hay una sola pantalla de consentimiento y una sola verificación.
 
@@ -57,8 +57,11 @@ Menú **Google Auth Platform** (antes "Pantalla de consentimiento de OAuth") →
 - **Orígenes de JavaScript autorizados:** `https://tu-dominio` y `http://localhost:3000`
 - **URIs de redirección autorizados:**
   - `https://tu-dominio/api/youtube/callback` (conexión de YouTube, la hace la app)
-  - `https://<ref>.supabase.co/auth/v1/callback` (entrar con Google, lo hace Supabase)
+  - `https://TU-PROJECT-ID.supabase.co/auth/v1/callback` (entrar con Google, lo hace Supabase)
   - `http://localhost:3000/api/youtube/callback` y `http://127.0.0.1:54321/auth/v1/callback` (desarrollo local)
+- Deja sin marcar "Use this client for an AI-powered agent".
+
+> **Reemplaza `TU-PROJECT-ID`** por el identificador real de tu proyecto de Supabase, por ejemplo `https://abcdefghijklmnop.supabase.co/auth/v1/callback`. Está en Supabase → _Project Settings → General → Project ID_, y es la primera parte de la _Project URL_. Si pegas el marcador tal cual, Google muestra un error genérico al crear el cliente. Si todavía no tienes el proyecto de Supabase, crea el cliente sin esa URI y agrégala después editando el cliente; los cambios tardan entre 5 minutos y unas horas en aplicarse.
 
 Copia el **ID de cliente** y el **secreto** y guárdalos en un gestor de contraseñas. El secreto solo se muestra completo al crearlo.
 
@@ -123,11 +126,12 @@ No hace falta la auditoría de seguridad CASA, porque esos permisos son sensible
 
 ## 12. Problemas comunes
 
-| Síntoma                                                | Causa                                                                          |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `redirect_uri_mismatch`                                | La URI no coincide exactamente con `APP_URL` (http/https, barra final, puerto) |
-| `access_denied`                                        | El correo no está en usuarios de prueba                                        |
-| La app vuelve a `/onboarding?error=youtube_no_channel` | Se eligió una cuenta sin canal: elige la cuenta de marca                       |
-| Error `youtube_state`                                  | La cookie de inicio venció (10 min) o se abrió en otro navegador               |
-| El canal pasa a "Hay que reconectar"                   | El acceso se revocó o venció (los 7 días del modo de prueba)                   |
-| `quotaExceeded` en "Última sincronización"             | Se agotó la cuota diaria; se reinicia a medianoche, hora del Pacífico          |
+| Síntoma                                                | Causa                                                                                                                                        |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `redirect_uri_mismatch`                                | La URI no coincide exactamente con `APP_URL` (http/https, barra final, puerto)                                                               |
+| `access_denied`                                        | El correo no está en usuarios de prueba                                                                                                      |
+| La app vuelve a `/onboarding?error=youtube_no_channel` | Se eligió una cuenta sin canal: elige la cuenta de marca                                                                                     |
+| Error `youtube_state`                                  | La cookie de inicio venció (10 min) o se abrió en otro navegador                                                                             |
+| El canal pasa a "Hay que reconectar"                   | El acceso se revocó o venció (los 7 días del modo de prueba)                                                                                 |
+| `quotaExceeded` en "Última sincronización"             | Se agotó la cuota diaria; se reinicia a medianoche, hora del Pacífico                                                                        |
+| "Se produjo un error…" al crear el cliente OAuth       | Alguna URI tiene un marcador sin reemplazar (`TU-PROJECT-ID`, `<…>`), espacios, o usa `http` en un dominio que no es `localhost`/`127.0.0.1` |
