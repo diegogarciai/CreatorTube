@@ -69,7 +69,7 @@ Las pruebas de `packages/db` necesitan Postgres: usan `DATABASE_URL` si existe (
 
 ## Despliegue
 
-1. **Supabase:** crea el proyecto, enlázalo (`npx supabase link`) y aplica migraciones (`npx supabase db push`). En _Authentication → Hooks_ activa **Before User Created** apuntando a `public.hook_before_user_created`. Activa el proveedor Google y el correo con enlace mágico. En _URL Configuration_ agrega `https://tu-dominio/auth/callback`.
+1. **Supabase:** crea el proyecto y guarda en GitHub el secreto `SUPABASE_DB_URL` con la cadena del **Session pooler** (Supabase → Connect → Session pooler). El workflow **Supabase migrations** (`.github/workflows/supabase-migrations.yml`) aplica las migraciones: se corre a mano desde _Actions_ (con la opción de registrar un correo como administrador de la plataforma) y solo cuando llegan migraciones nuevas a `main`. En _Authentication → Hooks_ activa **Before User Created** apuntando a `public.hook_before_user_created`. Activa el proveedor Google y el correo con enlace mágico. En _URL Configuration_ agrega `https://tu-dominio/auth/callback`.
 2. **Google Cloud:** crea el cliente OAuth web con la redirección `https://tu-dominio/api/youtube/callback` y habilita YouTube Data API v3 y YouTube Analytics API (paso a paso en [`docs/configurar-google.md`](docs/configurar-google.md)).
 3. **Vercel:** importa el repo con raíz `apps/web`, configura las variables de `.env.example` y despliega. `apps/web/vercel.json` registra los cron jobs; Vercel envía `CRON_SECRET` automáticamente.
 
