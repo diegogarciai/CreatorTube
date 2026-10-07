@@ -1,0 +1,27 @@
+{
+  "name": "@planificador/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "node scripts/with-postgres.mjs vitest run",
+    "test:rls": "node scripts/with-postgres.mjs vitest run",
+    "gen:types": "node scripts/with-postgres.mjs node scripts/gen-types.mjs"
+  },
+  "dependencies": {
+    "@planificador/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@planificador/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "@types/pg": "8.15.6",
+    "pg": "8.16.3",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}
