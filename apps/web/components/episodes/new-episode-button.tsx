@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
@@ -36,12 +36,8 @@ export function NewEpisodeButton({
   const router = useRouter();
   const params = useSearchParams();
   const errorText = useActionError();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => !idea && params.get("nuevo") === "1");
   const [pending, start] = useTransition();
-
-  useEffect(() => {
-    if (!idea && params.get("nuevo") === "1") setOpen(true);
-  }, [params, idea]);
 
   function submit(form: FormData) {
     start(async () => {

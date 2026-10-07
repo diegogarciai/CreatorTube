@@ -77,6 +77,7 @@ export function TableView({ episodes, channelId }: { episodes: ProductionEpisode
     [episodes],
   );
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table no es memoizable; el componente es pequeño.
   const table = useReactTable({
     data,
     columns,

@@ -68,11 +68,17 @@ export function Sidebar({
   const section = match?.[2] ?? null;
   const current = channels.find((c) => c.id === channelId) ?? null;
 
-  useEffect(() => {
+  // Cerrar menús al navegar.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
     setOpen(false);
     setSwitcher(false);
+  }
+
+  useEffect(() => {
     if (channelId) document.cookie = `last_channel=${channelId}; path=/; max-age=31536000; samesite=lax`;
-  }, [pathname, channelId]);
+  }, [channelId]);
 
   const nav = (
     <nav className="flex h-full flex-col gap-1 p-3">

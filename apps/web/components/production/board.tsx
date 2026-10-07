@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -31,9 +31,14 @@ export function Board({ episodes, channelId, role }: { episodes: ProductionEpiso
   const t = useTranslations();
   const errorText = useActionError();
   const [items, setItems] = useState(episodes);
+  const [source, setSource] = useState(episodes);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [, start] = useTransition();
-  useEffect(() => setItems(episodes), [episodes]);
+  // Datos nuevos del servidor reemplazan el estado optimista.
+  if (source !== episodes) {
+    setSource(episodes);
+    setItems(episodes);
+  }
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
