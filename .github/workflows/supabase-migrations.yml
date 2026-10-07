@@ -1,0 +1,54 @@
+name: Supabase migrations
+
+# Aplica las migraciones de packages/db a la base de Supabase de producción.
+# Requiere el secreto SUPABASE_DB_URL con la cadena del "Session pooler"
+# (Supabase → Connect → Session pooler); la conexión directa es solo IPv6.
+on:
+  workflow_dispatch:
+    inputs:
+      admin_email:
+        description: "Correo para registrar como administrador de la plataforma (opcional)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "packages/db/supabase/migrations/**"
+
+concurrency:
+  group: supabase-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      ADMIN_EMAIL: ${{ inputs.admin_email }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar el secreto
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Falta el secreto SUPABASE_DB_URL (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Aplicar migraciones
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --workdir packages/db --yes
+
+      - name: Registrar administrador de la plataforma
+        if: env.ADMIN_EMAIL != ''
+        run: |
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -v email="$ADMIN_EMAIL" <<'SQL'
+          insert into public.platform_admins (email) values (lower(:'email')) on conflict do nothing;
+          select count(*) as administradores from public.platform_admins;
+          SQL
+
+      - name: Migraciones aplicadas
+        run: supabase migration list --db-url "$SUPABASE_DB_URL" --workdir packages/db

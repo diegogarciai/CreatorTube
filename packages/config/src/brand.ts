@@ -6,5 +6,5 @@
 export const BRAND = {
   name: "Planificador",
   tagline: "Planifica, produce y publica tus episodios",
-  supportEmail: "soporte@example.com",
+  supportEmail: "soporte@gartechs.com",
 } as const;
