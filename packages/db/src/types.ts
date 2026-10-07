@@ -1385,6 +1385,10 @@ export type Database = {
         Args: { workspace_name: string };
         Returns: string;
       };
+      create_workspace_for: {
+        Args: { owner: string; workspace_name: string };
+        Returns: string;
+      };
       has_channel_permission: {
         Args: { ch: string; perm: string };
         Returns: boolean;
@@ -1401,6 +1405,10 @@ export type Database = {
         Args: { token: string };
         Returns: string;
       };
+      hook_before_user_created: {
+        Args: { event: Json };
+        Returns: Json;
+      };
       invitation_preview: {
         Args: { token: string };
         Returns: { kind: Database["public"]["Enums"]["invitation_kind"]; workspace_name: string; role: Database["public"]["Enums"]["workspace_role"]; email_hint: string; expired: boolean; accepted: boolean }[];
@@ -1412,6 +1420,10 @@ export type Database = {
       is_workspace_member: {
         Args: { ws: string };
         Returns: boolean;
+      };
+      purge_youtube_data: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
       };
       regenerate_ics_token: {
         Args: { ch: string };

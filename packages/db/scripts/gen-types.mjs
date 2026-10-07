@@ -83,7 +83,7 @@ try {
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public' and p.prokind = 'f'
         and format_type(p.prorettype, null) <> 'trigger'
-        and has_function_privilege('authenticated', p.oid, 'execute')
+        and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('service_role', p.oid, 'execute'))
       order by p.proname`)
   ).rows;
 
