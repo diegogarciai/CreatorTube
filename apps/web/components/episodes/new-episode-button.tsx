@@ -9,8 +9,11 @@ import { FORMATS } from "@planificador/core";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/form";
+import { prepareDirection } from "@/lib/actions/direction";
 import { createEpisode } from "@/lib/actions/episodes";
+import { DIRECTION_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
+import { usd } from "@/lib/utils";
 
 export interface PillarOption {
   id: string;
@@ -57,8 +60,17 @@ export function NewEpisodeButton({
         toast.error(errorText(res.error));
         return;
       }
+      // Desde una idea, las preguntas de dirección se preparan en segundo plano
+      // (y el episodio pasa a Guion); si no se puede, se avisa y se sigue.
+      if (idea) {
+        const prep = await prepareDirection(res.data.id);
+        if (!prep.ok) {
+          toast.warning(t("episode.directionNotPrepared", { reason: errorText(prep.error) }));
+        }
+      }
       setOpen(false);
-      router.push(`/c/${channelId}/episodios/${res.data.id}`);
+      // El episodio nuevo abre en su Dirección: es lo siguiente que toca.
+      router.push(`/c/${channelId}/episodios/${res.data.id}?tab=script#direccion`);
     });
   }
 
@@ -71,7 +83,8 @@ export function NewEpisodeButton({
         <form action={submit} className="grid gap-4 sm:grid-cols-2">
           {idea ? (
             <p className="text-sm text-muted sm:col-span-2">
-              {t("episode.fromIdea", { title: idea.title })}
+              {t("episode.fromIdea", { title: idea.title })}.{" "}
+              {t("episode.fromIdeaDirection", { cost: usd(DIRECTION_ESTIMATE_CREDITS) })}
             </p>
           ) : null}
           <Field label={t("episode.title")} htmlFor="ne-title" className="sm:col-span-2">
