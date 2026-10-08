@@ -299,3 +299,13 @@ Pendientes:
   - cupo y consumo de créditos.
 
   Con la v4.1 real se detectan 22 secciones: de la 0 a la 16 y de la 20 a la 24.
+
+- **Paso 2 (motor de tareas):**
+  - paquete `apps/jobs` con Trigger.dev 4 y la tarea de prueba `ping`;
+  - `startJob` en la web crea la fila en `tasks` y dispara la tarea;
+  - `runTracked` actualiza avance, mensaje y estado;
+  - si se agotan los reintentos, la fila queda en Falló;
+  - bandeja **Tareas en curso** en la barra lateral, en vivo con Supabase Realtime;
+  - botón **Probar el motor** en Administración.
+
+  La configuración está en [`configurar-trigger.md`](configurar-trigger.md).

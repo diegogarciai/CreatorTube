@@ -15,3 +15,6 @@ playwright-report
 # Supabase CLI
 .temp
 supabase/.branches
+
+# Trigger.dev (build local)
+.trigger

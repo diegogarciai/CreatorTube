@@ -2,5 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 onlyBuiltDependencies:
+  - "@depot/cli"
+  - esbuild
   - sharp
   - unrs-resolver
