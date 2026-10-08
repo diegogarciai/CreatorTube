@@ -589,6 +589,49 @@ describe("Fase 4 · analítica", () => {
   });
 });
 
+describe("Fase 4 · fotos de contadores («Así te fue ayer»)", () => {
+  it("la primera foto del día manda, se lee con permiso y la purga borra las viejas", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const snap = (day: string, views: number) =>
+      sql(
+        "insert into public.youtube_video_snapshots (channel_id, video_id, day, view_count) values ($1, 'aaaaaaaaaaa', $2, $3) on conflict do nothing",
+        [ch, day, views],
+      );
+    await snap("2026-10-07", 100);
+    await snap("2026-10-07", 180);
+    await sql(
+      "insert into public.youtube_video_snapshots (channel_id, video_id, day, view_count) values ($1, 'aaaaaaaaaaa', current_date - 40, 5)",
+      [ch],
+    );
+    const read = (uid: string) =>
+      as(uid, (q) =>
+        q(
+          "select view_count from public.youtube_video_snapshots where channel_id = $1 and day = '2026-10-07'",
+          [ch],
+        ),
+      );
+    expect(await read(owner.id)).toEqual([{ view_count: "100" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.youtube_video_snapshots (channel_id, video_id, day) values ($1, 'b', '2026-10-08')",
+          [ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    const [r] = await sql("select public.purge_youtube_data() as r");
+    expect(r.r.old_snapshots_deleted).toBeGreaterThanOrEqual(1);
+    expect(
+      await sql("select day::text from public.youtube_video_snapshots where channel_id = $1", [ch]),
+    ).toEqual([{ day: "2026-10-07" }]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

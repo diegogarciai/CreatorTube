@@ -413,6 +413,28 @@
       "duration": "Duración media",
       "likes": "Me gusta",
       "comments": "Comentarios"
+    },
+    "yesterday": {
+      "title": "Así te fue ayer",
+      "good": "Buen día: {pct} más vistas que lo normal",
+      "weak": "Un día flojo: {pct} menos vistas que lo normal",
+      "normal": "Un día normal: {views} vistas (lo normal son {typical})",
+      "plain": "{views} vistas en las últimas 24 horas",
+      "driver": ", impulsado por «{title}» ({views} vistas)",
+      "views": "Vistas",
+      "likes": "Me gusta",
+      "comments": "Comentarios",
+      "watchHours": "Horas vistas",
+      "subscribers": "Suscriptores netos",
+      "avgDuration": "Duración media",
+      "window": "Del {from} al {to}, con los contadores públicos de tus últimos 50 videos (aproximado).",
+      "vsTypical": "Las variaciones comparan con tu día típico: la mediana de los últimos 28 días (calculado por la app).",
+      "topVideo": "El video que más sumó",
+      "topViews": "+{views} vistas",
+      "pendingFirst": "Las cifras de ayer aparecen después de dos sincronizaciones diarias: la primera es hoy, a las 6:05 (o con «Actualizar ahora»), y la resta sale mañana.",
+      "pendingTomorrow": "Ya hay una foto de tus contadores; las cifras de ayer aparecen mañana, después de la sincronización de las 6:05.",
+      "lastDay": "{day}: último día completo en YouTube Analytics",
+      "lastDayNote": "YouTube Analytics publica cada día completo con 2 o 3 días de atraso; estas cifras son exactas."
     }
   },
   "settings": {
