@@ -67,7 +67,9 @@ export function ScriptPanel({
 
   // Mientras corre, se consulta el avance; al cambiar un estado, se recarga la página.
   const supabase = useMemo(() => createClient(), []);
-  const [live, setLive] = useState<Record<string, string | null>>({});
+  const [live, setLive] = useState<
+    Record<string, { progress: string | null; preview: string | null }>
+  >({});
   useEffect(() => {
     if (!active || !run) return;
     const known = stages.map((s) => `${s.stage}:${s.status}`).join("|");
@@ -76,10 +78,14 @@ export function ScriptPanel({
         supabase.from("script_runs").select("status, tasks(status)").eq("id", run.id).single(),
         supabase
           .from("script_stage_runs")
-          .select("stage, status, progress_message")
+          .select("stage, status, progress_message, preview")
           .eq("run_id", run.id),
       ]);
-      setLive(Object.fromEntries((rows ?? []).map((s) => [s.stage, s.progress_message])));
+      setLive(
+        Object.fromEntries(
+          (rows ?? []).map((s) => [s.stage, { progress: s.progress_message, preview: s.preview }]),
+        ),
+      );
       const seen = stages
         .map((s) => `${s.stage}:${rows?.find((x) => x.stage === s.stage)?.status ?? null}`)
         .join("|");
@@ -185,7 +191,8 @@ export function ScriptPanel({
             </div>
             <StagePane
               stage={current}
-              progress={live[current.stage] ?? current.progress}
+              progress={live[current.stage]?.progress ?? current.progress}
+              preview={live[current.stage]?.preview ?? current.preview}
               runActive={active}
               runFailed={run.status === "failed"}
               targetMinutes={targetMinutes}
@@ -256,12 +263,14 @@ export function ScriptPanel({
 function StagePane({
   stage,
   progress,
+  preview,
   runActive,
   runFailed,
   targetMinutes,
 }: {
   stage: ScriptStageView;
   progress: string | null;
+  preview: string | null;
   runActive: boolean;
   runFailed: boolean;
   targetMinutes: number;
@@ -272,10 +281,25 @@ function StagePane({
   if (!stage.implemented) return <p className="text-sm text-muted">{t("comingSoon")}</p>;
   if (stage.status === "running" || (runActive && stage.status === "queued")) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted">
-        <Loader2 className="size-4 animate-spin text-accent" />
-        {progress ?? (stage.status === "running" ? t("running") : t("queued"))}
-      </p>
+      <div className="space-y-3">
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <Loader2 className="size-4 animate-spin text-accent" />
+          {progress ?? (stage.status === "running" ? t("running") : t("queued"))}
+        </p>
+        {stage.status === "running" && preview ? (
+          <figure className="space-y-1">
+            <figcaption className="text-xs font-medium uppercase tracking-wide text-muted">
+              {t("preview")}
+            </figcaption>
+            <pre
+              aria-live="polite"
+              className="max-h-40 overflow-hidden whitespace-pre-wrap rounded-lg border border-dashed border-border bg-surface-muted p-3 font-sans text-sm leading-relaxed text-muted"
+            >
+              {preview}
+            </pre>
+          </figure>
+        ) : null}
+      </div>
     );
   }
   return (

@@ -227,13 +227,15 @@ const norm = (s: string) =>
     .replace(/[*#:`]/g, "")
     .trim();
 
+const BLOCK_LINE = /^\s*#{2,4}\s*\**\s*BLOQUE\s*:\s*(.+?)\**\s*$/i;
+
 /** Corta la respuesta por las líneas «### BLOQUE: título». */
 export function parseBlocks(text: string): Block[] {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const blocks: Block[] = [];
   let current: { title: string; lines: string[] } | null = null;
   for (const line of lines) {
-    const m = /^\s*#{2,4}\s*\**\s*BLOQUE\s*:\s*(.+?)\**\s*$/i.exec(line);
+    const m = BLOCK_LINE.exec(line);
     if (m) {
       if (current) blocks.push({ title: current.title, body: current.lines.join("\n").trim() });
       current = { title: m[1]!.trim(), lines: [] };
@@ -259,6 +261,33 @@ export function findBlock(blocks: readonly Block[], title: string): Block | unde
   return blocks.find((b) => norm(b.title) === t);
 }
 
+/**
+ * Vista previa de lo que va escribiendo: el bloque en curso y sus últimas
+ * líneas con texto (a lo sumo `maxChars`), sin las marcas de bloque.
+ */
+export function previewTail(text: string, maxLines = 4, maxChars = 480): string {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  let start = 0;
+  let title = "";
+  lines.forEach((line, i) => {
+    const m = BLOCK_LINE.exec(line);
+    if (m) {
+      start = i + 1;
+      title = m[1]!.trim();
+    }
+  });
+  const body = lines
+    .slice(start)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim());
+  let tail = body.slice(-maxLines).join("\n");
+  if (tail.length > maxChars) {
+    const cut = tail.slice(-maxChars);
+    tail = "…" + cut.slice(cut.search(/\s/) + 1);
+  }
+  return title ? `${title}\n${tail}`.trim() : tail;
+}
+
 export const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 export interface StageResult {
@@ -277,9 +306,16 @@ export type StreamClient = Pick<Anthropic, "beta">;
 /** Esperas antes de cada reintento cuando Claude está saturado o falla la red. */
 export const RETRY_DELAYS_MS = [20_000, 60_000, 120_000];
 
+export interface StageProgress {
+  words: number;
+  /** Las últimas líneas escritas, para la vista previa en vivo. */
+  preview?: string;
+  /** Un aviso (p. ej. el reintento) en lugar del conteo de palabras. */
+  notice?: string;
+}
+
 export interface StageOptions {
-  /** Avance: palabras escritas, o un aviso (p. ej. el reintento) con `words` en 0. */
-  onProgress?: (words: number, notice?: string) => void | Promise<void>;
+  onProgress?: (progress: StageProgress) => void | Promise<void>;
   /** Se inyecta en las pruebas para no esperar de verdad. */
   sleep?: (ms: number) => Promise<void>;
   retryDelaysMs?: readonly number[];
@@ -308,10 +344,10 @@ export async function runStage(
     } catch (err) {
       if (attempt >= attempts || !isTransientAiError(err)) throw err;
       const ms = retryDelaysMs[attempt - 1]!;
-      await onProgress(
-        0,
-        `Claude está saturado; reintento ${attempt + 1} de ${attempts} en ${Math.round(ms / 1000)} s`,
-      );
+      await onProgress({
+        words: 0,
+        notice: `Claude está saturado; reintento ${attempt + 1} de ${attempts} en ${Math.round(ms / 1000)} s`,
+      });
       await sleep(ms);
     }
   }
@@ -344,7 +380,7 @@ async function streamStage(
     const now = Date.now();
     if (now - lastReport > 4000) {
       lastReport = now;
-      void onProgress(countWords(written));
+      void onProgress({ words: countWords(written), preview: previewTail(written) });
     }
   });
 

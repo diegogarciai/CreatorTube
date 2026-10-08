@@ -85,6 +85,7 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
             started_at: now,
             error: null,
             progress_message: null,
+            preview: null,
           },
           { onConflict: "run_id,stage" },
         );
@@ -101,15 +102,20 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
         let result;
         try {
           result = await runStage(client, config, stage, ctx, {
-            onProgress: async (words, notice) => {
+            onProgress: async ({ words, preview, notice }) => {
               const message = `${LABEL[stage]}: ${
                 notice ?? `${words.toLocaleString("es-CO")} palabras`
               }`;
+              // Solo mientras corre: un aviso tardío no pisa la etapa ya terminada.
               await db
                 .from("script_stage_runs")
-                .update({ progress_message: message })
+                .update({
+                  progress_message: message,
+                  ...(preview !== undefined && { preview }),
+                })
                 .eq("run_id", run.id)
-                .eq("stage", stage);
+                .eq("stage", stage)
+                .eq("status", "running");
               await report.progress((i + 0.5) / stages.length, message);
             },
           });
@@ -119,6 +125,7 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
             .update({
               status: "failed",
               error: errorText(err),
+              preview: null,
               finished_at: new Date().toISOString(),
             })
             .eq("run_id", run.id)
@@ -148,6 +155,7 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
             usage: result.usage,
             credits,
             progress_message: null,
+            preview: null,
             error: result.incomplete
               ? result.missing.length
                 ? `Faltan bloques: ${result.missing.join(", ")}`

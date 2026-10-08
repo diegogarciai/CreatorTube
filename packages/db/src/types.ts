@@ -1171,6 +1171,7 @@ export type Database = {
           progress_message: string | null;
           started_at: string | null;
           finished_at: string | null;
+          preview: string | null;
         };
         Insert: {
           id?: string;
@@ -1187,6 +1188,7 @@ export type Database = {
           progress_message?: string | null;
           started_at?: string | null;
           finished_at?: string | null;
+          preview?: string | null;
         };
         Update: {
           id?: string;
@@ -1203,6 +1205,7 @@ export type Database = {
           progress_message?: string | null;
           started_at?: string | null;
           finished_at?: string | null;
+          preview?: string | null;
         };
         Relationships: [
           {

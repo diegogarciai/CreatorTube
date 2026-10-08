@@ -5,8 +5,10 @@ import {
   findBlock,
   missingBlocks,
   parseBlocks,
+  previewTail,
   runStage,
   type StageContext,
+  type StageProgress,
 } from "../src/stages";
 import { APIError, BadRequestError } from "@anthropic-ai/sdk";
 import { aiErrorKey } from "../src/errors";
@@ -121,6 +123,33 @@ describe("bloques", () => {
   });
 });
 
+describe("vista previa", () => {
+  it("muestra el bloque en curso y sus últimas líneas, sin marcas", () => {
+    const text = [
+      "### BLOQUE: ESCALETA Y CONTROL DE CALIDAD",
+      "Promesa.",
+      "### BLOQUE: GUION — TELEPROMPTER",
+      "Línea uno.",
+      "",
+      "Línea dos.",
+      "Línea tres.",
+      "Línea cuatro.",
+      "Línea cin",
+    ].join("\n");
+    expect(previewTail(text)).toBe(
+      "GUION — TELEPROMPTER\nLínea dos.\nLínea tres.\nLínea cuatro.\nLínea cin",
+    );
+    expect(previewTail("Sin bloque todavía")).toBe("Sin bloque todavía");
+  });
+
+  it("recorta las líneas largas por palabra", () => {
+    const long = "### BLOQUE: GUION — TELEPROMPTER\n" + "palabra ".repeat(200);
+    const out = previewTail(long, 4, 100);
+    expect(out.startsWith("GUION — TELEPROMPTER\n…palabra")).toBe(true);
+    expect(out.length).toBeLessThanOrEqual(100 + "GUION — TELEPROMPTER\n…".length);
+  });
+});
+
 describe("llamada en streaming", () => {
   const fake = (final: Record<string, unknown>, deltas: string[] = []) => {
     const calls: Record<string, unknown>[] = [];
@@ -163,16 +192,16 @@ describe("llamada en streaming", () => {
       "uno dos ",
       "tres",
     ]);
-    const progress: number[] = [];
+    const progress: StageProgress[] = [];
     const res = await runStage(client, aiConfigFromEnv({ AI_MODEL: "m" }), "study", ctx, {
-      onProgress: (w) => {
-        progress.push(w);
+      onProgress: (p) => {
+        progress.push(p);
       },
     });
     expect(res.incomplete).toBe(false);
     expect(res.blocks).toHaveLength(2);
     expect(res.usage.input_tokens).toBe(20000);
-    expect(progress[0]).toBe(2);
+    expect(progress[0]).toEqual({ words: 2, preview: "uno dos" });
     const p = calls[0]!;
     expect(p.max_tokens).toBe(64000);
     expect(p.output_config).toEqual({ effort: "medium" });
@@ -255,7 +284,7 @@ describe("llamada en streaming", () => {
       sleep: async (ms) => {
         waits.push(ms);
       },
-      onProgress: (_w, notice) => {
+      onProgress: ({ notice }) => {
         if (notice) notices.push(notice);
       },
     });

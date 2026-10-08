@@ -649,6 +649,7 @@
       "incomplete": "Incompleta"
     },
     "stageFailed": "La etapa falló.",
-    "failedAt": "La corrida falló en {stage}."
+    "failedAt": "La corrida falló en {stage}.",
+    "preview": "Vista previa"
   }
 }

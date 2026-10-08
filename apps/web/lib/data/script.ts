@@ -27,6 +27,7 @@ export type ScriptStageView = {
   implemented: boolean;
   status: RunStatus | null;
   progress: string | null;
+  preview: string | null;
   error: string | null;
   blocks: ScriptBlockView[];
   missing: string[];
@@ -68,7 +69,7 @@ export async function loadScriptView(
     currentRunId
       ? supabase
           .from("script_stage_runs")
-          .select("stage, status, blocks, error, progress_message")
+          .select("stage, status, blocks, error, progress_message, preview")
           .eq("run_id", currentRunId)
       : Promise.resolve({ data: [] }),
   ]);
@@ -107,6 +108,7 @@ export async function loadScriptView(
       implemented: IMPLEMENTED_STAGES.includes(stage),
       status: row?.status ?? null,
       progress: row?.progress_message ?? null,
+      preview: row?.preview ?? null,
       error: row?.error ?? null,
       blocks: ordered.map((b) => ({
         title: b.title,
