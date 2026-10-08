@@ -44,9 +44,11 @@ describe("episodios", () => {
     expect(completeStage(e)).toBeNull();
   });
 
-  it("las acciones con IA no están disponibles en Fase 1 pero se pueden saltar", () => {
-    const step = nextStep(ep({ stage: "script", status: "script" }), "2026-10-07");
-    expect(step.action).toBe("generate_script");
+  it("las acciones con IA que aún no llegan se pueden saltar", () => {
+    const script = nextStep(ep({ stage: "script", status: "script" }), "2026-10-07");
+    expect(script).toMatchObject({ action: "generate_script", available: true });
+    const step = nextStep(ep({ stage: "verification", status: "script" }), "2026-10-07");
+    expect(step.action).toBe("resolve_verification");
     expect(step.available).toBe(false);
     expect(step.canSkip).toBe(true);
     const rec = nextStep(ep({ stage: "recording", status: "to_record" }), "2026-10-07");

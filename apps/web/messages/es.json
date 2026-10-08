@@ -515,7 +515,9 @@
     "jobs_not_configured": "El motor de tareas no está configurado: falta TRIGGER_SECRET_KEY en Vercel.",
     "jobs_no_workspace": "Necesitas un espacio propio para probar el motor.",
     "direction_no_guide": "El canal no tiene guía del guionista. Pégala en Ajustes del canal.",
-    "no_credits": "No te alcanzan los créditos de IA de este mes."
+    "no_credits": "No te alcanzan los créditos de IA de este mes.",
+    "script_needs_direction": "Primero responde o salta las preguntas de dirección.",
+    "script_no_study": "Para regenerar desde Guion hace falta un Estudio listo."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -568,7 +570,8 @@
     "title": "Tareas en curso",
     "kind": {
       "ping": "Prueba del motor de tareas",
-      "direction": "Preguntas de dirección"
+      "direction": "Preguntas de dirección",
+      "script": "Guion"
     },
     "status": {
       "queued": "En cola",
@@ -595,7 +598,6 @@
     "extra": "¿Algo más que el guionista deba saber?",
     "extraPlaceholder": "Datos que tienes, enlaces, una anécdota real o algo que no quieres que se diga.",
     "generate": "Generar guion con mis respuestas",
-    "generateSoon": "Generar el guion en 5 etapas llega en la próxima actualización. Tus respuestas quedan guardadas para entonces.",
     "save": "Guardar respuestas",
     "skip": "Saltar: que decida el guionista",
     "regenerate": "Volver a preparar",
@@ -603,6 +605,44 @@
     "skipped": "Saltada",
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
     "savedToast": "Respuestas guardadas.",
-    "skippedToast": "Listo: decide el guionista."
+    "skippedToast": "Listo: decide el guionista.",
+    "generateHint": "Guarda tus respuestas y arranca Estudio y Guion. Cuesta cerca de {cost}."
+  },
+  "script": {
+    "title": "Guion",
+    "subtitle": "Se genera en etapas con tu guía del guionista: Estudio, Guion, Verificación, Publicación y Podcast. Cada etapa recibe solo sus reglas y el material de las anteriores.",
+    "needsDirection": "Responde o salta la dirección de arriba para generar el guion.",
+    "generate": "Generar guion",
+    "estimate": "Cuesta cerca de {cost} de tus créditos.",
+    "regenerateFrom": "Regenerar desde {stage}",
+    "running": "Generando…",
+    "queued": "En cola…",
+    "failed": "La corrida falló.",
+    "incomplete": "La etapa quedó incompleta.",
+    "retryHint": "Puedes regenerar desde esa etapa.",
+    "comingSoon": "Llega en la próxima actualización.",
+    "notYet": "Todavía no se genera.",
+    "unverified": "GUION SIN VERIFICAR — NO GRABAR",
+    "unverifiedHint": "Los datos no se han comprobado en la web. La etapa de Verificación llega en la próxima actualización.",
+    "copy": "Copiar",
+    "copied": "Copiado.",
+    "words": "{words} palabras · objetivo {target} ({minutes} min)",
+    "history": "Corridas",
+    "historyRow": "{date} · desde {stage} · {model} · {cost}",
+    "current": "vigente",
+    "stage": {
+      "study": "Estudio",
+      "script": "Guion",
+      "verification": "Verificación",
+      "publication": "Publicación",
+      "podcast": "Podcast"
+    },
+    "status": {
+      "queued": "En cola",
+      "running": "En curso",
+      "succeeded": "Lista",
+      "failed": "Falló",
+      "incomplete": "Incompleta"
+    }
   }
 }

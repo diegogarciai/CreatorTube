@@ -94,7 +94,7 @@ export type PrimaryAction =
 export const ACTION_PHASE: Record<PrimaryAction, number> = {
   start_direction: 1,
   answer_direction: 1,
-  generate_script: 2,
+  generate_script: 1,
   resolve_verification: 2,
   prepare_assets: 3,
   mark_recorded: 1,

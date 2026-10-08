@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/form";
 import { prepareDirection, saveDirection } from "@/lib/actions/direction";
+import { startScript } from "@/lib/actions/script";
 import { createClient } from "@/lib/supabase/browser";
-import { DIRECTION_ESTIMATE_CREDITS } from "@/lib/tasks";
+import { DIRECTION_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
 import { cn, usd } from "@/lib/utils";
 
@@ -190,6 +191,17 @@ function DirectionForm({
       }
     });
 
+  // Guarda y arranca el guion; el avance se ve en el panel del guion.
+  const generate = () =>
+    start(async () => {
+      const saved = await saveDirection(episodeId, { answers, extra, skip: false });
+      if (!saved.ok) return void toast.error(errorText(saved.error));
+      const res = await startScript(episodeId, "study");
+      if (!res.ok) toast.error(errorText(res.error));
+      router.refresh();
+      document.getElementById("guion")?.scrollIntoView({ behavior: "smooth" });
+    });
+
   return (
     <div className="space-y-6">
       {direction.reading ? (
@@ -260,8 +272,8 @@ function DirectionForm({
       </div>
       {canEdit ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Button disabled title={t("generateSoon")}>
-            {t("generate")}
+          <Button onClick={generate} disabled={pending}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : null} {t("generate")}
           </Button>
           <Button variant="secondary" onClick={() => save(false)} disabled={pending}>
             {t("save")}
@@ -272,7 +284,9 @@ function DirectionForm({
           <Button variant="ghost" onClick={onPrepare} disabled={pending || preparing}>
             <RotateCcw className="size-4" /> {t("regenerate")}
           </Button>
-          <p className="w-full text-xs text-muted">{t("generateSoon")}</p>
+          <p className="w-full text-xs text-muted">
+            {t("generateHint", { cost: usd(SCRIPT_ESTIMATE_CREDITS) })}
+          </p>
         </div>
       ) : null}
     </div>

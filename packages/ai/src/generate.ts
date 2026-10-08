@@ -13,12 +13,14 @@ import {
 /** El modelo se elige en el entorno (AI_MODEL), no en el código. */
 export interface AiConfig {
   model: string;
+  /** Respaldo automático del servidor ante negativas (AI_FALLBACKS=off lo apaga). */
+  fallbacks?: boolean;
 }
 
 export function aiConfigFromEnv(env: Record<string, string | undefined>): AiConfig {
   const model = env.AI_MODEL?.trim();
   if (!model) throw new Error("Falta AI_MODEL en las variables de entorno del motor de tareas");
-  return { model };
+  return { model, fallbacks: env.AI_FALLBACKS?.trim().toLowerCase() !== "off" };
 }
 
 export class AiRefusalError extends Error {

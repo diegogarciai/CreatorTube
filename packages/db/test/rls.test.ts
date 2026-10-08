@@ -680,3 +680,66 @@ describe("Fase 2 · dirección del episodio", () => {
     ).toBe("answered");
   });
 });
+
+describe("Fase 2 · guion en etapas", () => {
+  it("lo escribe el servidor y lo lee quien ve el canal", async () => {
+    const owner = await createUser();
+    const writer = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    await addMember(ws, writer.id, "writer");
+    const ep = await createEpisode(ch);
+
+    await expect(
+      as(writer.id, (q) =>
+        q("insert into public.script_runs (channel_id, episode_id) values ($1, $2)", [ch, ep]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+
+    const [run] = await sql(
+      "insert into public.script_runs (channel_id, episode_id) values ($1, $2) returning id, workspace_id, status",
+      [ch, ep],
+    );
+    expect(run.workspace_id).toBe(ws);
+    expect(run.status).toBe("queued");
+    await sql(
+      `insert into public.script_stage_runs (run_id, channel_id, stage, status, blocks) values ($1, $2, 'study', 'succeeded', '[{"title":"DOSSIER DE ESTUDIO","body":"x"}]')`,
+      [run.id, ch],
+    );
+    await expect(
+      sql(
+        "insert into public.script_stage_runs (run_id, channel_id, stage) values ($1, $2, 'study')",
+        [run.id, ch],
+      ),
+    ).rejects.toThrow(/duplicate key/);
+    await sql("update public.episodes set current_script_run_id = $1 where id = $2", [run.id, ep]);
+
+    const seen = await as(writer.id, (q) =>
+      q(
+        "select stage, blocks->0->>'title' as title from public.script_stage_runs where run_id = $1",
+        [run.id],
+      ),
+    );
+    expect(seen).toEqual([{ stage: "study", title: "DOSSIER DE ESTUDIO" }]);
+    expect(
+      await as(writer.id, (q) =>
+        q("update public.script_runs set status = 'succeeded' where id = $1 returning 1", [run.id]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(writer.id, (q) =>
+        q("update public.script_stage_runs set raw = 'x' where run_id = $1 returning 1", [run.id]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(outsider.id, (q) => q("select id from public.script_runs where id = $1", [run.id])),
+    ).toEqual([]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select id from public.script_stage_runs where run_id = $1", [run.id]),
+      ),
+    ).toEqual([]);
+  });
+});

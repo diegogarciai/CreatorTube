@@ -4,7 +4,8 @@
  */
 export type { directionTask } from "./trigger/direction";
 export type { pingTask } from "./trigger/ping";
+export type { scriptTask } from "./trigger/script";
 
 /** Tareas que la web puede disparar (id de Trigger.dev = `tasks.kind`). */
-export const JOB_KINDS = ["ping", "direction"] as const;
+export const JOB_KINDS = ["ping", "direction", "script"] as const;
 export type JobKind = (typeof JOB_KINDS)[number];

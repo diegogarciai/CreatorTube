@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "apps/jobs/**"
+      - "packages/ai/**"
       - "packages/core/**"
       - "packages/db/src/**"
       - "pnpm-lock.yaml"
