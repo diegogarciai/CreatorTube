@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkIdentity,
   findAccent,
+  identityCorrection,
+  withoutPeople,
   generateImage,
   geminiConfigFromEnv,
   ImageBlockedError,
@@ -70,7 +73,7 @@ describe("brief de las miniaturas", () => {
     const { client, calls } = fakeClient({
       briefs: [
         { idx: 0, scene: "Diego holds the laptop", mirror: true },
-        { idx: 1, scene: "The laptop alone", mirror: true },
+        { idx: 1, scene: "The laptop alone. The presenter smiles behind it.", mirror: true },
       ],
     });
     const out = await thumbnailBriefs(
@@ -91,7 +94,8 @@ describe("brief de las miniaturas", () => {
     // El espejo solo vale en A y C.
     expect(out.briefs).toEqual([
       { idx: 0, scene: "Diego holds the laptop", mirror: true },
-      { idx: 1, scene: "The laptop alone", mirror: false },
+      // En B la app quita la frase con persona.
+      { idx: 1, scene: "The laptop alone.", mirror: false },
     ]);
     const user = (calls[0]!.messages as { content: string }[])[0]!.content;
     expect(user).toContain("Miniatura A (idx 0)");
@@ -102,6 +106,8 @@ describe("brief de las miniaturas", () => {
     const system = String(calls[0]!.system);
     expect(system).toContain("nunca lleva letras");
     expect(system).toContain("Nunca asombro, boca abierta, señalar");
+    expect(system).toContain("Nunca describas su físico");
+    expect(system).toContain("el producto manda sobre la persona");
   });
 
   it("si falta un brief, usa la escena de la lista", async () => {
@@ -143,13 +149,13 @@ describe("prompt por esquema (guía v1.0)", () => {
   it("cada esquema pone a cada uno donde manda la guía", () => {
     const a = schemeImagePrompt({ ...base, scheme: "A" });
     expect(a).toContain("On the right (40% of the width), the presenter from the waist up");
-    expect(a).toContain("hand on the chin");
+    expect(a).toContain("touching the chin without covering the beard or the mouth");
     expect(a).toContain("The left 50% of the frame stays as empty");
     expect(schemeImagePrompt({ ...base, scheme: "A", mirror: true })).toContain(
       "On the left (40% of the width)",
     );
     const b = schemeImagePrompt({ ...base, scheme: "B" });
-    expect(b).toContain("No people at all");
+    expect(b).toContain("No people at all: no person, face, body or hands.");
     expect(b).toContain("rotated 5–10°");
     // Sin cara, sin fotos del presentador.
     expect(b).not.toContain("Reference photo of the presenter");
@@ -169,14 +175,101 @@ describe("prompt por esquema (guía v1.0)", () => {
     expect(a).toContain("faint orange grid");
   });
 
-  it("las referencias del presentador solo en los esquemas con cara", () => {
+  it("con cara, la identidad va primero y se repite al final", () => {
+    for (const scheme of ["A", "C", "D", "F"] as const) {
+      const lines = schemeImagePrompt({ ...base, scheme }).split("\n");
+      expect(lines[1]).toContain(
+        'IDENTITY — the most important rule: the 3 images labeled "Reference photo of the presenter"',
+      );
+      expect(lines[1]).toContain("not a similar-looking or generic man");
+      expect(lines.at(-1)).toContain("unmistakably the person in the reference photos");
+    }
     expect(schemeImagePrompt({ ...base, scheme: "A" })).toContain(
-      'The 3 images labeled "Reference photo of the presenter" all show the same real person',
+      "the head at least a quarter of the frame height",
     );
-    expect(schemeImagePrompt({ ...base, scheme: "E" })).not.toContain("Reference photo");
+    expect(schemeImagePrompt({ ...base, scheme: "F" })).toContain("never from behind");
+  });
+
+  it("sin cara, nada de personas ni fotos del presentador", () => {
+    for (const scheme of ["B", "E"] as const) {
+      const p = schemeImagePrompt({ ...base, scheme });
+      expect(p).not.toContain("Reference photo");
+      expect(p).toContain("No people at all");
+      expect(p.split("\n").at(-1)).toContain("no people at all");
+    }
+    expect(schemeImagePrompt({ ...base, scheme: "E" })).toContain("at most one hand");
     expect(schemeImagePrompt({ ...base, scheme: "B", productRefs: 1 })).toContain(
       'The images labeled "Product photo" show the real product',
     );
+  });
+
+  it("si no cabe todo, el producto manda sobre la persona", () => {
+    expect(schemeImagePrompt({ ...base, scheme: "C" })).toContain(
+      "the product stays whole, large and uncovered; reduce or crop the presenter's body",
+    );
+    expect(schemeImagePrompt({ ...base, scheme: "C", productRefs: 0 })).not.toContain(
+      "Priority if everything does not fit",
+    );
+  });
+
+  it("la corrección dice qué salió mal", () => {
+    expect(identityCorrection("A", "the beard is shorter")).toBe(
+      "CORRECTION: the previous attempt did not look like the presenter. What was wrong: the beard is shorter This time the face must match the reference photos exactly.",
+    );
+    expect(identityCorrection("B", "")).toContain("there are no people at all");
+  });
+
+  it("quita a las personas de la escena de B y E", () => {
+    expect(
+      withoutPeople(
+        "The grey laptop rotated on the dark set. Diego holds it with a smile. Orange rim light.",
+        "Diego",
+      ),
+    ).toBe("The grey laptop rotated on the dark set. Orange rim light.");
+    expect(withoutPeople("The presenter looks at the laptop.")).toBe(
+      "The real product from Product photo 1 on the dark brand set.",
+    );
+  });
+});
+
+describe("verificación de la cara", () => {
+  const input = {
+    image: Buffer.from("gen"),
+    mime: "image/jpeg",
+    scheme: "A" as const,
+    references: [
+      { data: Buffer.from("r1"), mime: "image/jpeg" },
+      { data: Buffer.from("r2"), mime: "image/jpeg" },
+    ],
+  };
+
+  it("compara con las fotos del presentador", async () => {
+    const { client, calls } = fakeClient({
+      person: true,
+      same_person: false,
+      likeness: 4,
+      notes: "the beard is shorter",
+    });
+    const out = await checkIdentity(client, { model: "m" }, input);
+    expect(out.check).toEqual({ ok: false, likeness: 4, notes: "the beard is shorter" });
+    const content = (calls[0]!.messages as { content: { type: string; text?: string }[] }[])[0]!
+      .content;
+    expect(content.filter((c) => c.type === "image")).toHaveLength(3);
+    expect(content[2]).toMatchObject({ text: "Foto de referencia del presentador 1:" });
+    expect(String(calls[0]!.system)).toContain("un parecido general");
+  });
+
+  it("sin cara, pasa si no aparece nadie", async () => {
+    const { client, calls } = fakeClient({
+      person: false,
+      same_person: false,
+      likeness: 0,
+      notes: "",
+    });
+    const out = await checkIdentity(client, { model: "m" }, { ...input, scheme: "B" });
+    expect(out.check.ok).toBe(true);
+    const content = (calls[0]!.messages as { content: { type: string }[] }[])[0]!.content;
+    expect(content.filter((c) => c.type === "image")).toHaveLength(1);
   });
 });
 

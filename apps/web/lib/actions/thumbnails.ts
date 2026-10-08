@@ -7,6 +7,7 @@ import {
   hasFace,
   hasVerdict,
   isEpisodeRefPath,
+  isIdentityWarning,
   isSchemeId,
   THUMBNAIL_SCHEMES,
   validateSchemeSet,
@@ -180,7 +181,9 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
     const admin = createAdminClient();
     const { data: source } = await admin
       .from("episode_assets")
-      .select("episode_id, design_idx, base_path, prompt, idea_id, scheme, scenario")
+      .select(
+        "episode_id, design_idx, base_path, prompt, idea_id, scheme, scenario, layout_warnings",
+      )
       .eq("id", assetId)
       .single();
     if (!source?.base_path) return { ok: false, error: "errors.not_found" };
@@ -214,6 +217,8 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
           scenario: source.scenario,
           mirror: THUMBNAIL_SCHEMES[source.scheme as SchemeId].mirror && mirror,
           text: { lines: [clean], accent },
+          // La imagen es la misma: su aviso de identidad sigue valiendo.
+          layout_warnings: (source.layout_warnings ?? []).filter(isIdentityWarning),
           task_id: taskId,
           created_by: user.id,
         });

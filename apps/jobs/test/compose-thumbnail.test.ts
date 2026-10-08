@@ -151,11 +151,39 @@ describe("texto por esquema", () => {
     expect(t.warnings).toEqual([`El texto queda a menos de ${FACE_GAP} px de la cara.`]);
   });
 
-  it("el producto no cuenta para la separación de la cara", () => {
-    const product = { label: "product" as const, x: 0, y: 0, w: 0.6, h: 1 };
+  it("achica el texto para no tapar el producto", () => {
+    const free = schemeTextLayout({ scheme: "A", ...SAMPLE.A });
+    // Un producto que se mete 10 px en el texto a tamaño máximo.
+    const right = free.box.x + free.box.w - 10;
+    const product = { label: "product" as const, x: right / THUMB_WIDTH, y: 0, w: 0.3, h: 1 };
     const t = schemeTextLayout({ scheme: "A", ...SAMPLE.A, avoid: [product] });
     expect(t.warnings).toEqual([]);
-    expect(t.size).toBe(TEXT_SIZE.max);
+    expect(t.size).toBeLessThan(free.size);
+    expect(t.box.x + t.box.w).toBeLessThanOrEqual(right);
+  });
+
+  it("si no cabe todo, el producto manda sobre la cara", () => {
+    const free = schemeTextLayout({ scheme: "A", ...SAMPLE.A });
+    const right = free.box.x + free.box.w;
+    // El producto empieza justo después del texto al mínimo y la cara está pegada a él.
+    const min = schemeTextLayout({
+      scheme: "A",
+      ...SAMPLE.A,
+      avoid: [{ label: "face" as const, x: 0, y: 0, w: 0.6, h: 1 }],
+    });
+    const productX = (min.box.x + min.box.w + 5) / THUMB_WIDTH;
+    const product = { label: "product" as const, x: productX, y: 0, w: 0.2, h: 1 };
+    const face = { label: "face" as const, x: 0, y: 0.1, w: right / THUMB_WIDTH, h: 0.2 };
+    const t = schemeTextLayout({ scheme: "A", ...SAMPLE.A, avoid: [product, face] });
+    expect(t.warnings).toEqual([`El texto queda a menos de ${FACE_GAP} px de la cara.`]);
+    expect(t.box.x + t.box.w).toBeLessThanOrEqual(productX * THUMB_WIDTH);
+  });
+
+  it("si ni al mínimo deja libre el producto, lo avisa", () => {
+    const product = { label: "product" as const, x: 0, y: 0, w: 0.6, h: 1 };
+    const t = schemeTextLayout({ scheme: "A", ...SAMPLE.A, avoid: [product] });
+    expect(t.size).toBe(TEXT_SIZE.min);
+    expect(t.warnings).toEqual(["El texto tapa parte del producto."]);
   });
 
   it("un texto que no cabe al mínimo se reduce y lo avisa", () => {

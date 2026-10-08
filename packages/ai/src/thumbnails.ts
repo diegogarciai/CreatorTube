@@ -97,7 +97,7 @@ const briefSchema = z.object({
       scene: z
         .string()
         .describe(
-          "Lo propio de esta miniatura para el generador de imágenes, en inglés: qué producto y cómo se ve, el escenario, la ropa y la luz, el gesto del presentador si aparece. Sin texto en la imagen y sin repetir la composición fija del esquema.",
+          "Lo propio de esta miniatura para el generador de imágenes, en inglés: qué producto y cómo se ve, el escenario, la luz y el gesto del presentador si aparece. Al presentador solo se le nombra «the presenter from the reference photos», sin describir su físico ni su ropa. En B y E, sin personas. Sin texto en la imagen y sin repetir la composición fija del esquema.",
         ),
       mirror: z
         .boolean()
@@ -124,6 +124,23 @@ function schemeGuide(id: SchemeId) {
   return `${id} · ${s.name}. Úsalo cuando: ${s.when} No lo uses si: ${s.avoid}`;
 }
 
+/** Frases que hablan de una persona (en inglés o en español). */
+const PERSON =
+  /\b(presenter|person|people|man|woman|guy|he|his|him|face|body|smil\w*|looks?|looking|holds?|holding|presentador|persona|hombre|cara|él|sostiene)\b/i;
+
+/**
+ * La escena de un esquema sin cara (B, E) sin las frases que meten a una
+ * persona: si la escena la menciona, Gemini dibuja a alguien que no es Diego.
+ */
+export function withoutPeople(scene: string, presenter = ""): string {
+  const name = presenter.trim().split(/\s+/)[0]?.toLowerCase();
+  const kept = scene.split(/(?<=[.;!?])\s+/).filter((sentence) => {
+    const low = sentence.toLowerCase();
+    return !PERSON.test(sentence) && !(name && name.length > 2 && low.includes(name));
+  });
+  return kept.join(" ").trim() || "The real product from Product photo 1 on the dark brand set.";
+}
+
 /** El brief de varias miniaturas en una sola llamada. */
 export async function thumbnailBriefs(
   client: StreamClient,
@@ -136,6 +153,9 @@ export async function thumbnailBriefs(
     "La imagen la genera otro modelo a partir de fotos reales del presentador y del producto; el texto lo pone después la app. La escena nunca lleva letras, números, logos, flechas, círculos, emojis ni marcos.",
     "El producto siempre es el real de sus fotos: nombra cuál es (Product photo 1, 2…). En el duelo (D), el producto 1 va a la izquierda y el 2 a la derecha. En el detalle (E), di qué pieza, función o defecto lleva el foco. En el veredicto (C), media sonrisa si el veredicto recomienda y ceño leve si no.",
     "Expresión natural siempre: duda, seguridad o concentración. Nunca asombro, boca abierta, señalar ni pulgares.",
+    "El parecido manda: la cara sale de las fotos reales del presentador. Nunca describas su físico (cara, pelo, barba, edad, rasgos, cuerpo) ni su ropa: nómbralo solo como «the presenter from the reference photos». Cualquier descripción física hace que el generador dibuje a otra persona.",
+    "Si no cabe todo, el producto manda sobre la persona: el producto entero y sin tapar; se recorta o achica el cuerpo del presentador, nunca el producto.",
+    "El dato (B) y el detalle (E) no llevan personas: ni el presentador, ni caras, ni cuerpos. En E, como mucho una mano que entra al cuadro para dar escala.",
     "Nunca azul, neón, RGB, amarillo, madera ni dorado como color dominante; escenarios sin marcas visibles ni gente de fondo; los exteriores se gradúan a la paleta (sombras profundas, luz cálida, acento naranja).",
     "Espejo: solo A y C pueden invertirse, y solo si el producto o la mirada lo piden.",
   ].join("\n");
@@ -183,9 +203,10 @@ export async function thumbnailBriefs(
   if (!parsed) throw new Error("El brief de las miniaturas llegó incompleto");
   const briefs = input.items.map((it, i) => {
     const b = parsed.briefs.find((x) => x.idx === it.idx) ?? parsed.briefs[i];
+    const scene = b?.scene?.trim() || it.idea;
     return {
       idx: it.idx,
-      scene: b?.scene?.trim() || it.idea,
+      scene: hasFace(it.scheme) ? scene : withoutPeople(scene, input.presenter),
       mirror: THUMBNAIL_SCHEMES[it.scheme].mirror && Boolean(b?.mirror),
     } satisfies ThumbnailBrief;
   });
@@ -199,13 +220,12 @@ function schemeComposition(scheme: SchemeId, mirror: boolean, scenario: Scenario
   switch (scheme) {
     case "A":
       return [
-        `On the ${near} (40% of the width), the presenter from the waist up, eyes in the upper third, looking at the camera with a calm, honest expression of doubt: one eyebrow slightly raised, hand on the chin.`,
+        `On the ${near} (40% of the width), the presenter from the waist up, eyes in the upper third, looking at the camera with a calm, honest expression of doubt: one eyebrow slightly raised, a hand lightly touching the chin without covering the beard or the mouth.`,
         `The product is optional: in his hand or behind him, never between him and the ${far} side.`,
         `The ${far} 50% of the frame stays as empty dark brand background for the headline.`,
       ];
     case "B":
       return [
-        "No people at all.",
         "On the right (40% of the width), the real product from Product photo 1, large and sharp, rotated 5–10°, with an orange rim reflection on its edge and nothing around it.",
         "The left 55% of the frame stays as empty dark brand background for a big figure and its words.",
       ];
@@ -223,7 +243,6 @@ function schemeComposition(scheme: SchemeId, mirror: boolean, scenario: Scenario
       ];
     case "E":
       return [
-        "No people.",
         "A macro close-up of the real product (Product photo 1) filling the upper-right two thirds and bleeding off the frame, a single point of focus on the detail, shallow depth of field.",
         "The lower-left area fades to black and stays empty for the headline; the detail is never there.",
       ];
@@ -236,10 +255,36 @@ function schemeComposition(scheme: SchemeId, mirror: boolean, scenario: Scenario
   }
 }
 
+/** Qué tan grande y cómo se ve la cara en cada esquema con cara. */
+const FACE_RULE: Partial<Record<SchemeId, string>> = {
+  A: "His face is large (the head at least a quarter of the frame height), facing the camera, sharp and well lit.",
+  C: "His face is large (the head at least a quarter of the frame height), facing the camera or in three-quarter view, sharp and well lit.",
+  D: "Even though he is small in the frame, his head and face are clearly visible, sharp and well lit, facing the camera or in three-quarter view.",
+  F: "He looks at the product, not at the camera, but his face stays clearly visible in three-quarter view, sharp and well lit; never from behind, never hidden.",
+};
+
+/** La identidad del presentador: va al principio del prompt y se repite al final. */
+function identityBlock(scheme: SchemeId, presenterRefs: number) {
+  return [
+    `IDENTITY — the most important rule: the ${presenterRefs} images labeled "Reference photo of the presenter" all show the same real person, and the man in this thumbnail must be exactly that person, not a similar-looking or generic man: the same face shape, eyes, eyebrows, nose, mouth, beard (length, shape and density), hair (color, length and hairline), skin tone and clothes as in the reference photos. Do not beautify him, change his age, weight or features, or replace him with anyone else.`,
+    FACE_RULE[scheme] ?? "",
+    "Nothing covers his face: no hands, product, hair or shadows over the eyes, nose, mouth or beard.",
+  ].filter(Boolean);
+}
+
+/** Lo que se le pide a Gemini cuando el intento anterior no pasó la verificación. */
+export function identityCorrection(scheme: SchemeId, notes: string) {
+  const detail = notes.trim() ? ` What was wrong: ${notes.trim()}` : "";
+  return hasFace(scheme)
+    ? `CORRECTION: the previous attempt did not look like the presenter.${detail} This time the face must match the reference photos exactly.`
+    : `CORRECTION: the previous attempt showed a person.${detail} This time there are no people at all.`;
+}
+
 /**
  * La instrucción completa para Gemini: el prompt base de la guía, qué son las
  * referencias, la composición del esquema y la escena. Lo único adaptado de la
- * guía: el texto no lo pinta Gemini, deja libre su zona y lo pone la app.
+ * guía: el texto no lo pinta Gemini, deja libre su zona y lo pone la app. En
+ * los esquemas con cara, la identidad va primero y se repite al final.
  */
 export function schemeImagePrompt(input: {
   scheme: SchemeId;
@@ -257,31 +302,134 @@ export function schemeImagePrompt(input: {
   const background = s.grid
     ? `Gartechs identity: near-black background ${k.canvas} with a very faint orange grid (${k.grid} at 10% opacity), a radial orange glow (${k.glow} at the center falling to ${k.amberDeep}) behind the main subject, vignette to black.`
     : `Gartechs identity without the grid: the real scene graded to the brand palette, a warm orange glow (${k.glow} to ${k.amberDeep}) behind the main subject, vignette to black.`;
-  const refs = [
-    face
-      ? `The ${input.presenterRefs} images labeled "Reference photo of the presenter" all show the same real person. That exact person must appear in the thumbnail: the same face shape, eyes, nose, beard, hair, hairline, skin tone and clothes; do not beautify them, change their age or replace them with a generic or different person.`
-      : "",
-    input.productRefs
-      ? `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself). Never invent products or logos.`
-      : "",
-  ].filter(Boolean);
+  const noPeople =
+    input.scheme === "E"
+      ? "No people at all: no person, face or body (at most one hand entering the frame to give scale)."
+      : "No people at all: no person, face, body or hands.";
   return [
     "Photorealistic YouTube thumbnail, 16:9, 1280×720.",
+    ...(face ? identityBlock(input.scheme, input.presenterRefs) : []),
+    ...(hasFace(input.scheme) ? [] : [noPeople]),
+    ...(input.productRefs
+      ? [
+          `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself). Never invent products or logos.`,
+        ]
+      : []),
     background,
     `Warm side light. Palette: black, white, cream ${k.cream} and orange ${k.accent}.`,
-    ...refs,
     `Composition (scheme ${input.scheme} · ${s.name}):`,
     ...schemeComposition(input.scheme, mirror, input.scenario),
     `Scene: ${input.scene}`,
-    ...(face && input.scheme !== "F"
+    ...(face ? ["Natural expression: never surprised, never an open mouth, never pointing."] : []),
+    ...(face && input.productRefs
       ? [
-          "The presenter's face is clearly visible and recognizable, well lit, nothing covering it. Natural expression: never surprised, never an open mouth, never pointing.",
+          "Priority if everything does not fit: the product stays whole, large and uncovered; reduce or crop the presenter's body (shoulders, arms, torso) instead, never the product. His face stays recognizable.",
         ]
       : []),
     "Keep a 64 px safe margin on every side for the important parts. The bottom-right corner (220×90 px) stays empty: no face, product or detail there, because the video duration goes there.",
     "The headline is added later by the app: leave its area empty and do not draw any text.",
     "Strictly no text, letters, numbers, captions, logos, watermarks, arrows, red circles, emojis, frames or borders anywhere, including on screens and objects. No blue, neon, RGB, yellow, wood or gold as a dominant color.",
+    face
+      ? "Final check before answering: the man must be unmistakably the person in the reference photos — same face, beard and hair. If he could be someone else, it is wrong."
+      : `Final check before answering: ${noPeople.charAt(0).toLowerCase()}${noPeople.slice(1)}`,
   ].join("\n");
+}
+
+const identitySchema = z.object({
+  person: z.boolean().describe("Aparece una persona (cara o cuerpo). Una mano sola no cuenta."),
+  same_person: z
+    .boolean()
+    .describe("Si aparece, es inequívocamente la misma persona de las fotos de referencia."),
+  likeness: z
+    .number()
+    .int()
+    .min(0)
+    .max(10)
+    .describe("Parecido con las fotos de referencia, de 0 a 10 (0 si no aparece nadie)."),
+  notes: z
+    .string()
+    .describe(
+      "En inglés y en una frase: qué cambia respecto a las fotos (barba, pelo, forma de la cara, edad…) o qué persona sobra. Vacío si está bien.",
+    ),
+});
+
+export type IdentityCheck = {
+  ok: boolean;
+  likeness: number;
+  notes: string;
+};
+
+/**
+ * Antes de componer: ¿la persona de la imagen (sin texto) es el presentador de
+ * las fotos? En los esquemas sin cara (B, E), que no aparezca nadie.
+ */
+export async function checkIdentity(
+  client: StreamClient,
+  config: AiConfig,
+  input: {
+    image: Buffer;
+    mime: string;
+    scheme: SchemeId;
+    references: { data: Buffer; mime: string }[];
+  },
+): Promise<{ check: IdentityCheck; usage: UsageTotals; model: string }> {
+  const face = hasFace(input.scheme);
+  const image = (data: Buffer, mime: string) => ({
+    type: "image" as const,
+    source: {
+      type: "base64" as const,
+      media_type: mime as "image/jpeg",
+      data: data.toString("base64"),
+    },
+  });
+  const res = await client.beta.messages.parse({
+    model: config.model,
+    max_tokens: 800,
+    system: [
+      "Verificas la identidad en imágenes generadas para miniaturas de YouTube. Eres estricto: un parecido general (mismo tipo de barba, misma edad aproximada) no basta; tiene que ser la misma persona, reconocible por quien la conoce.",
+      face
+        ? "Compara la persona de la imagen generada con las fotos de referencia del presentador: forma de la cara, ojos, cejas, nariz, boca, barba, pelo, entradas y tono de piel."
+        : "Este esquema no lleva personas: revisa que no aparezca nadie (una mano sola que entra al cuadro no cuenta).",
+    ].join("\n"),
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text" as const, text: "Imagen generada:" },
+          image(input.image, input.mime),
+          ...(face
+            ? input.references.flatMap((r, i) => [
+                { type: "text" as const, text: `Foto de referencia del presentador ${i + 1}:` },
+                image(r.data, r.mime),
+              ])
+            : []),
+          {
+            type: "text" as const,
+            text: face
+              ? "¿La persona de la imagen generada es el presentador de las fotos?"
+              : "¿Aparece alguna persona en la imagen generada?",
+          },
+        ],
+      },
+    ],
+    output_config: { effort: "low", format: betaZodOutputFormat(identitySchema) },
+    ...(config.fallbacks && {
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+    }),
+  });
+  if (res.stop_reason === "refusal") {
+    const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
+    throw new AiRefusalError(details?.category ?? null);
+  }
+  const p = res.parsed_output;
+  if (!p) throw new Error("La verificación de la cara llegó incompleta");
+  const ok = face ? p.person && p.same_person : !p.person;
+  return {
+    check: { ok, likeness: face ? p.likeness : ok ? 10 : 0, notes: p.notes.trim() },
+    usage: addUsage(emptyUsage(), res.usage),
+    model: res.model,
+  };
 }
 
 export const SCORE_CRITERIA = [
@@ -525,7 +673,11 @@ const ideasSchema = z.object({
       accent: z
         .string()
         .describe("La única palabra del texto que va en naranja (en B, la cifra tal cual)."),
-      scene: z.string().describe("La escena de la imagen en una frase, según su esquema."),
+      scene: z
+        .string()
+        .describe(
+          "La escena de la imagen en una frase, según su esquema. En B y E, solo el producto o el detalle, sin personas.",
+        ),
       emotion: z.string().describe("La emoción que despierta, en 1 a 3 palabras."),
     }),
   ),
@@ -579,7 +731,7 @@ export async function thumbnailIdeas(
     `Reparte los textos entre esos esquemas: al menos ${IDEAS_PER_SCHEME} por esquema${recommended.length ? `, y más en el set recomendado para este episodio (${recommended.join("+")})` : ""}.`,
     "Reglas de todos los textos: máximo 22 caracteres con espacios y 2 líneas; tipo oración (nunca TODO MAYÚSCULAS), con tildes y ¿? ¡! de apertura; una sola palabra en naranja, la que carga la emoción o la decisión; sin superlativos vacíos (increíble, brutal), sin marcas (ya van en el título), sin precios sin moneda, sin emojis y sin clickbait que el video no cumpla.",
     "El texto completa el título, no lo repite: juntos forman una idea completa. Las cifras solo pueden salir de la ficha del episodio. Ningún texto contradice el veredicto. No repitas textos.",
-    "Por cada texto: el esquema, el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase según su esquema y la emoción.",
+    "Por cada texto: el esquema, el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase según su esquema y la emoción. En la escena no describas el físico del presentador; en B y E no aparece ninguna persona.",
   ].join("\n");
   const user = [
     `Tema central del episodio: ${input.episodeTitle}`,
@@ -626,7 +778,10 @@ export async function thumbnailIdeas(
       angle: i.angle.trim().slice(0, 60) || "Otro",
       text,
       accent: accent.slice(0, 40),
-      scene: i.scene.trim().slice(0, 400),
+      scene: (hasFace(i.scheme) ? i.scene.trim() : withoutPeople(i.scene, input.presenter)).slice(
+        0,
+        400,
+      ),
       emotion: i.emotion.trim().slice(0, 80),
     });
   }

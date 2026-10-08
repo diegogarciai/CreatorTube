@@ -198,14 +198,17 @@ export function schemeTextLayout(opts: Omit<ComposeOptions, "colors"> & { colors
   const layout = schemeLayout(opts.scheme, opts.mirror);
   const zone = layout.zone;
   const colors = opts.colors ?? { text: "#FFFFFF", accent: "#FF7A29" };
-  const faces = (opts.avoid ?? [])
-    .filter((b) => b.label === "face")
-    .map((b) => ({
-      x: b.x * THUMB_WIDTH,
-      y: b.y * THUMB_HEIGHT,
-      w: b.w * THUMB_WIDTH,
-      h: b.h * THUMB_HEIGHT,
-    }));
+  const boxes = (label: SubjectBox["label"]) =>
+    (opts.avoid ?? [])
+      .filter((b) => b.label === label)
+      .map((b) => ({
+        x: b.x * THUMB_WIDTH,
+        y: b.y * THUMB_HEIGHT,
+        w: b.w * THUMB_WIDTH,
+        h: b.h * THUMB_HEIGHT,
+      }));
+  const faces = boxes("face");
+  const products = boxes("product");
   const warnings: string[] = [];
 
   const lines = breakLines(opts.scheme, opts.text, (ls) =>
@@ -245,21 +248,19 @@ export function schemeTextLayout(opts: Omit<ComposeOptions, "colors"> & { colors
     for (let size = TEXT_SIZE.max; size >= TEXT_SIZE.min; size -= 5)
       tries.push(lines.map(() => size));
   }
-  let chosen: ReturnType<typeof place> | null = null;
-  let smallest: ReturnType<typeof place> | null = null;
-  for (const sizes of tries) {
-    const p = place(sizes);
-    if (!fits(p)) continue;
-    smallest = p;
-    if (faces.every((f) => gap(p.box, f) >= FACE_GAP)) {
-      chosen = p;
-      break;
-    }
-  }
-  if (!chosen && smallest) {
-    // Ni al mínimo deja los 40 px: el más pequeño, con aviso.
-    chosen = smallest;
-    warnings.push(`El texto queda a menos de ${FACE_GAP} px de la cara.`);
+  // Si no cabe todo, el producto manda sobre la persona: primero el tamaño
+  // más grande que no tapa el producto y deja 40 px a la cara; si no hay, uno
+  // que no tapa el producto; y si tampoco, el más pequeño, con avisos.
+  const productFree = (p: ReturnType<typeof place>) => products.every((b) => !intersects(p.box, b));
+  const faceFree = (p: ReturnType<typeof place>) => faces.every((f) => gap(p.box, f) >= FACE_GAP);
+  const fitting = tries.map(place).filter(fits);
+  let chosen: ReturnType<typeof place> | null =
+    fitting.find((p) => productFree(p) && faceFree(p)) ?? null;
+  if (!chosen && fitting.length) {
+    // El más pequeño que no tapa el producto: así queda lo más lejos posible de la cara.
+    chosen = [...fitting].reverse().find(productFree) ?? fitting[fitting.length - 1]!;
+    if (!productFree(chosen)) warnings.push("El texto tapa parte del producto.");
+    if (!faceFree(chosen)) warnings.push(`El texto queda a menos de ${FACE_GAP} px de la cara.`);
   }
   if (!chosen) {
     // Ni al tamaño mínimo cabe: se reduce lo justo para entrar en la zona.
@@ -267,6 +268,8 @@ export function schemeTextLayout(opts: Omit<ComposeOptions, "colors"> & { colors
     const k = Math.min(zone.w / base.box.w, zone.h / base.box.h, 1) * 0.995;
     chosen = place(base.sizes.map((c) => c * k));
     warnings.push(`El texto no cabe a ${TEXT_SIZE.min} px de cuerpo y se redujo.`);
+    if (!productFree(chosen)) warnings.push("El texto tapa parte del producto.");
+    if (!faceFree(chosen)) warnings.push(`El texto queda a menos de ${FACE_GAP} px de la cara.`);
   }
   const { box, dx, dy } = chosen;
   if (intersects(box, DURATION_BOX)) warnings.push("El texto toca la esquina de la duración.");
