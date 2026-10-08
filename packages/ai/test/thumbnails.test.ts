@@ -4,7 +4,9 @@ import {
   geminiConfigFromEnv,
   ImageBlockedError,
   imageCostUsd,
+  maxPresenterRefs,
   imagePrompt,
+  locateSubjects,
   normalizeText,
   scoreThumbnail,
   thumbnailBriefs,
@@ -137,14 +139,18 @@ describe("brief de las miniaturas", () => {
 
   it("la instrucción para Gemini fija la marca y prohíbe el texto", () => {
     const p = imagePrompt({ scene: "S", textSide: "left", presenterRefs: 3, productRefs: 1, kit });
-    expect(p).toContain("The first 3 image(s) are reference photos of the presenter");
-    expect(p).toContain("The next 1 image(s) show the real product");
+    expect(p).toContain(
+      'The 3 images labeled "Reference photo of the presenter" all show the same real person',
+    );
+    expect(p).toContain('The images labeled "Product photo" show the real product');
+    // La cara grande también cuando el producto manda: una cara chica sale como otra persona.
+    expect(p).toContain("even when the product is the main subject");
     expect(p).toContain("occupy the right half; keep the left ~45%");
     expect(p).toContain("#E87026");
     expect(p).toMatch(/no text, letters, numbers/);
     expect(
       imagePrompt({ scene: "S", textSide: "right", presenterRefs: 0, productRefs: 0, kit }),
-    ).not.toContain("reference photos");
+    ).not.toContain("Reference photo");
   });
 });
 
@@ -166,6 +172,7 @@ describe("calificación", () => {
         text: { lines: ["¿Pagar más", "por RAM?"], accent: "RAM?" },
         topic: "¿Vale la pena 16 GB?",
         verdict: "16 GB sí",
+        reference: { data: Buffer.from("cara"), mime: "image/jpeg" },
       },
     );
     expect(out.score).toEqual(score);
@@ -176,8 +183,15 @@ describe("calificación", () => {
       type: "image",
       source: { data: Buffer.from("jpg").toString("base64") },
     });
-    expect(JSON.stringify(content[1])).toContain("Ángulo de esta miniatura: El dinero");
-    expect(JSON.stringify(content[1])).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
+    // Después de la miniatura va la foto de referencia, para comparar la cara.
+    expect(content[1]).toMatchObject({ type: "text", text: "Foto de referencia del presentador:" });
+    expect(content[2]).toMatchObject({
+      type: "image",
+      source: { data: Buffer.from("cara").toString("base64") },
+    });
+    expect(JSON.stringify(content[3])).toContain("Ángulo de esta miniatura: El dinero");
+    expect(JSON.stringify(content[3])).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
+    expect(String(calls[0]!.system)).toContain("misma persona de la foto de referencia");
     expect(String(calls[0]!.system)).toContain("- angle:");
   });
 });
@@ -188,7 +202,7 @@ describe("Gemini", () => {
   it("lee la configuración del entorno", () => {
     expect(config).toEqual({
       apiKey: "k",
-      model: "gemini-3.1-flash-image",
+      model: "gemini-3-pro-image",
       baseUrl: "http://mock",
       imagePriceUsd: null,
     });
@@ -223,14 +237,18 @@ describe("Gemini", () => {
     }) as typeof fetch;
     const out = await generateImage(
       config,
-      { prompt: "P", references: [{ mime: "image/jpeg", data: Buffer.from("ref") }] },
+      {
+        prompt: "P",
+        references: [{ mime: "image/jpeg", data: Buffer.from("ref"), label: "Reference photo 1:" }],
+      },
       fetchImpl,
     );
-    expect(url).toBe("http://mock/v1beta/models/gemini-3.1-flash-image:generateContent");
+    expect(url).toBe("http://mock/v1beta/models/gemini-3-pro-image:generateContent");
     expect(body).toMatchObject({
       contents: [
         {
           parts: [
+            { text: "Reference photo 1:" },
             { inlineData: { mimeType: "image/jpeg", data: Buffer.from("ref").toString("base64") } },
             { text: "P" },
           ],
@@ -238,9 +256,16 @@ describe("Gemini", () => {
       ],
       generationConfig: {
         responseModalities: ["IMAGE"],
-        imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+        imageConfig: { aspectRatio: "16:9", imageSize: "2K" },
       },
     });
+    // Con Nano Banana 2 se pide 1K (2K cuesta más ahí).
+    await generateImage(
+      { ...config, model: "gemini-3.1-flash-image" },
+      { prompt: "P", references: [] },
+      fetchImpl,
+    );
+    expect(body).toMatchObject({ generationConfig: { imageConfig: { imageSize: "1K" } } });
     expect(out.bytes.toString()).toBe("png");
     expect(out.usage).toEqual({ inputTokens: 1000, outputTokens: 1120, images: 1 });
   });
@@ -273,8 +298,18 @@ describe("Gemini", () => {
 
   it("calcula el costo por imagen", () => {
     expect(
-      imageCostUsd(config, { inputTokens: 2_000_000, outputTokens: 0, images: 1 }),
+      imageCostUsd(config, { inputTokens: 1_000_000, outputTokens: 0, images: 1 }),
+    ).toBeCloseTo(2.134);
+    expect(
+      imageCostUsd(
+        { model: "gemini-3.1-flash-image", imagePriceUsd: null },
+        { inputTokens: 2_000_000, outputTokens: 0, images: 1 },
+      ),
     ).toBeCloseTo(1.067);
+    expect([
+      maxPresenterRefs("gemini-3-pro-image"),
+      maxPresenterRefs("gemini-3.1-flash-image"),
+    ]).toEqual([5, 4]);
     expect(
       imageCostUsd(
         { model: "gemini-3-pro-image-preview", imagePriceUsd: null },
@@ -287,5 +322,27 @@ describe("Gemini", () => {
         { inputTokens: 0, outputTokens: 0, images: 1 },
       ),
     ).toBeCloseTo(0.05);
+  });
+});
+
+describe("ubicar la cara y el producto", () => {
+  it("devuelve recuadros dentro de la imagen", async () => {
+    const { client, calls } = fakeClient({
+      boxes: [
+        { label: "face", x: 0.7, y: 0.1, w: 0.2, h: 0.4 },
+        { label: "product", x: 0.9, y: 0.8, w: 0.5, h: 0.5 },
+        { label: "person", x: -0.2, y: 0.5, w: 0, h: 0.3 },
+      ],
+    });
+    const out = await locateSubjects(
+      client,
+      { model: "m" },
+      { image: Buffer.from("jpg"), mime: "image/jpeg" },
+    );
+    expect(out.boxes).toEqual([
+      { label: "face", x: 0.7, y: 0.1, w: 0.2, h: 0.4 },
+      { label: "product", x: 0.9, y: 0.8, w: expect.closeTo(0.1), h: expect.closeTo(0.2) },
+    ]);
+    expect(String(calls[0]!.system)).toContain("para que un titular no los tape");
   });
 });

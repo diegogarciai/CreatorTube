@@ -1022,6 +1022,12 @@
       "verdict": "Veredicto",
       "clean": "Limpia"
     },
-    "thumbnail": "Miniatura {letter}"
+    "thumbnail": "Miniatura {letter}",
+    "auto": "Automático",
+    "vertical": "Altura",
+    "top": "Arriba",
+    "middle": "Centro",
+    "bottom": "Abajo",
+    "autoHint": "Automático: la app pone el texto donde la imagen tiene menos detalle."
   }
 }

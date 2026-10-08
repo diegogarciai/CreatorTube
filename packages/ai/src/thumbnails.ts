@@ -101,6 +101,7 @@ export async function thumbnailBriefs(
     "La imagen la genera otro modelo a partir de fotos reales del presentador; el texto lo pone después la app con la tipografía de la marca. Por eso la escena nunca lleva letras, números, logos, flechas, emojis ni marcos.",
     "Las tres miniaturas son tres ángulos totalmente distintos de la idea central del episodio (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…). Cada ángulo cambia la motivación, la emoción, la escena y el texto, pero las tres hablan del mismo tema central y se entienden sin el título. Ningún ángulo contradice el veredicto ni promete lo que el video no entrega.",
     "Estilo de la marca: fondo oscuro, luz cálida lateral y un halo naranja detrás; expresión natural, nunca cara de asombro; el presentador de medio cuerpo en al menos una de las tres; el producto real, grande e idéntico a sus fotos si las hay.",
+    "En las tres el presentador sale con la cara grande y reconocible (de frente o en tres cuartos, nunca de espaldas ni chiquito al fondo), aunque el producto sea el protagonista: la imagen se genera desde sus fotos y una cara pequeña sale como otra persona.",
     "La escena deja libre casi la mitad del ancho del lado del texto, con fondo oscuro y limpio para que se lea. Las tres miniaturas no repiten la misma distribución.",
     "El texto usa exactamente las palabras del campo «texto» de la miniatura, en 2 líneas, y una sola palabra en naranja: la que carga la emoción o el dato.",
   ].join("\n");
@@ -172,16 +173,21 @@ export function imagePrompt(input: {
   const subject = input.textSide === "left" ? "right" : "left";
   const refs = [
     input.presenterRefs
-      ? `The first ${input.presenterRefs} image(s) are reference photos of the presenter: keep the person's face, facial hair, hairline and skin tone identical; do not beautify them or change their age.`
+      ? `The ${input.presenterRefs} images labeled "Reference photo of the presenter" all show the same real person. That exact person must appear in the thumbnail: keep the face shape, eyes, nose, beard, hairline and skin tone identical; do not beautify them, change their age or replace them with a generic or different person.`
       : "",
     input.productRefs
-      ? `The next ${input.productRefs} image(s) show the real product: reproduce it exactly (shape, color, ports, logos on the device itself).`
+      ? `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself).`
       : "",
   ].filter(Boolean);
   return [
     "Create a photorealistic YouTube thumbnail photograph, 16:9.",
     ...refs,
     `Scene: ${input.scene}`,
+    ...(input.presenterRefs
+      ? [
+          "The presenter's face is always clearly visible and recognizable: large (at least a quarter of the frame height), facing the camera or in three-quarter view, well lit, nothing covering it, never from behind, never small in the background — even when the product is the main subject.",
+        ]
+      : []),
     `Composition: the presenter and the product occupy the ${subject} half; keep the ${free} ~45% of the frame as clean dark background for a headline that will be added later.`,
     `Look: dark background close to ${input.kit.canvas}, warm side light on the face, a soft radial orange glow (${input.kit.glow} fading to ${input.kit.amberDeep}) behind the subject, natural expression, sharp focus on face and product.`,
     "Strictly no text, letters, numbers, captions, logos, watermarks, arrows, emojis, frames or borders anywhere in the image. No surprised face, no exaggerated expression, no neon, RGB or blue lighting.",
@@ -226,6 +232,8 @@ export async function scoreThumbnail(
     text: ThumbnailText;
     topic: string;
     verdict: string;
+    /** Una foto del presentador, para comparar la cara. */
+    reference?: { data: Buffer; mime: string } | null;
   },
 ): Promise<{ score: ThumbnailScore; usage: UsageTotals; model: string }> {
   const system = [
@@ -236,8 +244,8 @@ export async function scoreThumbnail(
     "- product: el producto real se ve grande y reconocible.",
     "- text: 2 a 4 palabras legibles que nombran algo concreto (producto, componente, cifra o precio), una sola palabra en naranja y nunca amarillo.",
     "- emotion: despierta una emoción por lo que está en juego (pagar de más, quedarse corto, una sorpresa o un permiso).",
-    "- face: la cara del presentador se ve clara, de frente o en tres cuartos, bien iluminada, con expresión natural.",
-    "- contrast: el texto y el sujeto se separan bien del fondo oscuro.",
+    "- face: es la misma persona de la foto de referencia (si la hay), con la cara clara, de frente o en tres cuartos, bien iluminada y con expresión natural. Si parece otra persona, va en falso y la nota no pasa de 4.",
+    "- contrast: el texto se lee y no tapa la cara ni el producto; el sujeto se separa bien del fondo oscuro.",
     "- verdict: no contradice el veredicto del episodio ni promete lo que el video no entrega.",
     "- clean: sin flechas, emojis, marcos, logos inventados ni letras raras dentro de la imagen.",
     "La nota es de 0 a 10; 8 o más significa lista para publicar.",
@@ -258,6 +266,19 @@ export async function scoreThumbnail(
               data: input.image.toString("base64"),
             },
           },
+          ...(input.reference
+            ? [
+                { type: "text" as const, text: "Foto de referencia del presentador:" },
+                {
+                  type: "image" as const,
+                  source: {
+                    type: "base64" as const,
+                    media_type: input.reference.mime as "image/jpeg",
+                    data: input.reference.data.toString("base64"),
+                  },
+                },
+              ]
+            : []),
           {
             type: "text",
             text: [
@@ -285,4 +306,83 @@ export async function scoreThumbnail(
   const parsed = res.parsed_output;
   if (!parsed) throw new Error("La calificación de la miniatura llegó incompleta");
   return { score: parsed, usage: addUsage(emptyUsage(), res.usage), model: res.model };
+}
+
+/** Un recuadro en fracciones del ancho y el alto de la imagen (0 a 1). */
+export type SubjectBox = {
+  label: "face" | "person" | "product";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+const subjectsSchema = z.object({
+  boxes: z.array(
+    z.object({
+      label: z.enum(["face", "person", "product"]),
+      x: z.number().describe("Borde izquierdo, de 0 a 1 del ancho."),
+      y: z.number().describe("Borde de arriba, de 0 a 1 del alto."),
+      w: z.number().describe("Ancho, de 0 a 1."),
+      h: z.number().describe("Alto, de 0 a 1."),
+    }),
+  ),
+});
+
+/**
+ * Dónde están la cara, el cuerpo y el producto en la imagen (sin texto), para
+ * que el texto no los tape. Un análisis de píxeles no basta: la pantalla oscura
+ * de un portátil o un celular parece fondo vacío.
+ */
+export async function locateSubjects(
+  client: StreamClient,
+  config: AiConfig,
+  input: { image: Buffer; mime: string },
+): Promise<{ boxes: SubjectBox[]; usage: UsageTotals; model: string }> {
+  const res = await client.beta.messages.parse({
+    model: config.model,
+    max_tokens: 1_000,
+    system:
+      "Ubicas los elementos de una foto para que un titular no los tape. Devuelves recuadros en fracciones de la imagen (0 a 1): la cara del presentador (face), su cuerpo completo visible (person) y cada producto o dispositivo (product). Si algo no está, no lo incluyes.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: input.mime as "image/jpeg",
+              data: input.image.toString("base64"),
+            },
+          },
+          { type: "text", text: "Ubica la cara, el cuerpo y los productos de esta foto." },
+        ],
+      },
+    ],
+    output_config: { effort: "low", format: betaZodOutputFormat(subjectsSchema) },
+    ...(config.fallbacks && {
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+    }),
+  });
+  if (res.stop_reason === "refusal") {
+    const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
+    throw new AiRefusalError(details?.category ?? null);
+  }
+  const clamp = (v: number) => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
+  const boxes = (res.parsed_output?.boxes ?? [])
+    .map((b) => {
+      const x = clamp(b.x);
+      const y = clamp(b.y);
+      return {
+        label: b.label,
+        x,
+        y,
+        w: clamp(Math.min(b.w, 1 - x)),
+        h: clamp(Math.min(b.h, 1 - y)),
+      };
+    })
+    .filter((b) => b.w > 0 && b.h > 0);
+  return { boxes, usage: addUsage(emptyUsage(), res.usage), model: res.model };
 }

@@ -14,7 +14,9 @@ export type ThumbnailVersion = {
   url: string | null;
   downloadUrl: string | null;
   text: ThumbnailText | null;
-  side: "left" | "right";
+  /** null: automático (la zona más libre de la imagen). */
+  side: "left" | "right" | null;
+  vertical: "top" | "middle" | "bottom" | null;
   score: ThumbnailScore | null;
   chosen: boolean;
   error: string | null;
@@ -70,7 +72,7 @@ export async function loadThumbnailsView(episode: {
       supabase
         .from("episode_assets")
         .select(
-          "id, design_idx, status, path, text, text_side, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
+          "id, design_idx, status, path, text, text_side, text_v, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
         )
         .eq("episode_id", episode.id)
         .eq("kind", "thumbnail")
@@ -126,7 +128,9 @@ export async function loadThumbnailsView(episode: {
           url: r.path ? (urls.get(r.path) ?? null) : null,
           downloadUrl: download,
           text: (r.text as ThumbnailText | null) ?? null,
-          side: r.text_side === "right" ? "right" : "left",
+          side: r.text_side === "left" || r.text_side === "right" ? r.text_side : null,
+          vertical:
+            r.text_v === "top" || r.text_v === "middle" || r.text_v === "bottom" ? r.text_v : null,
           score: (r.score as unknown as ThumbnailScore | null) ?? null,
           chosen: r.chosen,
           error,

@@ -1170,6 +1170,14 @@ describe("Fase 3 · miniaturas", () => {
       a.id,
       `${ch}/episodes/${ep}/thumbnails/${a.id}.jpg`,
     ]);
+    // Posición del texto: lado y altura, o null (automático).
+    await sql(
+      "update public.episode_assets set text_side = 'right', text_v = 'bottom' where id = $1",
+      [a.id],
+    );
+    await expect(
+      sql("update public.episode_assets set text_v = 'abajo' where id = $1", [a.id]),
+    ).rejects.toThrow(/check constraint/);
 
     expect(
       (

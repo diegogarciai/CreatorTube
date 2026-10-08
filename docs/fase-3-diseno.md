@@ -88,25 +88,25 @@ Para el paso 4 (piezas animadas) también cuentan, del manual:
 Viven en la pestaña **Producción** del episodio. Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
 
 1. **Brief (Claude).** Una llamada para todas las que se generan, con el tema central del episodio y el ángulo de cada una: la escena en inglés para Gemini, el texto del campo «texto» repartido en dos líneas, la palabra en naranja y el lado del texto. La nota de Diego al regenerar entra aquí.
-2. **Imagen (Gemini).** `generateContent` con las fotos del presentador (hasta 4) y del producto (hasta 3) como referencia, 16:9 en 1K y **sin texto**. La instrucción fija (`imagePrompt`) añade la marca: fondo oscuro, luz cálida lateral, halo naranja, el lado del texto libre y nada de letras, logos, flechas, emojis ni marcos.
-3. **Composición (la app).** `sharp` recorta a 1280 × 720 y el texto se dibuja como trazos con Inter Display Black (`opentype.js`): casi la mitad del ancho, blanco, una palabra en Naranja marca y sombra suave. Sale en JPG de menos de 2 MB.
-4. **Calificación (Claude con visión).** Nota de 0 a 10 con los criterios de la sección 14 (ángulo y foco en el tema central, scroll, producto, texto, emoción, cara, contraste, veredicto, limpia) y qué mejorar.
+2. **Imagen (Gemini).** `generateContent` con las fotos del presentador (hasta 5 con Pro) y del producto (hasta 3) como referencia, cada una con su etiqueta, 16:9 en 2K con Pro y **sin texto**. La cara del presentador va siempre grande y reconocible, también cuando el producto es el protagonista. La instrucción fija (`imagePrompt`) añade la marca: fondo oscuro, luz cálida lateral, halo naranja, el lado del texto libre y nada de letras, logos, flechas, emojis ni marcos.
+3. **Composición (la app).** `sharp` recorta a 1280 × 720. Claude mira la imagen y ubica la cara, el cuerpo y el producto (`thumbnail_layout`), porque la pantalla oscura de un dispositivo parece fondo vacío. La app elige la zona (izquierda o derecha × arriba, centro o abajo) que no los tapa y tiene menos detalle; si en ninguna cabe entero, achica un poco el texto. El texto se dibuja como trazos con Inter Display Black (`opentype.js`): casi la mitad del ancho, blanco, una palabra en Naranja marca, sombra suave en las letras y una mancha negra difusa detrás del bloque. Al editar el texto se puede fijar el lado y la altura. Sale en JPG de menos de 2 MB.
+4. **Calificación (Claude con visión).** Recibe también una foto del presentador para comprobar que es la misma persona. Nota de 0 a 10 con los criterios de la sección 14 (ángulo y foco en el tema central, scroll, producto, texto, emoción, cara, contraste, veredicto, limpia) y qué mejorar.
 
 Además:
 
 - **Editar el texto** crea otra versión con la misma imagen: solo se recompone y se califica, sin pagar otra imagen.
 - **Versiones:** cada generación es una fila de `episode_assets` y se conservan todas. Una sola miniatura queda **elegida** por episodio, y cada versión lista se **descarga** con el código del episodio y la letra (A, B o C).
 - **Fotos del producto:** opcionales, hasta 3 por episodio (`episode_refs`, carpeta `{canal}/episodes/{episodio}/refs/`). Las sube quien escribe guiones.
-- **Modelo:** `GEMINI_IMAGE_MODEL` en Trigger.dev, por defecto `gemini-3.1-flash-image` (Nano Banana 2). El modelo de Claude para el brief y la calificación es la etapa «Miniaturas» de Administración.
-- **Costo:** unos US$0,067 por imagen más el brief y la calificación, cerca de US$0,10 por miniatura. Se registra como `thumbnail_brief`, `thumbnail_image` (con `image_usd`) y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
+- **Modelo:** `GEMINI_IMAGE_MODEL` en Trigger.dev, por defecto `gemini-3-pro-image` (Nano Banana Pro): con Nano Banana 2 la cara salía como otra persona. El modelo de Claude para el brief y la calificación es la etapa «Miniaturas» de Administración.
+- **Costo:** unos US$0,134 por imagen (Pro, 2K) más el brief y la calificación, cerca de US$0,17 por miniatura. Se registra como `thumbnail_brief`, `thumbnail_image` (con `image_usd`), `thumbnail_layout` y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
 - **Tablas:**
   - `episode_assets`: `id`, `episode_id`, `channel_id`, `kind`, `design_idx`, `status`, `source_id`, `base_path`, `path`, `text`, `text_side`, `prompt`, `note`, `score`, `chosen`, `model`, `credits`, `error` y `task_id`. Solo la escribe el servidor.
   - `episode_refs`: las fotos del producto.
 
 ## 8. Costos estimados por episodio
 
-| Qué                                        | Estimado                                      |
-| ------------------------------------------ | --------------------------------------------- |
-| 3 miniaturas con una regeneración cada una | unos US$0,60 (imágenes, brief y calificación) |
-| Plan de ayudas visuales                    | una llamada a Claude                          |
-| Render de piezas en Trigger.dev            | minutos de máquina de Trigger.dev             |
+| Qué                                        | Estimado                                          |
+| ------------------------------------------ | ------------------------------------------------- |
+| 3 miniaturas con una regeneración cada una | unos US$1,00 (imágenes Pro, brief y calificación) |
+| Plan de ayudas visuales                    | una llamada a Claude                              |
+| Render de piezas en Trigger.dev            | minutos de máquina de Trigger.dev                 |
