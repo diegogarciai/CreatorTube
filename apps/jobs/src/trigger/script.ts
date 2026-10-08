@@ -36,9 +36,11 @@ const LABEL: Record<ScriptStage, string> = {
 export const scriptTask = schemaTask({
   id: "script",
   schema: z.object({ taskId: z.uuid() }),
-  maxDuration: 1800,
-  // Un reintento si falla la red o la API; las etapas listas no se repiten.
-  retry: { maxAttempts: 2 },
+  // Estudio y Guion, más las esperas si Claude está saturado.
+  maxDuration: 3600,
+  // runStage ya reintenta la saturación; este reintento, más espaciado, es el
+  // respaldo. Las etapas listas no se repiten.
+  retry: { maxAttempts: 2, minTimeoutInMs: 60_000, maxTimeoutInMs: 120_000 },
   run: async ({ taskId }) =>
     runScript(taskId, serviceClient(), new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })),
 });
@@ -98,14 +100,18 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
 
         let result;
         try {
-          result = await runStage(client, config, stage, ctx, async (words) => {
-            const message = `${LABEL[stage]}: ${words.toLocaleString("es-CO")} palabras`;
-            await db
-              .from("script_stage_runs")
-              .update({ progress_message: message })
-              .eq("run_id", run.id)
-              .eq("stage", stage);
-            await report.progress((i + 0.5) / stages.length, message);
+          result = await runStage(client, config, stage, ctx, {
+            onProgress: async (words, notice) => {
+              const message = `${LABEL[stage]}: ${
+                notice ?? `${words.toLocaleString("es-CO")} palabras`
+              }`;
+              await db
+                .from("script_stage_runs")
+                .update({ progress_message: message })
+                .eq("run_id", run.id)
+                .eq("stage", stage);
+              await report.progress((i + 0.5) / stages.length, message);
+            },
           });
         } catch (err) {
           await db

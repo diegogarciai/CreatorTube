@@ -8,6 +8,8 @@ import {
   runStage,
   type StageContext,
 } from "../src/stages";
+import { APIError, BadRequestError } from "@anthropic-ai/sdk";
+import { aiErrorKey } from "../src/errors";
 import { AiRefusalError, aiConfigFromEnv } from "../src/generate";
 
 const ctx: StageContext = {
@@ -162,8 +164,10 @@ describe("llamada en streaming", () => {
       "tres",
     ]);
     const progress: number[] = [];
-    const res = await runStage(client, aiConfigFromEnv({ AI_MODEL: "m" }), "study", ctx, (w) => {
-      progress.push(w);
+    const res = await runStage(client, aiConfigFromEnv({ AI_MODEL: "m" }), "study", ctx, {
+      onProgress: (w) => {
+        progress.push(w);
+      },
     });
     expect(res.incomplete).toBe(false);
     expect(res.blocks).toHaveLength(2);
@@ -200,5 +204,82 @@ describe("llamada en streaming", () => {
     await expect(runStage(refused.client, { model: "m" }, "script", ctx)).rejects.toBeInstanceOf(
       AiRefusalError,
     );
+  });
+
+  // Un evento `error` a mitad del stream: el SDK lo lanza sin código HTTP.
+  const overloaded = () =>
+    new APIError(
+      undefined,
+      { type: "error", error: { type: "overloaded_error", message: "Overloaded" } },
+      undefined,
+      new Headers(),
+      "overloaded_error",
+    );
+
+  /** Falla con `errors[i]` en el intento i y después responde bien. */
+  const flaky = (errors: Error[]) => {
+    let n = 0;
+    const client = {
+      beta: {
+        messages: {
+          stream: () => {
+            const err = errors[n++];
+            let onText: (d: string) => void = () => {};
+            return {
+              on: (_e: string, cb: (d: string) => void) => {
+                onText = cb;
+              },
+              finalMessage: async () => {
+                onText("uno dos ");
+                if (err) throw err;
+                return {
+                  model: "m",
+                  stop_reason: "end_turn",
+                  content: [{ type: "text", text: studyText }],
+                  usage: { input_tokens: 10, output_tokens: 5 },
+                };
+              },
+            };
+          },
+        },
+      },
+    };
+    return { client: client as never, calls: () => n };
+  };
+
+  it("si Claude se satura a mitad del stream, espera y reintenta", async () => {
+    const { client, calls } = flaky([overloaded()]);
+    const waits: number[] = [];
+    const notices: string[] = [];
+    const res = await runStage(client, { model: "m" }, "study", ctx, {
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+      onProgress: (_w, notice) => {
+        if (notice) notices.push(notice);
+      },
+    });
+    expect(calls()).toBe(2);
+    expect(waits).toEqual([20_000]);
+    expect(notices).toEqual(["Claude está saturado; reintento 2 de 4 en 20 s"]);
+    expect(res.text).toBe(studyText);
+    expect(res.incomplete).toBe(false);
+  });
+
+  it("agotados los reintentos, falla con la saturación; un 400 no se reintenta", async () => {
+    const busy = flaky([overloaded(), overloaded(), overloaded(), overloaded()]);
+    const err = await runStage(busy.client, { model: "m" }, "study", ctx, {
+      sleep: async () => {},
+    }).catch((e: unknown) => e);
+    expect(busy.calls()).toBe(4);
+    expect(aiErrorKey(err)).toBe("errors.ai_overloaded");
+
+    const bad = flaky([
+      new BadRequestError(400, { error: { type: "invalid_request_error" } }, "x", new Headers()),
+    ]);
+    await expect(
+      runStage(bad.client, { model: "m" }, "study", ctx, { sleep: async () => {} }),
+    ).rejects.toBeInstanceOf(BadRequestError);
+    expect(bad.calls()).toBe(1);
   });
 });

@@ -517,7 +517,11 @@
     "direction_no_guide": "El canal no tiene guía del guionista. Pégala en Ajustes del canal.",
     "no_credits": "No te alcanzan los créditos de IA de este mes.",
     "script_needs_direction": "Primero responde o salta las preguntas de dirección.",
-    "script_no_study": "Para regenerar desde Guion hace falta un Estudio listo."
+    "script_no_study": "Para regenerar desde Guion hace falta un Estudio listo.",
+    "ai_overloaded": "Claude está saturado en este momento; espera unos minutos.",
+    "ai_rate_limited": "Se alcanzó el límite de uso de la API de Claude; espera unos minutos.",
+    "ai_unavailable": "Claude no respondió; espera unos minutos.",
+    "ai_refusal": "El modelo no quiso responder este tema."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -643,6 +647,8 @@
       "succeeded": "Lista",
       "failed": "Falló",
       "incomplete": "Incompleta"
-    }
+    },
+    "stageFailed": "La etapa falló.",
+    "failedAt": "La corrida falló en {stage}."
   }
 }
