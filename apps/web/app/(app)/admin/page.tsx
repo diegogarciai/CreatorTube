@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AI_STAGES, isAiStage, type AiStage } from "@planificador/ai";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BarChart3 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -16,7 +18,7 @@ import {
 import { JobTestButton } from "@/components/workspace/job-test";
 import { JOBS_CONFIGURED } from "@/lib/jobs";
 import { RevokeInvitationButton } from "@/components/workspace/member-row";
-import { isPlatformAdmin } from "@/lib/auth";
+import { getSupabase, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usd } from "@/lib/utils";
 
@@ -32,6 +34,7 @@ export default async function AdminPage({
   const t = await getTranslations("admin");
   const tw = await getTranslations("workspace");
   const admin = createAdminClient();
+  const supabase = await getSupabase();
   const [{ data: workspaces }, { data: invitations }, { data: modelRows }, { data: aiRows }] =
     await Promise.all([
       admin
@@ -75,7 +78,8 @@ export default async function AdminPage({
   const balances = new Map(
     await Promise.all(
       (workspaces ?? []).map(async (w) => {
-        const { data } = await admin.rpc("workspace_credits", { ws: w.id });
+        // Con la sesión del administrador: la función exige un usuario.
+        const { data } = await supabase.rpc("workspace_credits", { ws: w.id });
         return [w.id, Number(data?.[0]?.used ?? 0)] as const;
       }),
     ),
@@ -83,7 +87,18 @@ export default async function AdminPage({
 
   return (
     <Page>
-      <PageHeader title={t("title")} description={t("subtitle")} />
+      <PageHeader
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          <Link
+            href="/admin/consumo"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface-muted"
+          >
+            <BarChart3 className="size-4" /> {t("usageLink")}
+          </Link>
+        }
+      />
       <div className="space-y-6">
         {error ? (
           <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">

@@ -475,7 +475,8 @@
     "jobsStarted": "Tarea de prueba lanzada: mira la barra lateral.",
     "jobsMissing": "Falta TRIGGER_SECRET_KEY en las variables de entorno de Vercel.",
     "aiModels": "Modelos de IA",
-    "aiModelsDesc": "Los modelos que tu cuenta de Anthropic ofrece y lo que cuesta cada uno. En cada espacio de abajo eliges cuál usa, en general y por etapa."
+    "aiModelsDesc": "Los modelos que tu cuenta de Anthropic ofrece y lo que cuesta cada uno. En cada espacio de abajo eliges cuál usa, en general y por etapa.",
+    "usageLink": "Consumo de servicios"
   },
   "command": {
     "placeholder": "Busca un episodio, una sección o una acción…",
@@ -797,6 +798,73 @@
       "publication": "Publicación",
       "podcast": "Podcast",
       "youtube_import": "Importación de YouTube"
+    }
+  },
+  "usage": {
+    "title": "Consumo de servicios",
+    "subtitle": "Lo que registra la app de cada servicio conectado, por mes y por espacio. La factura real está en la consola de cada servicio.",
+    "back": "Administración",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "allWorkspaces": "Todos los espacios",
+    "totalMonth": "Total del mes",
+    "ai": "IA (Claude)",
+    "parallel": "Parallel",
+    "youtube": "YouTube",
+    "youtubeToday": "Cuota de YouTube hoy",
+    "jobs": "Motor de tareas (Trigger.dev)",
+    "artlist": "Artlist",
+    "console": "Consola",
+    "total": "Total",
+    "month": "Mes",
+    "table": "Ver como tabla",
+    "chartLabel": "Consumo de IA y Parallel en los últimos meses",
+    "lastMonths": "Últimos 6 meses",
+    "lastMonthsHint": "IA y Parallel de toda la plataforma, mes a mes.",
+    "aiDesc": "Preguntas de dirección, guion, verificación, publicación, podcast e importación de YouTube.",
+    "aiTotals": "{calls} llamadas · {input} mil tokens de entrada · {output} mil de salida",
+    "byWorkspace": "Por espacio",
+    "byStage": "Por etapa",
+    "byModel": "Por modelo",
+    "byKind": "Por tipo de tarea",
+    "empty": "Sin consumo este mes.",
+    "stage": {
+      "direction": "Dirección",
+      "study": "Estudio",
+      "script": "Guion",
+      "verification": "Verificación",
+      "publication": "Publicación",
+      "podcast": "Podcast",
+      "youtube_import": "Importación de YouTube",
+      "other": "Otros"
+    },
+    "parallelDesc": "Búsquedas web de la verificación.",
+    "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",
+    "youtubeDesc": "La YouTube Data API es gratis, con una cuota diaria compartida por todos los canales.",
+    "quotaToday": "Hoy: {used} de {total} unidades",
+    "noChannels": "No hay canales conectados a YouTube.",
+    "units": "{count, plural, one {# unidad} other {# unidades}} hoy",
+    "connection": {
+      "active": "Conectado",
+      "needs_reauth": "Hay que reconectar",
+      "revoked": "Desconectado"
+    },
+    "jobsDesc": "Las tareas largas: guion, verificación, importaciones y pruebas.",
+    "jobsTotals": "{total, plural, one {# tarea} other {# tareas}} este mes · {failed, plural, one {# falló} other {# fallaron}}",
+    "lastFailed": "Últimas que fallaron",
+    "noFailed": "Ninguna falló este mes.",
+    "artlistDesc": "Generación de miniaturas y material visual.",
+    "notConnected": "Sin conectar: llega en la Fase 3",
+    "budgetUsd": "Presupuesto mensual (US$)",
+    "budgetPercent": "Aviso de cuota diaria (%)",
+    "noBudget": "Sin tope",
+    "budgetOf": "{spent} de {budget} este mes",
+    "quotaOf": "{spent} % de la cuota de hoy · aviso en {budget} %",
+    "state": {
+      "none": "Sin presupuesto",
+      "ok": "En presupuesto",
+      "warn": "Cerca del tope",
+      "over": "Sobre el tope"
     }
   }
 }

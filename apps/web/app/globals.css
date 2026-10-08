@@ -18,6 +18,9 @@
   --warn-soft: #fffbeb;
   --critical: #dc2626;
   --critical-soft: #fef2f2;
+  /* Series de gráficas (validadas para daltonismo y contraste). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,6 +41,8 @@
     --warn-soft: #2a210a;
     --critical: #f87171;
     --critical-soft: #2c1212;
+    --series-1: #3987e5;
+    --series-2: #d95926;
   }
 }
 

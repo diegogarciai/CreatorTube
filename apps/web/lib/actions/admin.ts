@@ -123,3 +123,33 @@ export async function setWorkspaceAiSettings(
     return { ok: false, error: errorMessage(err) };
   }
 }
+
+/** Presupuesto mensual de un servicio; vacío lo quita. YouTube va en % de la cuota diaria. */
+export async function setServiceBudget(service: unknown, value: unknown): Promise<ActionResult> {
+  try {
+    const user = await requireUser();
+    if (!(await isPlatformAdmin())) return { ok: false, error: "errors.forbidden" };
+    const name = z.enum(["ai", "parallel", "youtube"]).parse(service);
+    const amount = z
+      .preprocess(
+        (v) => (v === "" || v === null || v === undefined ? null : v),
+        z.coerce.number().min(0).max(100_000).nullable(),
+      )
+      .parse(value);
+    const admin = createAdminClient();
+    const { error } =
+      amount === null
+        ? await admin.from("service_budgets").delete().eq("service", name)
+        : await admin.from("service_budgets").upsert({
+            service: name,
+            monthly_usd: amount,
+            updated_by: user.id,
+            updated_at: new Date().toISOString(),
+          });
+    if (error) throw error;
+    revalidatePath("/admin/consumo");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
