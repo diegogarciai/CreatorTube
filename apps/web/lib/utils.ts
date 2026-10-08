@@ -10,7 +10,11 @@ export type ActionResult<T = undefined> =
   | { ok: false; error: string };
 
 export function errorMessage(err: unknown): string {
-  if (err && typeof err === "object" && "issues" in err) return "errors.invalid_input";
+  if (err && typeof err === "object" && "issues" in err) {
+    // Un esquema puede traer su propio mensaje traducible (p. ej. "errors.brand_mix").
+    const first = (err as { issues: { message?: string }[] }).issues[0]?.message;
+    return first && /^errors\.[a-z_]+$/.test(first) ? first : "errors.invalid_input";
+  }
   if (err instanceof Error) return err.message;
   if (err && typeof err === "object" && "message" in err)
     return String((err as { message: unknown }).message);
