@@ -7,6 +7,7 @@ import {
   THUMBNAIL_SCHEMES,
   validateSchemeText,
   type Scenario,
+  type ThumbnailOptions,
   type SchemeId,
 } from "@planificador/core";
 import { addUsage, emptyUsage, type UsageTotals } from "./cost";
@@ -80,6 +81,8 @@ export interface BriefItem {
   /** La escena que propuso la lista de textos, en una frase. */
   idea: string;
   note?: string | null;
+  /** Lo que el presentador quitó de esta miniatura. */
+  options?: Partial<ThumbnailOptions>;
 }
 
 export type ThumbnailBrief = {
@@ -172,6 +175,14 @@ export async function thumbnailBriefs(
       [
         `## Miniatura ${thumbnailLetter(it.idx)} (idx ${it.idx})`,
         `esquema: ${schemeGuide(it.scheme)}`,
+        ...(it.options?.noPerson
+          ? ["SIN PERSONA: el presentador la quiere sin nadie; la escena no tiene personas."]
+          : []),
+        ...(it.options?.noProduct
+          ? [
+              "SIN PRODUCTO: el presentador la quiere sin producto; la escena no tiene productos ni dispositivos.",
+            ]
+          : []),
         `escenario: ${it.scenario}`,
         `texto: ${it.text} (en naranja: ${it.accent})`,
         `ángulo: ${it.angle}`,
@@ -206,7 +217,8 @@ export async function thumbnailBriefs(
     const scene = b?.scene?.trim() || it.idea;
     return {
       idx: it.idx,
-      scene: hasFace(it.scheme) ? scene : withoutPeople(scene, input.presenter),
+      scene:
+        hasFace(it.scheme) && !it.options?.noPerson ? scene : withoutPeople(scene, input.presenter),
       mirror: THUMBNAIL_SCHEMES[it.scheme].mirror && Boolean(b?.mirror),
     } satisfies ThumbnailBrief;
   });
@@ -255,6 +267,52 @@ function schemeComposition(scheme: SchemeId, mirror: boolean, scenario: Scenario
   }
 }
 
+/**
+ * La composición con lo que el presentador quitó (sin persona o sin
+ * producto): el sujeto cambia, pero el hueco del texto del esquema se queda.
+ */
+function compositionWith(
+  scheme: SchemeId,
+  mirror: boolean,
+  scenario: Scenario,
+  opts: Partial<ThumbnailOptions>,
+) {
+  const base = schemeComposition(scheme, mirror, scenario);
+  const person = hasFace(scheme) && !opts.noPerson;
+  const product = !opts.noProduct;
+  if (person === hasFace(scheme) && product) return base;
+  const near = mirror ? "left" : "right";
+  const far = mirror ? "right" : "left";
+  // Las líneas del hueco del texto (y las reglas de F) no cambian.
+  const keep = base.filter((l) => /empty|fades to black|No visible brands/.test(l));
+  const place: Record<SchemeId, string> = {
+    A: `On the ${near} (40% of the width)`,
+    B: "On the right (40% of the width)",
+    C: `On the ${far} (45% of the width)`,
+    D: "In the lower two thirds of the frame",
+    E: "Filling the upper-right two thirds and bleeding off the frame",
+    F: `On the right of a real full-bleed scene in ${SCENARIO_EN[scenario]}, graded to the brand palette`,
+  };
+  let subject: string;
+  if (person && !product) {
+    const gesture: Partial<Record<SchemeId, string>> = {
+      A: "the presenter from the waist up, eyes in the upper third, looking at the camera with a calm, honest expression of doubt: one eyebrow slightly raised, a hand lightly touching the chin without covering the beard or the mouth",
+      C: "the presenter from the waist up, hands relaxed, with calm confidence: a slight smile if he recommends it, a slight frown if not",
+      D: "the presenter from the chest up, centered, with a thoughtful gesture",
+      F: "the presenter in a natural moment, focused, not looking at the camera",
+    };
+    subject = `${place[scheme]}, ${gesture[scheme]}, with empty hands. No product or device of any kind in the image.`;
+  } else if (!person && product) {
+    subject =
+      scheme === "D"
+        ? "Real product 1 (Product photo 1) on the left and real product 2 (Product photo 2) on the right, the same size, angle and light, as the only subjects."
+        : `${place[scheme]}, the real product from Product photo 1, large and sharp, as the only subject, with an orange rim reflection on its edge.`;
+  } else {
+    subject = `No subject: only ${scheme === "F" ? SCENARIO_EN[scenario] : "the dark brand set"} with the orange glow, clean and uncluttered. No product or device of any kind.`;
+  }
+  return [subject, ...keep];
+}
+
 /** Qué tan grande y cómo se ve la cara en cada esquema con cara. */
 const FACE_RULE: Partial<Record<SchemeId, string>> = {
   A: "His face is large (the head at least a quarter of the frame height), facing the camera, sharp and well lit.",
@@ -273,9 +331,13 @@ function identityBlock(scheme: SchemeId, presenterRefs: number) {
 }
 
 /** Lo que se le pide a Gemini cuando el intento anterior no pasó la verificación. */
-export function identityCorrection(scheme: SchemeId, notes: string) {
+export function identityCorrection(
+  scheme: SchemeId,
+  notes: string,
+  opts: Partial<ThumbnailOptions> = {},
+) {
   const detail = notes.trim() ? ` What was wrong: ${notes.trim()}` : "";
-  return hasFace(scheme)
+  return hasFace(scheme) && !opts.noPerson
     ? `CORRECTION: the previous attempt did not look like the presenter.${detail} This time the face must match the reference photos exactly.`
     : `CORRECTION: the previous attempt showed a person.${detail} This time there are no people at all.`;
 }
@@ -294,23 +356,29 @@ export function schemeImagePrompt(input: {
   presenterRefs: number;
   productRefs: number;
   kit: Pick<ThumbnailKit, "canvas" | "glow" | "amberDeep" | "accent" | "cream" | "grid">;
+  /** Lo que el presentador quitó: manda sobre la guía. */
+  options?: Partial<ThumbnailOptions>;
 }): string {
   const s = THUMBNAIL_SCHEMES[input.scheme];
+  const opts = input.options ?? {};
   const mirror = s.mirror && Boolean(input.mirror);
-  const face = hasFace(input.scheme) && input.presenterRefs > 0;
+  const withFace = hasFace(input.scheme) && !opts.noPerson;
+  const face = withFace && input.presenterRefs > 0;
+  const productRefs = opts.noProduct ? 0 : input.productRefs;
   const k = input.kit;
   const background = s.grid
     ? `Gartechs identity: near-black background ${k.canvas} with a very faint orange grid (${k.grid} at 10% opacity), a radial orange glow (${k.glow} at the center falling to ${k.amberDeep}) behind the main subject, vignette to black.`
     : `Gartechs identity without the grid: the real scene graded to the brand palette, a warm orange glow (${k.glow} to ${k.amberDeep}) behind the main subject, vignette to black.`;
   const noPeople =
-    input.scheme === "E"
+    input.scheme === "E" && !opts.noPerson
       ? "No people at all: no person, face or body (at most one hand entering the frame to give scale)."
       : "No people at all: no person, face, body or hands.";
   return [
     "Photorealistic YouTube thumbnail, 16:9, 1280×720.",
     ...(face ? identityBlock(input.scheme, input.presenterRefs) : []),
-    ...(hasFace(input.scheme) ? [] : [noPeople]),
-    ...(input.productRefs
+    ...(withFace ? [] : [noPeople]),
+    ...(opts.noProduct ? ["No product or device of any kind in the image."] : []),
+    ...(productRefs
       ? [
           `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself). Never invent products or logos.`,
         ]
@@ -318,16 +386,18 @@ export function schemeImagePrompt(input: {
     background,
     `Warm side light. Palette: black, white, cream ${k.cream} and orange ${k.accent}.`,
     `Composition (scheme ${input.scheme} · ${s.name}):`,
-    ...schemeComposition(input.scheme, mirror, input.scenario),
+    ...compositionWith(input.scheme, mirror, input.scenario, opts),
     `Scene: ${input.scene}`,
     ...(face ? ["Natural expression: never surprised, never an open mouth, never pointing."] : []),
-    ...(face && input.productRefs
+    ...(face && productRefs
       ? [
           "Priority if everything does not fit: the product stays whole, large and uncovered; reduce or crop the presenter's body (shoulders, arms, torso) instead, never the product. His face stays recognizable.",
         ]
       : []),
     "Keep a 64 px safe margin on every side for the important parts. The bottom-right corner (220×90 px) stays empty: no face, product or detail there, because the video duration goes there.",
-    "The headline is added later by the app: leave its area empty and do not draw any text.",
+    opts.noText
+      ? "No headline will be added: that area keeps a clean background. Do not draw any text."
+      : "The headline is added later by the app: leave its area empty and do not draw any text.",
     "Strictly no text, letters, numbers, captions, logos, watermarks, arrows, red circles, emojis, frames or borders anywhere, including on screens and objects. No blue, neon, RGB, yellow, wood or gold as a dominant color.",
     face
       ? "Final check before answering: the man must be unmistakably the person in the reference photos — same face, beard and hair. If he could be someone else, it is wrong."
@@ -371,9 +441,11 @@ export async function checkIdentity(
     mime: string;
     scheme: SchemeId;
     references: { data: Buffer; mime: string }[];
+    /** «Sin persona»: se revisa que no aparezca nadie. */
+    noPerson?: boolean;
   },
 ): Promise<{ check: IdentityCheck; usage: UsageTotals; model: string }> {
-  const face = hasFace(input.scheme);
+  const face = hasFace(input.scheme) && !input.noPerson;
   const image = (data: Buffer, mime: string) => ({
     type: "image" as const,
     source: {
@@ -488,11 +560,28 @@ export async function scoreThumbnail(
     warnings: string[];
     /** Una foto del presentador, para comparar la cara. */
     reference?: { data: Buffer; mime: string } | null;
+    /** Lo que el presentador quitó: esos criterios no aplican. */
+    options?: Partial<ThumbnailOptions>;
   },
 ): Promise<{ score: ThumbnailScore; usage: UsageTotals; model: string }> {
   const s = THUMBNAIL_SCHEMES[input.scheme];
+  const opts = input.options ?? {};
+  const face = hasFace(input.scheme) && !opts.noPerson;
   const text = input.text.lines.join(" ");
-  const ruleErrors = validateSchemeText(input.scheme, text, input.text.accent);
+  const ruleErrors = opts.noText ? [] : validateSchemeText(input.scheme, text, input.text.accent);
+  // Lo que se quitó a propósito no se califica: va en verdadero con «No aplica».
+  const skipped: { key: ScoreCriterion; note: string }[] = [
+    ...(opts.noText
+      ? [
+          { key: "text" as const, note: "No aplica: elegida sin texto." },
+          { key: "separation" as const, note: "No aplica: elegida sin texto." },
+        ]
+      : []),
+    ...(opts.noPerson ? [{ key: "face" as const, note: "No aplica: elegida sin persona." }] : []),
+    ...(opts.noProduct
+      ? [{ key: "product" as const, note: "No aplica: elegida sin producto." }]
+      : []),
+  ];
   const system = [
     "Calificas miniaturas de YouTube de un canal de tecnología con la guía de miniaturas del canal. Respondes en español.",
     "Criterios (uno por clave):",
@@ -527,7 +616,7 @@ export async function scoreThumbnail(
           image(input.image, input.mime),
           { type: "text" as const, text: "La misma miniatura a 168 × 94 px (prueba de móvil):" },
           image(input.mobile, "image/jpeg"),
-          ...(input.reference && hasFace(input.scheme)
+          ...(input.reference && face
             ? [
                 { type: "text" as const, text: "Foto de referencia del presentador:" },
                 image(input.reference.data, input.reference.mime),
@@ -539,10 +628,20 @@ export async function scoreThumbnail(
               `Tema central del episodio: ${input.topic}`,
               input.titles.length ? `Títulos del video: ${input.titles.join(" | ")}` : "",
               `Esquema: ${input.scheme} · ${s.name}. ${SCHEME_CHECK[input.scheme]}`,
-              `Texto de la miniatura: ${text} (en naranja: ${input.text.accent})`,
-              ruleErrors.length
-                ? `Reglas de texto que no cumple: ${ruleErrors.join(" ")}`
-                : "Reglas de texto medibles: cumple.",
+              opts.noText
+                ? "Sin texto: el presentador la eligió así."
+                : `Texto de la miniatura: ${text} (en naranja: ${input.text.accent})`,
+              opts.noPerson
+                ? "Sin persona: el presentador la eligió así; no debe aparecer nadie."
+                : "",
+              opts.noProduct
+                ? "Sin producto: el presentador la eligió así; no debe aparecer ningún producto."
+                : "",
+              opts.noText
+                ? ""
+                : ruleErrors.length
+                  ? `Reglas de texto que no cumple: ${ruleErrors.join(" ")}`
+                  : "Reglas de texto medibles: cumple.",
               input.warnings.length
                 ? `Medido por la app: ${input.warnings.join(" ")}`
                 : `Medido por la app: el texto deja ${FACE_GAP} px o más a la cara, está dentro del margen y no toca la esquina de la duración.`,
@@ -566,7 +665,14 @@ export async function scoreThumbnail(
   }
   const parsed = res.parsed_output;
   if (!parsed) throw new Error("La calificación de la miniatura llegó incompleta");
-  return { score: parsed, usage: addUsage(emptyUsage(), res.usage), model: res.model };
+  const score = {
+    ...parsed,
+    criteria: [
+      ...parsed.criteria.filter((c) => !skipped.some((k) => k.key === c.key)),
+      ...skipped.map((k) => ({ ...k, ok: true })),
+    ],
+  };
+  return { score, usage: addUsage(emptyUsage(), res.usage), model: res.model };
 }
 
 /** Un recuadro en fracciones del ancho y el alto de la imagen (0 a 1). */
@@ -651,6 +757,8 @@ export async function locateSubjects(
 /** Un texto propuesto para una miniatura, con su esquema y su ángulo. */
 export type ThumbnailIdea = {
   scheme: SchemeId;
+  /** El título del video que acompaña a este texto. */
+  title: string;
   angle: string;
   text: string;
   accent: string;
@@ -679,6 +787,11 @@ const ideasSchema = z.object({
           "La escena de la imagen en una frase, según su esquema. En B y E, solo el producto o el detalle, sin personas.",
         ),
       emotion: z.string().describe("La emoción que despierta, en 1 a 3 palabras."),
+      title: z
+        .string()
+        .describe(
+          "El título del video para esta miniatura: máximo 60 caracteres, completa el texto sin repetirlo.",
+        ),
     }),
   ),
 });
@@ -731,7 +844,8 @@ export async function thumbnailIdeas(
     `Reparte los textos entre esos esquemas: al menos ${IDEAS_PER_SCHEME} por esquema${recommended.length ? `, y más en el set recomendado para este episodio (${recommended.join("+")})` : ""}.`,
     "Reglas de todos los textos: máximo 22 caracteres con espacios y 2 líneas; tipo oración (nunca TODO MAYÚSCULAS), con tildes y ¿? ¡! de apertura; una sola palabra en naranja, la que carga la emoción o la decisión; sin superlativos vacíos (increíble, brutal), sin marcas (ya van en el título), sin precios sin moneda, sin emojis y sin clickbait que el video no cumpla.",
     "El texto completa el título, no lo repite: juntos forman una idea completa. Las cifras solo pueden salir de la ficha del episodio. Ningún texto contradice el veredicto. No repitas textos.",
-    "Por cada texto: el esquema, el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase según su esquema y la emoción. En la escena no describas el físico del presentador; en B y E no aparece ninguna persona.",
+    "Cada texto trae su título del video: máximo 60 caracteres, completa el texto de la miniatura sin repetir sus palabras (juntos forman una idea completa), nombra el producto o la marca (que el texto no puede llevar), no contradice el veredicto y no promete lo que el video no entrega.",
+    "Por cada texto: el título, el esquema, el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase según su esquema y la emoción. En la escena no describas el físico del presentador; en B y E no aparece ninguna persona.",
   ].join("\n");
   const user = [
     `Tema central del episodio: ${input.episodeTitle}`,
@@ -783,6 +897,7 @@ export async function thumbnailIdeas(
         400,
       ),
       emotion: i.emotion.trim().slice(0, 80),
+      title: i.title.trim().replace(/\s+/g, " ").slice(0, 100),
     });
   }
   return {

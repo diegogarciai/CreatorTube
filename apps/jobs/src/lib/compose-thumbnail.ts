@@ -66,6 +66,8 @@ export interface ComposeOptions {
   text: string;
   accent: string;
   colors: Colors;
+  /** «Sin texto»: solo la foto con el viñeteado, sin letras ni degradado. */
+  noText?: boolean;
   /** La cara y el producto que ubicó Claude (fracciones), para la separación. */
   avoid?: SubjectBox[];
   font?: opentype.Font;
@@ -302,8 +304,9 @@ function gradientSvg(scheme: SchemeId) {
 }
 
 /** El SVG que va encima de la foto: viñeteado, degradado del esquema y texto. */
-export function overlaySvg(paths: string[], scheme: SchemeId) {
-  const gradient = gradientSvg(scheme);
+export function overlaySvg(paths: string[], scheme: SchemeId, opts: { gradient?: boolean } = {}) {
+  // Sin texto no hace falta el degradado de E y F.
+  const gradient = opts.gradient === false ? "" : gradientSvg(scheme);
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">',
     "<defs>",
@@ -330,9 +333,18 @@ export async function composeScheme(base: Buffer, opts: ComposeOptions): Promise
     .resize(THUMB_WIDTH, THUMB_HEIGHT, { fit: "cover", position: "centre" })
     .png()
     .toBuffer();
-  const t = schemeTextLayout(opts);
+  const t = opts.noText
+    ? {
+        lines: [] as string[],
+        paths: [] as string[],
+        box: { x: 0, y: 0, w: 0, h: 0 },
+        size: 0,
+        warnings: [] as string[],
+      }
+    : schemeTextLayout(opts);
+  const overlay = overlaySvg(t.paths, opts.scheme, { gradient: !opts.noText });
   const image = await sharp(photo)
-    .composite([{ input: Buffer.from(overlaySvg(t.paths, opts.scheme)), top: 0, left: 0 }])
+    .composite([{ input: Buffer.from(overlay), top: 0, left: 0 }])
     .png()
     .toBuffer();
   for (const quality of [88, 80, 72, 64]) {

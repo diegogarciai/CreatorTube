@@ -457,6 +457,9 @@ export type Database = {
           scenario: string | null;
           mirror: boolean;
           layout_warnings: string[];
+          no_text: boolean;
+          no_person: boolean;
+          no_product: boolean;
         };
         Insert: {
           id?: string;
@@ -488,6 +491,9 @@ export type Database = {
           scenario?: string | null;
           mirror?: boolean;
           layout_warnings?: string[];
+          no_text?: boolean;
+          no_person?: boolean;
+          no_product?: boolean;
         };
         Update: {
           id?: string;
@@ -519,6 +525,9 @@ export type Database = {
           scenario?: string | null;
           mirror?: boolean;
           layout_warnings?: string[];
+          no_text?: boolean;
+          no_person?: boolean;
+          no_product?: boolean;
         };
         Relationships: [
           {
@@ -1734,6 +1743,7 @@ export type Database = {
           slot: number | null;
           created_at: string;
           scheme: string;
+          title: string;
         };
         Insert: {
           id?: string;
@@ -1750,6 +1760,7 @@ export type Database = {
           slot?: number | null;
           created_at?: string;
           scheme: string;
+          title?: string;
         };
         Update: {
           id?: string;
@@ -1766,6 +1777,7 @@ export type Database = {
           slot?: number | null;
           created_at?: string;
           scheme?: string;
+          title?: string;
         };
         Relationships: [
           {

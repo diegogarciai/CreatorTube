@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   assignScenarios,
+  effectiveFace,
+  productPhotosFor,
   availableSchemes,
   DURATION_BOX,
   episodeKind,
@@ -124,5 +126,23 @@ describe("rotación de escenarios", () => {
   it("si no queda otro, repite uno reciente antes que repetir dentro del set", () => {
     const set = assignScenarios(["D", "B", "C"], ["set oscuro", "escritorio", "en la mano"]);
     expect(new Set(set).size).toBe(3);
+  });
+});
+
+describe("opciones de cada miniatura (mandan sobre la guía)", () => {
+  it("sin persona cuenta como sin cara; sin producto no pide fotos", () => {
+    expect(effectiveFace("A")).toBe(true);
+    expect(effectiveFace("A", { noPerson: true })).toBe(false);
+    expect(effectiveFace("B", { noPerson: false })).toBe(false);
+    expect(productPhotosFor("D")).toBe(2);
+    expect(productPhotosFor("D", { noProduct: true })).toBe(0);
+    // A, C y F tienen cara; con A sin persona, el set ya tiene una sin cara.
+    expect(validateSchemeSet(["A", "C", "F"])).toEqual([
+      "Falta una sin cara (B, E o una marcada «Sin persona»).",
+    ]);
+    expect(validateSchemeSet(["A", "C", "F"], [{ noPerson: true }])).toEqual([]);
+    expect(
+      validateSchemeSet(["A", "B", "C"], [{ noPerson: true }, {}, { noPerson: true }]),
+    ).toEqual(["Falta una con cara (A, C, D o F, sin marcar «Sin persona»)."]);
   });
 });

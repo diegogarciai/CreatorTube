@@ -1038,7 +1038,15 @@
     "legacy": "Versión de antes de la guía: para cambiarla, genera desde la lista.",
     "textLabel": "Texto (máx. 22 caracteres)",
     "mirror": "Espejo (texto del otro lado)",
-    "textHint": "La app parte el texto en líneas y lo pone en la zona del esquema."
+    "textHint": "La app parte el texto en líneas y lo pone en la zona del esquema.",
+    "options": {
+      "group": "Opciones de la miniatura {letter}",
+      "noText": "Sin texto",
+      "noPerson": "Sin persona",
+      "noProduct": "Sin producto",
+      "hint": "Lo que marques manda sobre la guía."
+    },
+    "titleLabel": "Título"
   },
   "thumbnailIdeas": {
     "title": "Textos para las miniaturas",
@@ -1072,6 +1080,17 @@
     },
     "needsProduct": "Necesita {count, plural, one {1 foto} other {# fotos}} del producto",
     "noVerdict": "Sin veredicto en el guion no se proponen textos.",
-    "setOk": "Set válido: {set}"
+    "setOk": "Set válido: {set}",
+    "optionsHint": "Opciones de cada miniatura (mandan sobre la guía):",
+    "unlockHint": "Marca «Sin producto» en esa tarjeta para usarlo sin fotos.",
+    "ideaTitle": "Título: {title}"
+  },
+  "publicationTitles": {
+    "title": "Títulos",
+    "description": "Los títulos del JSON de Publicación y los de los textos elegidos para las miniaturas A, B y C.",
+    "fromAssets": "Del guion",
+    "fromThumbnail": "De la miniatura {letter}",
+    "tooLong": "Pasa de {max} caracteres.",
+    "empty": "Todavía no hay títulos: genera el guion hasta Publicación o elige los textos de las miniaturas."
   }
 }

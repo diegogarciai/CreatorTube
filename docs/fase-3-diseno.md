@@ -142,6 +142,12 @@ La separación y la esquina las mide la app y van como dato.
 - La tarea `thumbnail_ideas` le pide a Claude 30 textos, cada uno con su esquema (solo los disponibles según las fotos del producto). Pide al menos 3 por esquema y más en el set recomendado. Usa el título, el veredicto, la ficha (las cifras solo salen de ahí), los títulos, las keywords y el estilo del kit. Los que no pasan `validateSchemeText` se descartan.
 - La lista se agrupa y filtra por esquema, marca el set recomendado y dice en vivo por qué una selección no vale.
 - Diego marca 3 y genera: van a las tarjetas A, B y C en el orden en que los marcó (`thumbnail_ideas.slot`). Cada versión guarda el texto (`idea_id`), el esquema, el escenario y el espejo.
+- Cada texto trae su **título** del video (`thumbnail_ideas.title`, máximo 60 caracteres). El título completa el texto sin repetirlo y nombra el producto o la marca, que el texto no puede llevar. Se ve debajo del texto con «Copiar», y los títulos de los textos elegidos se suman a la tarjeta **Títulos** de Publicación, junto a los 3 del JSON de Publicación.
+- **Opciones por tarjeta:** cada texto marcado (y el panel «Regenerar» de cada tarjeta) tiene tres checks, **Sin texto**, **Sin persona** y **Sin producto** (`episode_assets.no_text`, `no_person` y `no_product`). Lo que se marca manda sobre la guía:
+  - **Sin persona:** no se mandan las fotos del presentador, el prompt prohíbe personas, el producto ocupa su lugar y la miniatura cuenta como «sin cara» en el set.
+  - **Sin producto:** no se mandan las fotos del producto ni se exigen; la persona va con las manos libres.
+  - **Sin texto:** la app no dibuja texto ni degradado. «Editar texto» puede agregarlo después sobre la misma imagen.
+  - La calificación da por cumplidos los criterios de lo que se quitó, con la nota «No aplica».
 - «Proponer otros 30» reemplaza la lista y conserva los que están en uso. Las tarjetas solo generan desde un texto elegido; las versiones de antes de la guía se siguen viendo.
 
 Cada miniatura pasa por cinco pasos dentro de la tarea `thumbnails` (Trigger.dev):

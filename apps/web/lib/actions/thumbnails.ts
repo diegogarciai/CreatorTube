@@ -4,15 +4,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseAssets } from "@planificador/ai";
 import {
-  hasFace,
+  effectiveFace,
   hasVerdict,
   isEpisodeRefPath,
   isIdentityWarning,
   isSchemeId,
+  NO_OPTIONS,
+  productPhotosFor,
   THUMBNAIL_SCHEMES,
   validateSchemeSet,
   validateSchemeText,
   type SchemeId,
+  type ThumbnailOptions,
 } from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
@@ -68,7 +71,12 @@ async function episodeHasVerdict(episodeId: string) {
 }
 
 /** Lo que falta para generar esos esquemas: fotos del presentador o del producto. */
-async function missingPhotos(channelId: string, episodeId: string, schemes: SchemeId[]) {
+async function missingPhotos(
+  channelId: string,
+  episodeId: string,
+  schemes: SchemeId[],
+  options: ThumbnailOptions[],
+) {
   const admin = createAdminClient();
   const [{ count: presenter }, { count: products }] = await Promise.all([
     admin
@@ -80,8 +88,9 @@ async function missingPhotos(channelId: string, episodeId: string, schemes: Sche
       .select("id", { count: "exact", head: true })
       .eq("episode_id", episodeId),
   ]);
-  if (schemes.some(hasFace) && !presenter) return "errors.no_presenter_photos";
-  if (schemes.some((s) => THUMBNAIL_SCHEMES[s].productPhotos > (products ?? 0)))
+  if (schemes.some((s, i) => effectiveFace(s, options[i])) && !presenter)
+    return "errors.no_presenter_photos";
+  if (schemes.some((s, i) => productPhotosFor(s, options[i]) > (products ?? 0)))
     return "errors.scheme_needs_product";
   return null;
 }
@@ -98,9 +107,22 @@ async function hasCredits(
   return Number(data?.[0]?.remaining ?? 0) >= needed;
 }
 
+/** Lo que el presentador quita de una miniatura: manda sobre la guía. */
+const optionsSchema = z
+  .object({ noText: z.boolean(), noPerson: z.boolean(), noProduct: z.boolean() })
+  .default(NO_OPTIONS);
+
+/** Las columnas de `episode_assets` de esas opciones. */
+const optionColumns = (o: ThumbnailOptions) => ({
+  no_text: o.noText,
+  no_person: o.noPerson,
+  no_product: o.noProduct,
+});
+
 const generateSchema = z.object({
   designs: z.array(z.number().int().min(0).max(9)).min(1).max(3),
   note: z.string().trim().max(500).optional(),
+  options: optionsSchema,
 });
 
 /**
@@ -109,7 +131,7 @@ const generateSchema = z.object({
  */
 export async function generateThumbnails(episodeId: string, input: unknown): Promise<ActionResult> {
   try {
-    const { designs, note } = generateSchema.parse(input);
+    const { designs, note, options } = generateSchema.parse(input);
     const { user, supabase, row } = await loadEpisode(episodeId);
     const unique = [...new Set(designs)];
     if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_ESTIMATE_CREDITS * unique.length)))
@@ -130,6 +152,7 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
       row.channel_id,
       episodeId,
       ideas.map((i) => i!.scheme as SchemeId),
+      ideas.map(() => options),
     );
     if (missing) return { ok: false, error: missing };
 
@@ -149,6 +172,7 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
             design_idx: idx,
             idea_id: ideas[i]!.id,
             scheme: ideas[i]!.scheme,
+            ...optionColumns(options),
             note: note || null,
             task_id: taskId,
             created_by: user.id,
@@ -182,7 +206,7 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
     const { data: source } = await admin
       .from("episode_assets")
       .select(
-        "episode_id, design_idx, base_path, prompt, idea_id, scheme, scenario, layout_warnings",
+        "episode_id, design_idx, base_path, prompt, idea_id, scheme, scenario, layout_warnings, no_person, no_product",
       )
       .eq("id", assetId)
       .single();
@@ -219,6 +243,10 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
           text: { lines: [clean], accent },
           // La imagen es la misma: su aviso de identidad sigue valiendo.
           layout_warnings: (source.layout_warnings ?? []).filter(isIdentityWarning),
+          // La misma imagen: sin persona o sin producto siguen; el texto se agrega.
+          no_person: source.no_person,
+          no_product: source.no_product,
+          no_text: false,
           task_id: taskId,
           created_by: user.id,
         });
@@ -334,7 +362,11 @@ export async function proposeThumbnailIdeas(episodeId: string): Promise<ActionRe
   }
 }
 
-const fromIdeasSchema = z.object({ ideaIds: z.array(z.uuid()).length(3) });
+const fromIdeasSchema = z.object({
+  ideaIds: z.array(z.uuid()).length(3),
+  // Las opciones de cada tarjeta, en el mismo orden.
+  options: z.array(optionsSchema).length(3).optional(),
+});
 
 /**
  * Pone los 3 textos elegidos en las tarjetas A, B y C (en el orden en que se
@@ -343,7 +375,8 @@ const fromIdeasSchema = z.object({ ideaIds: z.array(z.uuid()).length(3) });
  */
 export async function generateFromIdeas(episodeId: string, input: unknown): Promise<ActionResult> {
   try {
-    const { ideaIds } = fromIdeasSchema.parse(input);
+    const { ideaIds, options = [NO_OPTIONS, NO_OPTIONS, NO_OPTIONS] } =
+      fromIdeasSchema.parse(input);
     if (new Set(ideaIds).size !== 3) return { ok: false, error: "errors.invalid_input" };
     const { user, supabase, row } = await loadEpisode(episodeId);
     if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_ESTIMATE_CREDITS * 3)))
@@ -357,11 +390,11 @@ export async function generateFromIdeas(episodeId: string, input: unknown): Prom
       .in("id", ideaIds);
     if ((ideas ?? []).length !== 3) return { ok: false, error: "errors.not_found" };
     const schemes = ideaIds.map((id) => ideas!.find((i) => i.id === id)!.scheme);
-    if (!schemes.every(isSchemeId) || validateSchemeSet(schemes).length)
+    if (!schemes.every(isSchemeId) || validateSchemeSet(schemes, options).length)
       return { ok: false, error: "errors.invalid_scheme_set" };
     const { verdict } = await episodeHasVerdict(episodeId);
     if (!verdict) return { ok: false, error: "errors.no_verdict" };
-    const missing = await missingPhotos(row.channel_id, episodeId, schemes);
+    const missing = await missingPhotos(row.channel_id, episodeId, schemes, options);
     if (missing) return { ok: false, error: missing };
 
     // Primero se sueltan las tarjetas y después se asignan, por el único (episodio, tarjeta).
@@ -392,6 +425,7 @@ export async function generateFromIdeas(episodeId: string, input: unknown): Prom
             design_idx: slot,
             idea_id: id,
             scheme: schemes[slot]!,
+            ...optionColumns(options[slot]!),
             task_id: taskId,
             created_by: user.id,
           })),

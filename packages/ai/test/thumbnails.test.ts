@@ -232,6 +232,83 @@ describe("prompt por esquema (guía v1.0)", () => {
   });
 });
 
+describe("opciones de la miniatura (mandan sobre la guía)", () => {
+  const base = { scene: "S", scenario: "café" as const, presenterRefs: 3, productRefs: 2, kit };
+
+  it("sin persona: sin identidad ni fotos del presentador; el producto ocupa su lugar", () => {
+    const p = schemeImagePrompt({ ...base, scheme: "A", options: { noPerson: true } });
+    expect(p).not.toContain("IDENTITY");
+    expect(p).toContain("No people at all: no person, face, body or hands.");
+    expect(p).toContain("On the right (40% of the width), the real product from Product photo 1");
+    expect(p).toContain("The left 50% of the frame stays as empty");
+  });
+
+  it("sin producto: sin fotos del producto y la persona con las manos libres", () => {
+    const p = schemeImagePrompt({ ...base, scheme: "C", options: { noProduct: true } });
+    expect(p).toContain("IDENTITY");
+    expect(p).not.toContain('The images labeled "Product photo"');
+    expect(p).toContain("No product or device of any kind in the image.");
+    expect(p).toContain("with empty hands");
+    expect(p).not.toContain("Priority if everything does not fit");
+  });
+
+  it("sin las dos: solo el fondo o el escenario", () => {
+    const p = schemeImagePrompt({
+      ...base,
+      scheme: "F",
+      options: { noPerson: true, noProduct: true },
+    });
+    expect(p).toContain("No subject: only a café table with the orange glow");
+    expect(p).toContain("The upper-left area fades to black");
+    expect(p).not.toContain("IDENTITY");
+  });
+
+  it("sin texto: avisa que no habrá titular", () => {
+    expect(schemeImagePrompt({ ...base, scheme: "B", options: { noText: true } })).toContain(
+      "No headline will be added",
+    );
+    expect(identityCorrection("A", "", { noPerson: true })).toContain("no people at all");
+  });
+
+  it("la calificación da por cumplido lo que se quitó", async () => {
+    const { client, calls } = fakeClient({
+      score: 7,
+      criteria: [
+        { key: "face", ok: false, note: "No hay cara" },
+        { key: "scheme", ok: true, note: "Bien" },
+      ],
+      improve: "x",
+    });
+    const out = await scoreThumbnail(
+      client,
+      { model: "m" },
+      {
+        image: Buffer.from("jpg"),
+        mobile: Buffer.from("mini"),
+        mime: "image/jpeg",
+        scheme: "A",
+        text: { lines: [""], accent: "" },
+        topic: "t",
+        titles: [],
+        verdict: "v",
+        warnings: [],
+        reference: { data: Buffer.from("cara"), mime: "image/jpeg" },
+        options: { noText: true, noPerson: true },
+      },
+    );
+    expect(out.score.criteria).toEqual([
+      { key: "scheme", ok: true, note: "Bien" },
+      { key: "text", ok: true, note: "No aplica: elegida sin texto." },
+      { key: "separation", ok: true, note: "No aplica: elegida sin texto." },
+      { key: "face", ok: true, note: "No aplica: elegida sin persona." },
+    ]);
+    const content = (calls[0]!.messages as { content: { type: string; text?: string }[] }[])[0]!
+      .content;
+    expect(content.filter((c) => c.type === "image")).toHaveLength(2);
+    expect(String(content.at(-1)!.text)).toContain("Sin texto: el presentador la eligió así.");
+  });
+});
+
 describe("verificación de la cara", () => {
   const input = {
     image: Buffer.from("gen"),
@@ -504,6 +581,7 @@ describe("textos para miniaturas", () => {
   it("pide 30 textos con su esquema y descarta los que no cumplen la guía", async () => {
     const idea = (scheme: string, text: string, accent: string) => ({
       scheme,
+      title: `  Título   de ${text}  `,
       angle: "El dinero",
       text,
       accent,
@@ -523,6 +601,7 @@ describe("textos para miniaturas", () => {
       ],
     });
     const out = await thumbnailIdeas(client, { model: "m" }, input);
+    expect(out.ideas[0]!.title).toBe("Título de ¿Vale la pena?");
     expect(out.ideas.map((i) => [i.scheme, i.text, i.accent])).toEqual([
       ["A", "¿Vale la pena?", "pena?"],
       ["B", "40% más barato", "40%"],
@@ -541,5 +620,6 @@ describe("textos para miniaturas", () => {
     );
     expect(system).toContain("Las cifras solo pueden salir de la ficha");
     expect(system).toContain("El texto completa el título, no lo repite");
+    expect(system).toContain("Cada texto trae su título del video: máximo 60 caracteres");
   });
 });
