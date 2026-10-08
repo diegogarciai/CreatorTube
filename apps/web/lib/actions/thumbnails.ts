@@ -20,6 +20,7 @@ import {
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
 import { MEDIA_BUCKET } from "../media";
+import { hasBlockers, taskRunning } from "../data/dependents";
 import { createAdminClient } from "../supabase/admin";
 import {
   THUMBNAIL_ESTIMATE_CREDITS,
@@ -347,6 +348,9 @@ export async function proposeThumbnailIdeas(episodeId: string): Promise<ActionRe
     const { assets, verdict } = await episodeHasVerdict(episodeId);
     if (!assets) return { ok: false, error: "errors.no_publication_assets" };
     if (!verdict) return { ok: false, error: "errors.no_verdict" };
+    // Rehacer los textos: no si ya hay miniaturas generadas (se borran primero).
+    if (await hasBlockers(createAdminClient(), { kind: "ideas" }, episodeId, null))
+      return { ok: false, error: "errors.has_dependents" };
     if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_IDEAS_ESTIMATE_CREDITS)))
       return { ok: false, error: "errors.no_credits" };
     await startJob("thumbnail_ideas", {
@@ -433,6 +437,47 @@ export async function generateFromIdeas(episodeId: string, input: unknown): Prom
         if (error) throw error;
       },
     );
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Borra los textos de miniaturas, para poder rehacer el guion. No si ya hay miniaturas. */
+export async function deleteIdeas(episodeId: string): Promise<ActionResult> {
+  try {
+    const { row } = await loadEpisode(episodeId);
+    const admin = createAdminClient();
+    if (await taskRunning(admin, episodeId, ["thumbnail_ideas", "thumbnails"]))
+      return { ok: false, error: "errors.busy" };
+    if (await hasBlockers(admin, { kind: "deleteIdeas" }, episodeId, null))
+      return { ok: false, error: "errors.has_dependents" };
+    const { error } = await admin.from("thumbnail_ideas").delete().eq("episode_id", episodeId);
+    if (error) throw error;
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Borra todas las miniaturas generadas del episodio (filas y archivos). */
+export async function deleteThumbnails(episodeId: string): Promise<ActionResult> {
+  try {
+    const { row } = await loadEpisode(episodeId);
+    const admin = createAdminClient();
+    if (await taskRunning(admin, episodeId, ["thumbnails"]))
+      return { ok: false, error: "errors.busy" };
+    const { data: assets } = await admin
+      .from("episode_assets")
+      .select("id, path, base_path")
+      .eq("episode_id", episodeId);
+    if (!assets?.length) return { ok: true };
+    const paths = assets.flatMap((a) => [a.path, a.base_path].filter((p): p is string => !!p));
+    if (paths.length) await admin.storage.from(MEDIA_BUCKET).remove(paths);
+    const { error } = await admin.from("episode_assets").delete().eq("episode_id", episodeId);
+    if (error) throw error;
     revalidate(row.channel_id, episodeId);
     return { ok: true };
   } catch (err) {

@@ -32,7 +32,10 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
+import { DeleteButton, RedoButton } from "@/components/episodes/redo-button";
 import {
+  deletePlan,
+  deleteRenders,
   editAid,
   proposeVisualPlan,
   renderAid,
@@ -40,11 +43,12 @@ import {
   setAidStatus,
 } from "@/lib/actions/visual-aids";
 import type { AidRenderView, VisualAidView, VisualAidsView } from "@/lib/data/visual-aids";
+import { blockersFor, type EpisodeDependents } from "@/lib/dependencies";
 import { toVisualAid } from "@/lib/resources";
 import { createClient } from "@/lib/supabase/browser";
 import { VISUAL_PLAN_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
-import { cn, usd } from "@/lib/utils";
+import { cn, usd, type ActionResult } from "@/lib/utils";
 
 const KIND_TONE: Record<VisualAidView["kind"], Tone> = { M: "accent", C: "ok", L: "warn" };
 const ROW_OK = new Set(["verified", "nuanced"]);
@@ -58,10 +62,13 @@ export function VisualAidsPanel({
   episodeId,
   view,
   canEdit,
+  deps,
 }: {
   episodeId: string;
   view: VisualAidsView;
   canEdit: boolean;
+  /** Lo generado del episodio: qué bloquea rehacer o borrar el plan. */
+  deps: EpisodeDependents;
 }) {
   const t = useTranslations("visualAids");
   const errorText = useActionError();
@@ -126,6 +133,15 @@ export function VisualAidsPanel({
       } else toast.error(errorText(res.error));
     });
 
+  const remove = (action: () => Promise<ActionResult>) =>
+    start(async () => {
+      const res = await action();
+      if (res.ok) router.refresh();
+      else toast.error(errorText(res.error));
+    });
+  const planBlockers = blockersFor({ kind: "plan" }, deps);
+  const hasRenders = view.aids.some((a) => a.renders.length);
+
   const copy = async () => {
     await navigator.clipboard.writeText(planToText(approved.map(toVisualAid)));
     setCopied(true);
@@ -140,21 +156,47 @@ export function VisualAidsPanel({
         action={
           canEdit ? (
             <div className="flex flex-col items-end gap-1">
-              <Button
-                variant="secondary"
-                onClick={propose}
-                disabled={pending || view.active || !view.verified}
-              >
-                {view.active ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-                {view.aids.length ? t("repropose") : t("propose")}
-              </Button>
+              {view.aids.length ? (
+                <RedoButton
+                  label={t("repropose")}
+                  onClick={propose}
+                  blockers={planBlockers}
+                  pending={view.active}
+                  disabled={pending || !view.verified}
+                  variant="secondary"
+                  size="md"
+                  align="end"
+                  testId="redo-plan"
+                />
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={propose}
+                  disabled={pending || view.active || !view.verified}
+                >
+                  {view.active ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  {t("propose")}
+                </Button>
+              )}
               <span className="text-xs text-muted">
                 {t("estimate", { cost: usd(VISUAL_PLAN_ESTIMATE_CREDITS) })}
               </span>
+              {view.aids.length ? (
+                <DeleteButton
+                  label={t("deletePlan")}
+                  confirmText={t("deletePlanConfirm")}
+                  onDelete={() => remove(() => deletePlan(episodeId))}
+                  blockers={blockersFor({ kind: "deletePlan" }, deps)}
+                  disabled={pending || view.active || view.rendering}
+                  align="end"
+                  testId="delete-plan"
+                  showNote={false}
+                />
+              ) : null}
             </div>
           ) : null
         }
@@ -204,6 +246,15 @@ export function VisualAidsPanel({
                   {t("renderAll", { count: approved.length })}
                 </Button>
               ) : null}
+              {canEdit && hasRenders ? (
+                <DeleteButton
+                  label={t("deleteRenders")}
+                  confirmText={t("deleteRendersConfirm")}
+                  onDelete={() => remove(() => deleteRenders(episodeId))}
+                  disabled={pending || view.rendering}
+                  testId="delete-renders"
+                />
+              ) : null}
             </div>
             {view.rendering ? (
               <p className="flex items-center gap-2 text-xs text-muted">
@@ -212,7 +263,13 @@ export function VisualAidsPanel({
             ) : null}
             <ol className="space-y-2">
               {view.aids.map((aid) => (
-                <AidItem key={aid.id} aid={aid} canEdit={canEdit} busy={view.rendering} />
+                <AidItem
+                  key={aid.id}
+                  episodeId={episodeId}
+                  aid={aid}
+                  canEdit={canEdit}
+                  busy={view.rendering}
+                />
               ))}
             </ol>
           </>
@@ -224,7 +281,17 @@ export function VisualAidsPanel({
   );
 }
 
-function AidItem({ aid, canEdit, busy }: { aid: VisualAidView; canEdit: boolean; busy: boolean }) {
+function AidItem({
+  episodeId,
+  aid,
+  canEdit,
+  busy,
+}: {
+  episodeId: string;
+  aid: VisualAidView;
+  canEdit: boolean;
+  busy: boolean;
+}) {
   const t = useTranslations("visualAids");
   const errorText = useActionError();
   const router = useRouter();
@@ -312,9 +379,11 @@ function AidItem({ aid, canEdit, busy }: { aid: VisualAidView; canEdit: boolean;
       {canEdit && !editing ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {aid.status === "approved" && aid.renders.length ? (
-            <Button
-              size="sm"
-              variant="ghost"
+            // Del render no depende nada generado: siempre se puede rehacer.
+            <RedoButton
+              label={t("rerender")}
+              icon={<RefreshCw className="size-3.5" />}
+              blockers={[]}
               disabled={pending || busy}
               onClick={() =>
                 start(async () => {
@@ -323,9 +392,22 @@ function AidItem({ aid, canEdit, busy }: { aid: VisualAidView; canEdit: boolean;
                   else toast.error(errorText(res.error));
                 })
               }
-            >
-              <RefreshCw className="size-3.5" /> {t("rerender")}
-            </Button>
+            />
+          ) : null}
+          {aid.renders.length ? (
+            <DeleteButton
+              label={t("deleteRender")}
+              confirmText={t("deleteRenderConfirm")}
+              disabled={pending || busy}
+              testId={`delete-render-${aid.code}`}
+              onDelete={() =>
+                start(async () => {
+                  const res = await deleteRenders(episodeId, aid.id);
+                  if (res.ok) router.refresh();
+                  else toast.error(errorText(res.error));
+                })
+              }
+            />
           ) : null}
           {aid.status !== "approved" ? (
             <Button size="sm" onClick={() => status("approved")} disabled={pending}>

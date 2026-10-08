@@ -33,6 +33,8 @@ import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { loadTitleOptions } from "@/lib/data/titles";
 import { loadVisualAidsView } from "@/lib/data/visual-aids";
+import { episodeDependents } from "@/lib/data/dependents";
+import { NO_DEPENDENTS } from "@/lib/dependencies";
 import {
   defaultProductionTab,
   episodeResources,
@@ -152,6 +154,11 @@ export default async function EpisodePage({
         })
       : null,
   ]);
+  // Lo generado del episodio: qué bloquea cada «Rehacer» y «Borrar».
+  const deps =
+    tab === "script" || tab === "production"
+      ? await episodeDependents(supabase, episodeId, row.current_script_run_id)
+      : NO_DEPENDENTS;
   const directionState: DirectionState | null = direction.data
     ? {
         status: direction.data.status,
@@ -388,6 +395,7 @@ export default async function EpisodePage({
                 direction={directionState}
                 hasGuide={Boolean(guide.data?.current_version_id)}
                 canEdit={ctx.can("write_script")}
+                deps={deps}
               />
             )}
             {script ? (
@@ -401,11 +409,13 @@ export default async function EpisodePage({
                       direction={directionState}
                       hasGuide={Boolean(guide.data?.current_version_id)}
                       canEdit={ctx.can("write_script")}
+                      deps={deps}
                     />
                   ) : undefined
                 }
                 episodeId={row.id}
                 view={script}
+                deps={deps}
                 canEdit={ctx.can("write_script")}
                 canTag={canManage}
                 directionDone={
@@ -448,6 +458,7 @@ export default async function EpisodePage({
                 episodeId={row.id}
                 view={visualAids}
                 canEdit={ctx.can("write_script")}
+                deps={deps}
               />
             ) : sub === "thumbnails" ? (
               <ThumbnailsPanel
@@ -455,6 +466,7 @@ export default async function EpisodePage({
                 channelId={channelId}
                 view={thumbnails}
                 canEdit={ctx.can("write_script")}
+                deps={deps}
               />
             ) : (
               <EpisodeResources

@@ -8,7 +8,9 @@ import { Copy, ExternalLink, Loader2, RotateCcw } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
+import { BlockedNote } from "@/components/episodes/redo-button";
 import { decideClaim } from "@/lib/actions/script";
+import type { Blocker } from "@/lib/dependencies";
 import type { VerificationRow } from "@/lib/data/script";
 import { useActionError } from "@/lib/use-action-error";
 import { cn } from "@/lib/utils";
@@ -60,6 +62,7 @@ export function VerificationTable({
   markdown,
   canEdit,
   onRedo,
+  redoBlockers = [],
   redoCost,
   continuing = false,
   pending,
@@ -71,6 +74,8 @@ export function VerificationTable({
   canEdit: boolean;
   /** Rehacer el guion verificado con las decisiones; null si no se puede ahora. */
   onRedo: (() => void) | null;
+  /** Lo generado que sale del guion verificado y no deja rehacerlo. */
+  redoBlockers?: Blocker[];
   redoCost: string;
   /** La corrida espera las decisiones para escribir el guion verificado por primera vez. */
   continuing?: boolean;
@@ -137,7 +142,7 @@ export function VerificationTable({
               <Button
                 size="sm"
                 onClick={onRedo}
-                disabled={pending || (!continuing && decided === 0)}
+                disabled={pending || (!continuing && (decided === 0 || redoBlockers.length > 0))}
               >
                 {pending ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -149,6 +154,7 @@ export function VerificationTable({
               <span className="text-xs text-muted">
                 {continuing ? t("continueHint") : t("redoHint", { cost: redoCost })}
               </span>
+              {!continuing ? <BlockedNote blockers={redoBlockers} className="w-full" /> : null}
             </>
           ) : null}
         </div>

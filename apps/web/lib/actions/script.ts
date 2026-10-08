@@ -16,6 +16,7 @@ import {
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
 import { PODCAST_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "../tasks";
+import { hasBlockers } from "../data/dependents";
 import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 
@@ -104,6 +105,14 @@ export async function startScript(
       SCRIPT_STAGES.indexOf(s.stage) < stageIndex ? doneStage(s.stage) : doneStep(s.key),
     );
     if (!ready) return { ok: false, error: "errors.script_from_missing" };
+    // Rehacer un paso ya listo: no si algo generado depende de él (se borra primero).
+    const redo = current?.steps.some((s) => s.step === spec.key && s.status === "succeeded");
+    if (
+      redo &&
+      (await hasBlockers(admin, { kind: "step", step: spec.key }, episodeId, current?.id ?? null))
+    ) {
+      return { ok: false, error: "errors.has_dependents" };
+    }
 
     // Copia fija de la Dirección: si después cambian las respuestas, esta
     // corrida sigue siendo coherente.
@@ -317,6 +326,75 @@ export async function decideClaim(episodeId: string, input: unknown): Promise<Ac
       .eq("idx", idx);
     if (error) throw error;
     revalidatePath(`/c/${row.channel_id}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+async function loadForDelete(episodeId: string) {
+  await requireUser();
+  const supabase = await getSupabase();
+  const { data: row } = await supabase
+    .from("episodes")
+    .select("id, channel_id, current_script_run_id")
+    .eq("id", episodeId)
+    .single();
+  if (!row) throw new Error("errors.not_found");
+  const ctx = await getChannelContext(row.channel_id);
+  if (!ctx.can("write_script")) throw new PermissionError();
+  const admin = createAdminClient();
+  const { data: run } = row.current_script_run_id
+    ? await admin
+        .from("script_runs")
+        .select("status, tasks(status)")
+        .eq("id", row.current_script_run_id)
+        .maybeSingle()
+    : { data: null };
+  const task = run?.tasks?.status;
+  const busy =
+    (run?.status === "queued" || run?.status === "running") &&
+    (task === "queued" || task === "running");
+  return { row, admin, busy };
+}
+
+/**
+ * Borra el guion del episodio (todas sus corridas), para poder rehacer la
+ * Dirección. No se puede si el plan de ayudas o las miniaturas salen de él.
+ */
+export async function deleteScript(episodeId: string): Promise<ActionResult> {
+  try {
+    const { row, admin, busy } = await loadForDelete(episodeId);
+    if (busy) return { ok: false, error: "errors.busy" };
+    if (await hasBlockers(admin, { kind: "deleteScript" }, episodeId, row.current_script_run_id))
+      return { ok: false, error: "errors.has_dependents" };
+    const { error } = await admin.from("script_runs").delete().eq("episode_id", episodeId);
+    if (error) throw error;
+    revalidatePath(`/c/${row.channel_id}/episodios/${episodeId}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Borra el podcast de la corrida vigente, para poder rehacer el guion. */
+export async function deletePodcast(episodeId: string): Promise<ActionResult> {
+  try {
+    const { row, admin, busy } = await loadForDelete(episodeId);
+    if (busy) return { ok: false, error: "errors.busy" };
+    if (!row.current_script_run_id) return { ok: true };
+    const runId = row.current_script_run_id;
+    const [steps, stages] = await Promise.all([
+      admin
+        .from("script_step_runs")
+        .delete()
+        .eq("run_id", runId)
+        .in("step", ["podcast_script", "podcast_desc"]),
+      admin.from("script_stage_runs").delete().eq("run_id", runId).eq("stage", "podcast"),
+    ]);
+    if (steps.error) throw steps.error;
+    if (stages.error) throw stages.error;
+    revalidatePath(`/c/${row.channel_id}/episodios/${episodeId}`);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
