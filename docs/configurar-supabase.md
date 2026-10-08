@@ -10,6 +10,8 @@
 
 **Authentication → Hooks → Add hook → Before User Created → Postgres** → esquema `public`, función `hook_before_user_created`. La función aparece después de aplicar las migraciones. Sin este hook, cualquiera podría registrarse.
 
+Las invitaciones son enlaces que se copian en **Administración** (creadores) o en **Espacio y equipo** (miembros) y se envían a mano: la app no manda correos de invitación. Si la persona entra sin abrir el enlace, al iniciar sesión con el correo invitado la app le muestra la invitación pendiente para aceptarla ahí. Un administrador de la plataforma también puede **Crear mi espacio** sin invitación.
+
 ## 3. Direcciones
 
 En **Authentication → URL Configuration**:

@@ -426,7 +426,7 @@
     "title": "Espacio y equipo",
     "members": "Miembros",
     "invite": "Invitar al equipo",
-    "inviteDesc": "Comparte el enlace con la persona invitada. Vence en 14 días.",
+    "inviteDesc": "Copia el enlace y envíaselo a la persona invitada; la app no lo manda por correo. Vence en 14 días. Si entra sin el enlace, igual verá la invitación al iniciar sesión con ese correo.",
     "email": "Correo",
     "role": "Rol",
     "channels": "Canales",
@@ -439,13 +439,17 @@
     "revoke": "Revocar",
     "remove": "Quitar",
     "you": "Tú",
-    "readOnly": "Solo propietarios y administradores gestionan el equipo."
+    "readOnly": "Solo propietarios y administradores gestionan el equipo.",
+    "createOwn": "Crear mi espacio",
+    "createOwnDesc": "Un espacio propio donde eres propietario. Después conectas o creas su canal.",
+    "pendingForYou": "Tienes una invitación",
+    "join": "Unirme"
   },
   "admin": {
     "title": "Administración de la plataforma",
     "subtitle": "Invitaciones de creadores, espacios activos y consumo.",
     "inviteCreator": "Invitar a un creador",
-    "inviteCreatorDesc": "La persona invitada crea su propio espacio y conecta su canal.",
+    "inviteCreatorDesc": "La persona invitada crea su propio espacio y conecta su canal. Copia el enlace y envíaselo tú: la app no manda correos de invitación. Si entra sin el enlace, igual verá la invitación al iniciar sesión con ese correo.",
     "workspaces": "Espacios",
     "invitations": "Invitaciones de plataforma",
     "channels": "{count, plural, one {# canal} other {# canales}}",

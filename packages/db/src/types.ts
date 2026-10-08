@@ -1375,6 +1375,14 @@ export type Database = {
         Args: { token: string; workspace_name?: string };
         Returns: string;
       };
+      accept_invitation_by_id: {
+        Args: { invitation: string; workspace_name?: string };
+        Returns: string;
+      };
+      accept_invitation_row: {
+        Args: { inv_id: string; workspace_name: string };
+        Returns: string;
+      };
       channel_connection_info: {
         Args: { ch: string };
         Returns: {
@@ -1431,6 +1439,16 @@ export type Database = {
       is_workspace_member: {
         Args: { ws: string };
         Returns: boolean;
+      };
+      my_pending_invitations: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          kind: Database["public"]["Enums"]["invitation_kind"];
+          workspace_name: string;
+          role: Database["public"]["Enums"]["workspace_role"];
+          expires_at: string;
+        }[];
       };
       purge_youtube_data: {
         Args: Record<PropertyKey, never>;
