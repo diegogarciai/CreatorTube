@@ -24,6 +24,7 @@ const STATUS_TONE: Record<string, Tone> = {
   failed: "critical",
   incomplete: "warn",
   skipped: "neutral",
+  paused: "warn",
 };
 
 type Live = Record<string, { progress: string | null; preview: string | null }>;
@@ -57,7 +58,7 @@ export function ScriptPanel({
   const errorText = useActionError();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const { run, stages, history } = view;
+  const { run, stages, history, verification } = view;
   const active = run?.status === "queued" || run?.status === "running";
 
   const stepLabel = (s: Pick<ScriptStepView, "key" | "title">) =>
@@ -178,15 +179,55 @@ export function ScriptPanel({
           </p>
         ) : null}
 
-        {scriptHasContent ? (
+        {run?.status === "paused" ? (
+          <div
+            role="alert"
+            className="space-y-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-3 text-sm"
+          >
+            <p className="font-semibold text-warn">
+              {t("pausedTitle", { count: verification.pending.length })}
+            </p>
+            <p className="text-muted">{t("pausedHint")}</p>
+            <ul className="list-disc space-y-0.5 pl-5 text-muted">
+              {verification.pending.map((p, i) => (
+                <li key={i}>{p}</li>
+              ))}
+            </ul>
+            {canEdit ? (
+              <Button size="sm" onClick={() => generate("reels")} disabled={pending}>
+                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                {t("continueWithPending")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {verification.done && verification.pending.length === 0 ? (
+          <div
+            role="note"
+            className="flex items-start gap-2 rounded-lg border border-ok/40 bg-ok-soft px-3 py-2 text-sm"
+          >
+            <Check className="mt-0.5 size-4 shrink-0 text-ok" />
+            <div>
+              <p className="font-semibold text-ok">{t("verified")}</p>
+              <p className="text-muted">{t("verifiedHint")}</p>
+            </div>
+          </div>
+        ) : scriptHasContent && run?.status !== "paused" ? (
           <div
             role="note"
             className="flex items-start gap-2 rounded-lg border border-critical/40 bg-critical-soft px-3 py-2 text-sm"
           >
             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-critical" />
             <div>
-              <p className="font-semibold text-critical">{t("unverified")}</p>
-              <p className="text-muted">{t("unverifiedHint")}</p>
+              <p className="font-semibold text-critical">
+                {verification.done ? t("pendingTitle") : t("unverified")}
+              </p>
+              <p className="text-muted">
+                {verification.done
+                  ? t("pendingHint", { count: verification.pending.length })
+                  : t("unverifiedHint")}
+              </p>
             </div>
           </div>
         ) : null}
@@ -325,6 +366,7 @@ function StatusDot({ status, label }: { status: ScriptStageView["status"]; label
         "bg-warn": status === "incomplete",
         "bg-critical": status === "failed",
         "bg-border": status === "queued" || status === "skipped",
+        "bg-warn animate-pulse": status === "paused",
       })}
       aria-label={label}
     />

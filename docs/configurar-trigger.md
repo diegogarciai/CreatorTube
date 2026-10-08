@@ -17,16 +17,18 @@ No hace falta la integración de GitHub dentro de Trigger.dev. Si más adelante 
 
 **En Trigger.dev**, en **Environment variables**, entorno **Production**:
 
-| Variable                    | Valor                                                                                                                        |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `SUPABASE_URL`              | La URL del proyecto de Supabase (`https://TU-PROJECT-ID.supabase.co`)                                                        |
-| `SUPABASE_SERVICE_ROLE_KEY` | La misma service role key que está en Vercel                                                                                 |
-| `ANTHROPIC_API_KEY`         | Clave de la API de Anthropic (se usa desde el paso 3)                                                                        |
-| `PARALLEL_API_KEY`          | Clave de Parallel (se usa en la verificación)                                                                                |
-| `AI_MODEL`                  | ID del modelo de Claude que usan las preguntas y el guion (está en la consola de Anthropic). Cambiarlo no requiere desplegar |
-| `AI_PRICE_INPUT_USD`        | Opcional. Precio por millón de tokens de entrada de ese modelo, para los créditos. Por defecto 2                             |
-| `AI_PRICE_OUTPUT_USD`       | Opcional. Precio por millón de tokens de salida. Por defecto 10                                                              |
-| `AI_FALLBACKS`              | Opcional. `off` apaga el respaldo automático cuando el modelo se niega a responder. Por defecto está encendido               |
+| Variable                    | Valor                                                                                                                             |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | La URL del proyecto de Supabase (`https://TU-PROJECT-ID.supabase.co`)                                                             |
+| `SUPABASE_SERVICE_ROLE_KEY` | La misma service role key que está en Vercel                                                                                      |
+| `ANTHROPIC_API_KEY`         | Clave de la API de Anthropic (se usa desde el paso 3)                                                                             |
+| `PARALLEL_API_KEY`          | Clave de Parallel (se usa en la verificación)                                                                                     |
+| `AI_MODEL`                  | ID del modelo de Claude que usan las preguntas y el guion (está en la consola de Anthropic). Cambiarlo no requiere desplegar      |
+| `AI_PRICE_INPUT_USD`        | Opcional. Precio por millón de tokens de entrada de ese modelo, para los créditos. Por defecto 2                                  |
+| `AI_PRICE_OUTPUT_USD`       | Opcional. Precio por millón de tokens de salida. Por defecto 10                                                                   |
+| `AI_FALLBACKS`              | Opcional. `off` apaga el respaldo automático cuando el modelo se niega a responder. Por defecto está encendido                    |
+| `PARALLEL_SEARCH_MODE`      | Opcional. Modo de búsqueda de Parallel en la verificación: `turbo`, `fast`, `basic` o `advanced`. Por defecto `basic`             |
+| `PARALLEL_PRICE_USD`        | Opcional. Precio de cada búsqueda en dólares, para los créditos. Por defecto 0.005 (modo `basic`; `fast` y `turbo` cuestan 0.001) |
 
 **En Vercel** (Settings → Environment Variables, Production):
 

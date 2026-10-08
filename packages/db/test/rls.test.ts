@@ -787,5 +787,50 @@ describe("Fase 2 · guion en etapas", () => {
         q("select id from public.script_step_runs where run_id = $1", [run.id]),
       ),
     ).toEqual([]);
+
+    // Verificación: una fila por afirmación, solo lectura para el equipo.
+    await sql("update public.script_runs set status = 'paused' where id = $1", [run.id]);
+    const [item] = await sql(
+      "insert into public.verification_items (run_id, channel_id, idx, kind, claim, status, url, quote) values ($1, $2, 1, 'fact', '22 horas de batería', 'verified', 'https://apple.com', 'hasta 22 horas') returning workspace_id",
+      [run.id, ch],
+    );
+    expect(item.workspace_id).toBe(ws);
+    await expect(
+      sql(
+        "insert into public.verification_items (run_id, channel_id, idx, kind, claim) values ($1, $2, 1, 'fact', 'otra')",
+        [run.id, ch],
+      ),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      sql(
+        "insert into public.verification_items (run_id, channel_id, idx, kind, claim, status) values ($1, $2, 2, 'fact', 'x', 'inventado')",
+        [run.id, ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      as(writer.id, (q) =>
+        q(
+          "insert into public.verification_items (run_id, channel_id, idx, kind, claim) values ($1, $2, 3, 'fact', 'x')",
+          [run.id, ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(writer.id, (q) =>
+        q("select claim, status from public.verification_items where run_id = $1", [run.id]),
+      ),
+    ).toEqual([{ claim: "22 horas de batería", status: "verified" }]);
+    expect(
+      await as(writer.id, (q) =>
+        q("update public.verification_items set status = 'pending' where run_id = $1 returning 1", [
+          run.id,
+        ]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select id from public.verification_items where run_id = $1", [run.id]),
+      ),
+    ).toEqual([]);
   });
 });

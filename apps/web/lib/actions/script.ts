@@ -194,6 +194,36 @@ export async function startScript(
         );
         if (copyError) throw copyError;
       }
+      // Las afirmaciones ya extraídas (y lo ya verificado) también pasan: al
+      // regenerar desde Verificar se sigue con las pendientes.
+      if (copiedSteps.some((s) => s.step === "claims")) {
+        const { data: items } = await admin
+          .from("verification_items")
+          .select("*")
+          .eq("run_id", current.id);
+        if (items?.length) {
+          const { error: copyError } = await admin.from("verification_items").insert(
+            items.map((item) => ({
+              run_id: run.id,
+              channel_id: item.channel_id,
+              idx: item.idx,
+              kind: item.kind,
+              claim: item.claim,
+              line: item.line,
+              occurrences: item.occurrences,
+              status: item.status,
+              nature: item.nature,
+              url: item.url,
+              source_title: item.source_title,
+              quote: item.quote,
+              data_date: item.data_date,
+              value: item.value,
+              note: item.note,
+            })),
+          );
+          if (copyError) throw copyError;
+        }
+      }
     }
 
     await admin.from("episodes").update({ current_script_run_id: run.id }).eq("id", episodeId);

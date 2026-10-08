@@ -3,6 +3,7 @@ import { addUsage, emptyUsage, type UsageTotals } from "./cost";
 import { EPISODE_TYPE_LABELS } from "./direction";
 import { isTransientAiError } from "./errors";
 import { AiRefusalError, type AiConfig } from "./generate";
+import type { GuideStage } from "@planificador/core";
 
 /**
  * Guion en etapas (documento "Las 5 etapas del guion"): cada etapa recibe solo
@@ -12,14 +13,14 @@ import { AiRefusalError, type AiConfig } from "./generate";
 export const SCRIPT_STAGES = ["study", "script", "verification", "publication", "podcast"] as const;
 export type ScriptStage = (typeof SCRIPT_STAGES)[number];
 
-/** Etapas que la app ya genera (las demás llegan en los pasos 5 y 6). */
-export const IMPLEMENTED_STAGES: readonly ScriptStage[] = ["study", "script"];
+/** Etapas que la app ya genera (Publicación y Podcast llegan en el paso 6). */
+export const IMPLEMENTED_STAGES: readonly ScriptStage[] = ["study", "script", "verification"];
 
 /**
  * Cada etapa se genera por pasos: una llamada por bloque, en orden, y cada paso
- * recibe los bloques que ya quedaron listos. Así el control de calidad revisa
- * el guion terminado y los reels, la verificación, los motion graphics y los
- * B-rolls salen del teleprompter ya escrito.
+ * recibe lo que ya quedó listo. Los reels, los motion graphics y los B-rolls
+ * van después de verificar: así salen del guion verificado y no se pagan dos
+ * veces.
  */
 export const SCRIPT_STEPS = [
   "dossier",
@@ -28,8 +29,10 @@ export const SCRIPT_STEPS = [
   "teleprompter",
   "quality",
   "revision",
+  "claims",
+  "verify",
+  "fix",
   "reels",
-  "fact_check",
   "motion",
   "broll",
 ] as const;
@@ -43,6 +46,13 @@ export interface StepSpec {
   plain: boolean;
   what: string;
   effort: "low" | "medium" | "high";
+  /** Qué secciones de la guía recibe (tabla de etapas de la guía). */
+  guide: GuideStage;
+  /**
+   * Pasos que no son un bloque de texto: extraer afirmaciones (salida
+   * estructurada) y verificar con búsqueda. Los corre la tarea con su lógica.
+   */
+  special?: true;
 }
 
 const step = (
@@ -50,8 +60,13 @@ const step = (
   stage: ScriptStage,
   title: string,
   what: string,
-  { plain = false, effort = "medium" as StepSpec["effort"] } = {},
-): StepSpec => ({ key, stage, title, plain, what, effort });
+  {
+    plain = false,
+    effort = "medium" as StepSpec["effort"],
+    guide = stage as GuideStage,
+    special = undefined as true | undefined,
+  } = {},
+): StepSpec => ({ key, stage, title, plain, what, effort, guide, ...(special && { special }) });
 
 export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
   study: [
@@ -91,26 +106,50 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       "el teleprompter de arriba con cada cambio que pide el control de calidad aplicado, y nada más: conserva todo lo que cumple. Texto plano, sin ninguna marca",
       { plain: true, effort: "high" },
     ),
+  ],
+  verification: [
     step(
-      "reels",
-      "script",
-      "GUION CON REELS MARCADOS",
-      "secciones 13.3 y 9.7: el texto del teleprompter de arriba, palabra por palabra, con las marcas de reels e invitaciones",
-      { plain: true },
+      "claims",
+      "verification",
+      "AFIRMACIONES A VERIFICAR",
+      "sección 10.1: toda afirmación verificable del guion, separando hechos, opiniones y ___DATO pendientes",
+      { guide: "verification_extract", special: true },
     ),
     step(
-      "fact_check",
-      "script",
-      "VERIFICACIÓN DE DATOS",
-      "sección 10: una fila por cada afirmación del teleprompter de arriba, todo en Pendiente",
+      "verify",
+      "verification",
+      "TABLA DE VERIFICACIÓN",
+      "sección 10.3: cada hecho contrastado en la web, con estado, naturaleza, fuente, cita y fecha",
+      { guide: "verification_extract", special: true },
+    ),
+    step(
+      "fix",
+      "verification",
+      "GUION — TELEPROMPTER VERIFICADO",
+      "el teleprompter de arriba corregido con la tabla de verificación: cada Con matiz reescrito con su matiz, cada dato de Marca dicho atribuido, cada ___DATO completado con su valor verificado, y cada No verificable o Contradicho resuelto con la regla 10.4 (reescribir con lo confirmado, eliminar la línea o dejar ___DATO POR CONFIRMAR___). Aplica también el control de sesgo 10.7. Sin avisos ni notas dentro del texto: el panel los muestra. Texto plano, sin ninguna marca",
+      { plain: true, effort: "high", guide: "verification_fix" },
+    ),
+    step(
+      "reels",
+      "verification",
+      "GUION CON REELS MARCADOS",
+      "secciones 13.3 y 9.7: el teleprompter verificado de arriba, palabra por palabra, con las marcas de reels e invitaciones",
+      { plain: true, guide: "verification_mark" },
     ),
     step(
       "motion",
-      "script",
+      "verification",
       "MOTION GRAPHICS",
-      "una ficha 12.5 por cada párrafo del teleprompter de arriba con información importante",
+      "una ficha 12.5 por cada párrafo del teleprompter verificado con información importante. Solo cifras de filas Verificado o Con matiz de la tabla de arriba, y cada ficha dice de qué fila sale cada número",
+      { guide: "verification_mark" },
     ),
-    step("broll", "script", "PLAN DE B-ROLLS", "sección 11, sobre el teleprompter de arriba"),
+    step(
+      "broll",
+      "verification",
+      "PLAN DE B-ROLLS",
+      "sección 11, sobre el teleprompter verificado de arriba",
+      { guide: "script" },
+    ),
   ],
 };
 
@@ -133,7 +172,7 @@ export function qualityVerdict(body: string): "pass" | "fix" {
   return /no\s+cumple/i.test(body) ? "fix" : "pass";
 }
 
-/** Textos de los pasos ya listos, por clave. */
+/** Textos de los pasos ya listos de la corrida, por clave (de todas las etapas). */
 export type StepBodies = Partial<Record<ScriptStep, string>>;
 
 /** La Corrección se salta cuando el control de calidad no encontró nada. */
@@ -141,30 +180,44 @@ export function skipsStep(key: ScriptStep, bodies: StepBodies): boolean {
   return key === "revision" && qualityVerdict(bodies.quality ?? "") === "pass";
 }
 
-const AFTER_REVISION: readonly ScriptStep[] = ["reels", "fact_check", "motion", "broll"];
+/** El teleprompter con el que sigue el trabajo: el corregido, si lo hay. */
+export function finalTeleprompter(bodies: StepBodies): string {
+  return bodies.revision?.trim() ? bodies.revision : (bodies.teleprompter ?? "");
+}
+
+const block = (key: ScriptStep, body: string | undefined): Block[] =>
+  body?.trim() ? [{ title: stepSpec(key).title, body }] : [];
 
 /**
- * Los bloques de la misma etapa que recibe un paso. Desde Reels en adelante el
- * teleprompter es el final (el corregido, si lo hay) y la tabla de calidad ya
- * no va: sus cambios quedaron aplicados.
+ * Lo que recibe cada paso además del contexto común de su etapa:
+ * - Estudio y Guion: los bloques anteriores de su etapa; desde la Corrección no
+ *   hay más pasos en Guion, así que la tabla de calidad solo la ve ella.
+ * - Verificación: el teleprompter final y, según el paso, la tabla de
+ *   verificación o el guion verificado. Nunca el teleprompter sin verificar
+ *   junto al verificado, para que no se mezclen.
  */
 export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
   const spec = stepSpec(key);
-  const steps = STAGE_STEPS[spec.stage]!;
-  const before = steps.slice(0, steps.indexOf(spec));
-  if (!AFTER_REVISION.includes(key)) {
-    return before.flatMap((s) =>
-      bodies[s.key]?.trim() ? [{ title: s.title, body: bodies[s.key]! }] : [],
-    );
-  }
-  return before.flatMap((s): Block[] => {
-    if (s.key === "quality" || s.key === "revision") return [];
-    if (s.key === "teleprompter") {
-      const body = bodies.revision?.trim() ? bodies.revision : bodies.teleprompter;
-      return body?.trim() ? [{ title: s.title, body }] : [];
+  if (spec.stage === "verification") {
+    const tele = [
+      { title: stepSpec("teleprompter").title, body: finalTeleprompter(bodies) },
+    ].filter((b) => b.body.trim());
+    switch (key) {
+      case "claims":
+        return tele;
+      case "fix":
+        return [...tele, ...block("verify", bodies.verify)];
+      case "motion":
+        return [...block("verify", bodies.verify), ...block("fix", bodies.fix)];
+      case "reels":
+      case "broll":
+        return block("fix", bodies.fix);
+      default:
+        return [];
     }
-    return bodies[s.key]?.trim() ? [{ title: s.title, body: bodies[s.key]! }] : [];
-  });
+  }
+  const steps = STAGE_STEPS[spec.stage]!;
+  return steps.slice(0, steps.indexOf(spec)).flatMap((s) => block(s.key, bodies[s.key]));
 }
 
 /**
@@ -173,10 +226,28 @@ export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
  */
 export function stageBlocks(stage: ScriptStage, bodies: StepBodies): Block[] {
   return (STAGE_STEPS[stage] ?? []).flatMap((s): Block[] => {
-    if (s.key === "revision") return [];
-    const body =
-      s.key === "teleprompter" && bodies.revision?.trim() ? bodies.revision : bodies[s.key];
+    if (s.key === "revision" || s.key === "claims") return [];
+    const body = s.key === "teleprompter" ? finalTeleprompter(bodies) : bodies[s.key];
     return body?.trim() ? [{ title: s.title, body }] : [];
+  });
+}
+
+/** Las marcas ___DATO que quedan en un texto (vacío si no queda ninguna). */
+export function pendingDatos(text: string): string[] {
+  return [...text.matchAll(/___\s*DATO[^_]*___/gi)].map((m) => m[0]);
+}
+
+/** La frase de cada marca ___DATO, para mostrar qué falta confirmar y dónde. */
+export function pendingDatoLines(text: string): string[] {
+  return [...text.matchAll(/___\s*DATO[^_]*___/gi)].map((m) => {
+    const at = m.index ?? 0;
+    const before = text.slice(0, at);
+    const start = Math.max(before.lastIndexOf(". "), before.lastIndexOf("\n"));
+    const after = text.slice(at + m[0].length);
+    const ends = [after.indexOf(". "), after.indexOf("\n")].filter((i) => i >= 0);
+    const end = ends.length ? Math.min(...ends) + 1 : after.length;
+    const sentence = (before.slice(start + 1) + m[0] + after.slice(0, end)).trim();
+    return sentence.length > 200 ? `…${sentence.slice(-200)}` : sentence;
   });
 }
 
@@ -243,10 +314,9 @@ Aplica al pie de la letra estas instrucciones:
 {{SECTIONS}}
 </instrucciones>`;
 
-const SCRIPT_EXTRA = `Como esta etapa no busca en la web, tiene tres reglas extra:
-- La primera línea del bloque de verificación dice «GUION SIN VERIFICAR — NO GRABAR», y cada afirmación lleva la búsqueda exacta y la fuente primaria donde confirmarla.
+const SCRIPT_EXTRA = `Como esta etapa no busca en la web, tiene dos reglas extra (la verificación con búsqueda llega en la etapa siguiente):
 - Cada afirmación es concreta (sujeto, modelo, año, cifra). Sin cifra, se dice como opinión.
-- «DATO: …» solo para lo que no puedes saber, como precios actuales o productos posteriores a tu fecha de corte: máximo 3, cada uno con una sola cosa precisa (modelo, país y moneda).`;
+- «___DATO: …___» solo para lo que no puedes saber, como precios actuales o productos posteriores a tu fecha de corte: máximo 3, cada uno con una sola cosa precisa (modelo, país y moneda).`;
 
 const thousands = (n: number) => n.toLocaleString("es-CO");
 
@@ -342,7 +412,7 @@ export function buildStepPrompt(
 
   const position = steps.indexOf(spec);
   const task = [
-    done.length ? "Arriba están los bloques de esta etapa que ya quedaron listos." : "",
+    done.length ? "Arriba está el material que ya quedó listo." : "",
     `PASO ${position + 1} de ${steps.length}. ENTREGA solo este bloque, con su línea «### BLOQUE: » y el título exacto:`,
     `### BLOQUE: ${spec.title} — ${spec.what}.`,
   ]

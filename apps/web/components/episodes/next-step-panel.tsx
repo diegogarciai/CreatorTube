@@ -43,7 +43,10 @@ export function NextStepPanel({
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         {t("episode.nextStep")}
       </p>
-      {(step.action === "answer_direction" || step.action === "generate_script") && canAct ? (
+      {(step.action === "answer_direction" ||
+        step.action === "generate_script" ||
+        step.action === "resolve_verification") &&
+      canAct ? (
         <div className="mt-2">
           <Link
             href={
@@ -54,7 +57,8 @@ export function NextStepPanel({
           >
             {label} <ArrowRight className="size-4" />
           </Link>
-          {step.action === "generate_script" && canSkip ? (
+          {(step.action === "generate_script" || step.action === "resolve_verification") &&
+          canSkip ? (
             <Button
               variant="ghost"
               size="sm"

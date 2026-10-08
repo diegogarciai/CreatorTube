@@ -4,6 +4,7 @@ import {
   findBlock,
   IMPLEMENTED_STAGES,
   IMPLEMENTED_STEPS,
+  pendingDatoLines,
   SCRIPT_STAGES,
   STAGE_STEPS,
   type Block,
@@ -53,6 +54,8 @@ export type ScriptView = {
   run: ScriptRunView | null;
   stages: ScriptStageView[];
   history: ScriptRunView[];
+  /** Si el guion ya pasó la verificación y qué ___DATO quedaron por confirmar. */
+  verification: { done: boolean; pending: string[] };
 };
 
 /** La corrida vigente del guion, lista para el panel (que no carga la lógica de IA). */
@@ -79,7 +82,7 @@ export async function loadScriptView(
     currentRunId
       ? supabase
           .from("script_step_runs")
-          .select("step, status, body, error, progress_message, preview")
+          .select("stage, step, status, body, error, progress_message, preview")
           .eq("run_id", currentRunId)
       : Promise.resolve({ data: [] }),
   ]);
@@ -113,7 +116,10 @@ export async function loadScriptView(
       SCRIPT_STAGES.indexOf(s.stage) < SCRIPT_STAGES.indexOf(spec.stage)
         ? stageDone(s.stage)
         : stepsOf.some(
-            (r) => r.step === s.key && (r.status === "succeeded" || r.status === "skipped"),
+            (r) =>
+              r.step === s.key &&
+              r.stage === s.stage &&
+              (r.status === "succeeded" || r.status === "skipped"),
           ),
     );
   };
@@ -123,7 +129,8 @@ export async function loadScriptView(
     const blocks = (stageRow?.blocks ?? []) as Block[];
     const specs = STAGE_STEPS[stage] ?? [];
     const steps: ScriptStepView[] = specs.map((spec) => {
-      const row = stepsOf.find((s) => s.step === spec.key);
+      // Por etapa: en corridas viejas los reels eran parte del Guion.
+      const row = stepsOf.find((s) => s.step === spec.key && s.stage === stage);
       // Corridas de antes de los pasos: el bloque viene de la etapa.
       const legacy = row ? undefined : findBlock(blocks, spec.title);
       const body = row?.status === "succeeded" ? row.body : (legacy?.body ?? null);
@@ -137,7 +144,7 @@ export async function loadScriptView(
         error: row?.error ?? null,
         body,
         words:
-          (spec.key === "teleprompter" || spec.key === "revision") && body
+          (spec.key === "teleprompter" || spec.key === "revision" || spec.key === "fix") && body
             ? countWords(body)
             : null,
         canRestart: canRestart(IMPLEMENTED_STEPS.indexOf(spec)),
@@ -151,7 +158,7 @@ export async function loadScriptView(
         (b, i): ScriptStepView => ({
           key: `extra-${i}`,
           title: b.title,
-          plain: false,
+          plain: IMPLEMENTED_STEPS.some((s) => s.plain && findBlock([b], s.title)),
           status: "succeeded",
           progress: null,
           preview: null,
@@ -170,5 +177,11 @@ export async function loadScriptView(
     };
   });
 
-  return { run, stages, history };
+  // El guion verificado: lo que queda por confirmar decide si se puede grabar.
+  const fix = stages.flatMap((s) => s.steps).find((s) => s.key === "fix");
+  const verification = fix?.body
+    ? { done: true, pending: pendingDatoLines(fix.body) }
+    : { done: false, pending: [] };
+
+  return { run, stages, history, verification };
 }

@@ -16,6 +16,10 @@ export function isTransientAiError(err: unknown): boolean {
 /** Clave de mensaje (`errors.*`) para mostrar en la app; null si no hay una. */
 export function aiErrorKey(err: unknown): string | null {
   if (err instanceof AiRefusalError) return "errors.ai_refusal";
+  // Por nombre: la clase vive en verification.ts, que ya importa este archivo.
+  if (err instanceof Error && err.name === "SearchUnavailableError") {
+    return "errors.search_unavailable";
+  }
   if (err instanceof APIConnectionError) return "errors.ai_unavailable";
   if (!(err instanceof APIError)) return null;
   if (err.type === "overloaded_error" || err.status === 529) return "errors.ai_overloaded";

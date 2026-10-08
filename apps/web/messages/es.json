@@ -521,7 +521,8 @@
     "ai_rate_limited": "Se alcanzó el límite de uso de la API de Claude; espera unos minutos.",
     "ai_unavailable": "Claude no respondió; espera unos minutos.",
     "ai_refusal": "El modelo no quiso responder este tema.",
-    "script_from_missing": "Para regenerar desde ese paso hacen falta los anteriores listos."
+    "script_from_missing": "Para regenerar desde ese paso hacen falta los anteriores listos.",
+    "search_unavailable": "El buscador de la web no respondió; lo avanzado quedó guardado. Regenera desde «Verificar» para seguir donde quedó."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -610,11 +611,11 @@
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
     "savedToast": "Respuestas guardadas.",
     "skippedToast": "Listo: decide el guionista.",
-    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio en 2 pasos y Guion en 8. Cuesta cerca de {cost}."
+    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio, Guion y Verificación con búsqueda en la web. Cuesta cerca de {cost}."
   },
   "script": {
     "title": "Guion",
-    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada bloque es un paso que empieza cuando termina el anterior y recibe solo sus reglas y lo ya escrito.",
+    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada paso empieza cuando termina el anterior. La Verificación busca en la web con Parallel, y los reels, motion graphics y B-rolls se hacen sobre el guion ya verificado.",
     "needsDirection": "Responde o salta la dirección de arriba para generar el guion.",
     "generate": "Generar guion",
     "estimate": "Cuesta cerca de {cost} de tus créditos.",
@@ -623,10 +624,10 @@
     "failed": "La corrida falló.",
     "incomplete": "La etapa quedó incompleta.",
     "retryHint": "Puedes regenerar desde esa etapa.",
-    "comingSoon": "Llega en la próxima actualización.",
+    "comingSoon": "Llega en el paso 6.",
     "notYet": "Todavía no se genera.",
     "unverified": "GUION SIN VERIFICAR — NO GRABAR",
-    "unverifiedHint": "Los datos no se han comprobado en la web. La etapa de Verificación llega en la próxima actualización.",
+    "unverifiedHint": "Los datos todavía no se han comprobado en la web: la etapa Verificación los contrasta con Parallel.",
     "copy": "Copiar",
     "copied": "Copiado.",
     "words": "{words} palabras · objetivo {target} ({minutes} min)",
@@ -646,7 +647,8 @@
       "succeeded": "Lista",
       "failed": "Falló",
       "incomplete": "Incompleta",
-      "skipped": "Sin cambios"
+      "skipped": "Sin cambios",
+      "paused": "En pausa"
     },
     "stageFailed": "La etapa falló.",
     "failedAt": "La corrida falló en {step}.",
@@ -663,12 +665,21 @@
       "teleprompter": "Teleprompter",
       "quality": "Control de calidad",
       "revision": "Corrección",
+      "claims": "Afirmaciones",
+      "verify": "Verificar",
+      "fix": "Guion verificado",
       "reels": "Reels marcados",
-      "fact_check": "Verificación de datos",
       "motion": "Motion graphics",
       "broll": "B-rolls"
     },
     "revisionSkipped": "El control de calidad no encontró nada que corregir: los pasos siguientes usan el teleprompter tal cual.",
-    "revisionNote": "Primera versión. Los pasos siguientes usan la corregida (paso 4, Corrección)."
+    "revisionNote": "Primera versión. Los pasos siguientes usan la corregida (paso 4, Corrección).",
+    "verified": "Guion verificado",
+    "verifiedHint": "El guion pasó la verificación con búsqueda en la web y no quedan datos por confirmar. Revisa la tabla para ver qué se corrigió o se eliminó.",
+    "pendingTitle": "DATOS POR CONFIRMAR — NO GRABAR",
+    "pendingHint": "El guion verificado tiene {count, plural, one {# dato} other {# datos}} marcado como ___DATO POR CONFIRMAR___ (regla 10.4).",
+    "pausedTitle": "La corrida se pausó antes de los reels: {count, plural, one {queda # dato} other {quedan # datos}} por confirmar",
+    "pausedHint": "Para no pagar reels, motion graphics y B-rolls que pueden cambiar, la corrida espera tu decisión. Puedes seguir con los datos marcados en el texto o regenerar desde «Verificar» o «Guion verificado».",
+    "continueWithPending": "Seguir con los pendientes marcados"
   }
 }

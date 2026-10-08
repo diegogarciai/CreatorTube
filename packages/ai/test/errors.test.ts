@@ -9,6 +9,7 @@ import {
 import type { ErrorType } from "@anthropic-ai/sdk/resources/shared";
 import { aiErrorKey, isTransientAiError } from "../src/errors";
 import { AiRefusalError } from "../src/generate";
+import { SearchUnavailableError } from "../src/verification";
 
 const h = new Headers();
 const inStream = (type: ErrorType) =>
@@ -31,6 +32,7 @@ describe("errores de la API", () => {
     ["otro error en el stream", inStream("invalid_request_error"), false, null],
     ["negativa", new AiRefusalError("cyber"), false, "errors.ai_refusal"],
     ["error común", new Error("x"), false, null],
+    ["buscador caído", new SearchUnavailableError(), false, "errors.search_unavailable"],
   ])("%s", (_name, err, transient, key) => {
     expect(isTransientAiError(err)).toBe(transient);
     expect(aiErrorKey(err)).toBe(key);
