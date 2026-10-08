@@ -1435,3 +1435,48 @@ describe("Fase 3 · plan de ayudas visuales", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("Fase 3 · render de las ayudas visuales", () => {
+  it("un render por ayuda y formato, ruta del canal, y el bucket acepta video", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch);
+    const [aid] = await sql(
+      "insert into public.visual_aids (episode_id, channel_id, kind, code, anchor, title) values ($1, $2, 'C', 'C1', 'La memoria', 'Memoria unificada') returning id",
+      [ep, ch],
+    );
+    const insert = (format: string, path: string | null = null) =>
+      sql(
+        "insert into public.aid_renders (visual_aid_id, episode_id, channel_id, format, path) values ($1, $2, $3, $4, $5) returning id, workspace_id, status",
+        [aid.id, ep, ch, format, path],
+      );
+    const [green] = await insert("green", `${ch}/episodes/${ep}/aids/C1-green.mp4`);
+    expect(green).toMatchObject({ workspace_id: ws, status: "queued" });
+    await expect(insert("green")).rejects.toThrow(/duplicate key/);
+    await expect(insert("square")).rejects.toThrow(/check constraint/);
+    await expect(insert("alpha", `${ch}/otra/${ep}/C1.webm`)).rejects.toThrow(/check constraint/);
+
+    const [bucket] = await sql(
+      "select file_size_limit, allowed_mime_types from storage.buckets where id = 'channel-media'",
+    );
+    expect(Number(bucket.file_size_limit)).toBe(50 * 1024 * 1024);
+    expect(bucket.allowed_mime_types).toEqual(expect.arrayContaining(["video/mp4", "video/webm"]));
+
+    expect(
+      await as(owner.id, (q) =>
+        q("select format from public.aid_renders where episode_id = $1", [ep]),
+      ),
+    ).toEqual([{ format: "green" }]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select format from public.aid_renders where episode_id = $1", [ep]),
+      ),
+    ).toEqual([]);
+    // Borrar la ayuda borra sus renders.
+    await sql("delete from public.visual_aids where id = $1", [aid.id]);
+    expect(await sql("select id from public.aid_renders where episode_id = $1", [ep])).toEqual([]);
+  });
+});

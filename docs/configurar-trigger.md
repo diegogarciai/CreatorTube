@@ -5,7 +5,7 @@ Las tareas largas (preguntas de dirección, etapas del guion, verificación) cor
 ## 1. Proyecto y despliegue
 
 1. En https://cloud.trigger.dev, crea el proyecto y copia su **Project ref** (`proj_…`) desde **Project settings**. No es secreto: va en `apps/jobs/trigger.config.ts`. El de producción es `proj_rrnleywnvctyyhakvffy`.
-2. El despliegue lo hace GitHub Actions (`.github/workflows/trigger-deploy.yml`) en cada push a `main` que toque `apps/jobs`, `packages/core`, `packages/db/src` o el lockfile. También se puede correr a mano desde **Actions → Trigger.dev deploy → Run workflow**.
+2. El despliegue lo hace GitHub Actions (`.github/workflows/trigger-deploy.yml`) en cada push a `main` que toque `apps/jobs`, `packages/core`, `packages/db/src`, `packages/motion` o el lockfile. Antes de desplegar arma el bundle de Remotion (`pnpm --filter @planificador/motion build`), que viaja con la tarea de render. También se puede correr a mano desde **Actions → Trigger.dev deploy → Run workflow**.
 3. **Clave de despliegue:**
    1. En Trigger.dev, cambia el selector de entorno (arriba a la izquierda) a **Production**.
    2. Ve a **API keys → New API key**, con el nombre `github-actions` y acceso **Deploy only**.
@@ -40,6 +40,8 @@ No hace falta la integración de GitHub dentro de Trigger.dev. Si más adelante 
 | `TRIGGER_SECRET_KEY` | En Trigger.dev: **API keys** → clave secreta del entorno **Production** (`tr_prod_…`) |
 
 Las claves de Anthropic y Parallel solo van en Trigger.dev, que es donde corren las llamadas. Ninguna clave se pega en el chat ni se sube al repositorio.
+
+**Render de ayudas visuales** (`render_aids`): corre en la máquina `medium-1x` (2 GB) de Trigger.dev, que se cobra en el plan de Trigger.dev por tiempo de uso. La imagen trae Chrome Headless Shell (`REMOTION_CHROME_PATH`, lo instala la extensión `remotion-chrome`); no hace falta ninguna variable más.
 
 ## 3. Probar
 

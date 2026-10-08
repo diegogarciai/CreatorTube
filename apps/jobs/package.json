@@ -18,6 +18,8 @@
     "@planificador/ai": "workspace:*",
     "@planificador/core": "workspace:*",
     "@planificador/db": "workspace:*",
+    "@planificador/motion": "workspace:*",
+    "@remotion/renderer": "4.0.534",
     "@supabase/supabase-js": "2.117.3",
     "@trigger.dev/sdk": "4.6.4",
     "opentype.js": "1.3.4",

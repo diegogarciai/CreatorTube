@@ -36,7 +36,7 @@ Fuentes:
 | 1    | Este documento; almacenamiento de archivos; kit de marca por canal; fotos del presentador | Hecho     |
 | 2    | Miniaturas con Gemini: generar, poner el texto, calificar con Claude, elegir y descargar  | Hecho     |
 | 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Hecho     |
-| 4    | Render con Remotion en Trigger.dev                                                        | Pendiente |
+| 4    | Render con Remotion en Trigger.dev                                                        | Hecho     |
 | 5    | Recursos del episodio en Producción                                                       | Pendiente |
 | 6    | Un episodio de Gartechs producido de punta a punta (prueba de salida)                     | Pendiente |
 
@@ -203,7 +203,40 @@ Vive en la pestaña **Producción**, arriba de las miniaturas. Aplica la secció
 - **«Copiar plan aprobado»:** el plan en orden, con ID, dónde entra y el texto en pantalla, para pegarlo en la edición.
 - **Plan desactualizado:** si el plan salió de otro guion que el actual, se avisa para rehacerlo.
 
-## 9. Costos estimados por episodio
+## 9. Render de las ayudas visuales (paso 4)
+
+Las ayudas **aprobadas** del plan se renderizan con Remotion en Trigger.dev, con el botón «Renderizar aprobadas» del panel o con «Rehacer render» en una sola.
+
+- **Formatos** (`aid_renders`, un render vigente por ayuda y formato):
+
+  | Ayuda | Formato                                                                           | Archivo                 |
+  | ----- | --------------------------------------------------------------------------------- | ----------------------- |
+  | M     | Horizontal 1920 × 1080 a 30 fps                                                   | MP4 H.264               |
+  | M     | Vertical 1080 × 1920 (solo la M más fuerte, 12.7), con la zona segura 250/340/120 | MP4 H.264               |
+  | C y L | Fondo verde `#00FF00` (croma)                                                     | MP4 H.264               |
+  | C y L | Transparente                                                                      | WebM VP9 con canal alfa |
+
+  Diego edita en **CapCut**, que no lee bien el alfa: usa la versión verde y la quita con croma. La transparente queda para otros editores.
+
+- **Piezas** (`packages/motion`, código revisado: no se genera código):
+  - **Las 10 piezas de las M:** barras, anillo, cifra que cuenta, línea de tiempo, matriz de puntos, curva, antes y después, comparación, red de conexiones y zoom.
+  - **Etiqueta de concepto (C):** abajo a la izquierda.
+  - **Lista (L):** a la derecha, con los elementos entrando uno a uno.
+  - **Reglas del manual que siguen:**
+    - margen de 96 × 72, retícula al 6 % y sin halo cuando hay datos, viñeteado;
+    - serie principal en Naranja marca y referencia en Crema al 35 %, con las barras desde cero;
+    - título en Inter Display 600 y valores en JetBrains Mono;
+    - movimiento con `cubic-bezier(0.2, 0, 0, 1)`, sin rebotes, giros, brillos ni glitch.
+  - **Fuentes:** van con el bundle (Inter variable y JetBrains Mono, licencia OFL).
+- **Duración:** la M dura lo que dice su ficha; la C, 5 s; la L, 2 s por elemento más 1 s.
+- **Tamaño:** 50 MB como máximo por archivo (plan gratis de Supabase). Si un render pasa de ahí, se repite más comprimido. El bucket `channel-media` acepta `video/mp4` y `video/webm`.
+- **En Trigger.dev** (tarea `render_aids`, máquina `medium-1x`):
+  - El bundle de Remotion se arma antes del despliegue y viaja con `additionalFiles`.
+  - La extensión `remotion-chrome` instala en la imagen las librerías de Chrome y Chrome Headless Shell, en la versión que prueba Remotion (`REMOTION_CHROME_PATH`). Si eso falla, la tarea lo descarga al arrancar.
+  - Se registra en el consumo como «Render», sin costo de IA.
+- **Editar después del render:** si se edita una ayuda después de renderizarla, su render se marca «Editada después del render» para rehacerlo.
+
+## 10. Costos estimados por episodio
 
 | Qué                                        | Estimado                                          |
 | ------------------------------------------ | ------------------------------------------------- |

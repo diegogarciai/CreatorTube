@@ -1,6 +1,19 @@
 import "server-only";
 import type { AidElement, AidKind, AidPiece, AidScores, AidStatus } from "@planificador/core";
 import { getSupabase } from "../auth";
+import { MEDIA_BUCKET, SIGNED_URL_SECONDS } from "../media";
+
+export type AidRenderView = {
+  id: string;
+  format: "horizontal" | "vertical" | "green" | "alpha";
+  status: "queued" | "rendering" | "ready" | "failed";
+  url: string | null;
+  downloadUrl: string | null;
+  bytes: number | null;
+  error: string | null;
+  /** La ayuda se editó después de este render. */
+  outdated: boolean;
+};
 
 export type VisualAidView = {
   id: string;
@@ -21,6 +34,7 @@ export type VisualAidView = {
   vertical: boolean;
   status: AidStatus;
   edited: boolean;
+  renders: AidRenderView[];
 };
 
 export type VisualAidsView = {
@@ -31,11 +45,14 @@ export type VisualAidsView = {
   outdated: boolean;
   active: boolean;
   error: string | null;
+  /** Hay un render en marcha. */
+  rendering: boolean;
 };
 
 /** El plan de ayudas visuales del episodio, en orden de guion. */
 export async function loadVisualAidsView(episode: {
   id: string;
+  code: string;
   currentScriptRunId: string | null;
 }): Promise<VisualAidsView> {
   const supabase = await getSupabase();
@@ -58,6 +75,43 @@ export async function loadVisualAidsView(episode: {
           .eq("status", "succeeded")
       : Promise.resolve({ count: 0 }),
   ]);
+  const { data: renders } = await supabase
+    .from("aid_renders")
+    .select("id, visual_aid_id, format, status, path, bytes, error, created_at, task:tasks(status)")
+    .eq("episode_id", episode.id);
+  const storage = supabase.storage.from(MEDIA_BUCKET);
+  const ORDER = ["horizontal", "vertical", "green", "alpha"];
+  const renderViews = await Promise.all(
+    (renders ?? []).map(async (r) => {
+      const aid = (aids ?? []).find((a) => a.id === r.visual_aid_id);
+      const ext = r.path?.split(".").pop() ?? "mp4";
+      const name = `${episode.code}-${aid?.code ?? "ayuda"}-${r.format}.${ext}`;
+      const ready = r.status === "ready" && r.path;
+      // Si la tarea se cayó, lo que quedó a medias cuenta como fallido.
+      const dead =
+        (r.status === "queued" || r.status === "rendering") &&
+        r.task &&
+        ["failed", "canceled"].includes(r.task.status);
+      return {
+        aidId: r.visual_aid_id,
+        view: {
+          id: r.id,
+          format: r.format as AidRenderView["format"],
+          status: (dead ? "failed" : r.status) as AidRenderView["status"],
+          url: ready
+            ? ((await storage.createSignedUrl(r.path!, SIGNED_URL_SECONDS)).data?.signedUrl ?? null)
+            : null,
+          downloadUrl: ready
+            ? ((await storage.createSignedUrl(r.path!, SIGNED_URL_SECONDS, { download: name })).data
+                ?.signedUrl ?? null)
+            : null,
+          bytes: r.bytes,
+          error: dead ? "errors.unknown" : r.error,
+          outdated: Boolean(aid && aid.updated_at > r.created_at && r.status === "ready"),
+        } satisfies AidRenderView,
+      };
+    }),
+  );
   const runs = [...new Set((aids ?? []).map((a) => a.script_run_id).filter(Boolean))] as string[];
   const { data: rows } = runs.length
     ? await supabase.from("verification_items").select("run_id, idx, status").in("run_id", runs)
@@ -83,6 +137,10 @@ export async function loadVisualAidsView(episode: {
       vertical: a.vertical,
       status: a.status as AidStatus,
       edited: a.edited,
+      renders: renderViews
+        .filter((r) => r.aidId === a.id)
+        .map((r) => r.view)
+        .sort((x, y) => ORDER.indexOf(x.format) - ORDER.indexOf(y.format)),
     })),
     verified: Boolean(verified),
     outdated: (aids ?? []).some(
@@ -93,5 +151,6 @@ export async function loadVisualAidsView(episode: {
     ),
     active: task?.status === "queued" || task?.status === "running",
     error: task?.status === "failed" ? (task.error ?? "errors.unknown") : null,
+    rendering: renderViews.some((r) => r.view.status === "queued" || r.view.status === "rendering"),
   };
 }

@@ -5,6 +5,7 @@ import type {
   directionTask,
   JobKind,
   pingTask,
+  renderAidsTask,
   scriptTask,
   thumbnailIdeasTask,
   thumbnailsTask,
@@ -25,6 +26,7 @@ interface JobPayloads {
   thumbnails: typeof thumbnailsTask;
   thumbnail_ideas: typeof thumbnailIdeasTask;
   visual_plan: typeof visualPlanTask;
+  render_aids: typeof renderAidsTask;
 }
 
 export interface JobScope {
