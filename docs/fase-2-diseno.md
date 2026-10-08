@@ -294,7 +294,7 @@ Cada paso va en su PR, con las pruebas del núcleo y de la base y una prueba de 
 Tomadas el 8 de octubre de 2026:
 
 1. **Motor de tareas: Trigger.dev.** Falta crear la cuenta y conectar el repositorio.
-2. **Modelo:** Sonnet 5.5 en todas las etapas. En 2 episodios se compara la etapa Guion con Opus 5.5 antes de decidir.
+2. **Modelo:** Sonnet 5.5 en todas las etapas. En 2 episodios se compara la etapa Guion con Opus 5.5 antes de decidir. La comparación se hace desde **Administración → Modelos de IA**, eligiendo otro modelo solo para la etapa Guion del espacio.
 3. **Cupo de la beta: US$20 al mes (2.000 créditos).** Es el valor por defecto de cada espacio; se cambia por espacio en **Administración**.
 
 Pendientes:
@@ -394,3 +394,8 @@ Pendientes:
   - **Nuevo episodio** abre el episodio en su Dirección (pestaña Guion) al guardarlo;
   - en **Ideas**, **Arrancar episodio** crea el episodio, lo pasa a Guion y prepara las preguntas de dirección en segundo plano (cerca de US$0,05); si no se puede (sin guía o sin créditos), avisa y abre la Dirección igual;
   - la página **Guiones** queda pospuesta y **Pegar un resultado de chat**, descartado.
+
+- **Modelos de IA desde Administración:**
+  - catálogo con los modelos que la API ofrece a la cuenta (**Actualizar lista**, tarea `ai_models_refresh`) y el precio de cada uno para los créditos;
+  - por espacio, un modelo por defecto y, si se quiere, uno distinto por etapa (Dirección, Estudio, Guion, Verificación, Publicación, Podcast e importación de YouTube);
+  - sin nada elegido se usan `AI_MODEL` y los precios de las variables; cada corrida guarda los modelos que usó y el consumo se cobra al precio del modelo que respondió.

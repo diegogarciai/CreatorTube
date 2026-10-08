@@ -473,7 +473,9 @@
     "jobsDesc": "Las tareas largas (guion, verificación) corren en Trigger.dev y su avance se ve en vivo en la barra lateral.",
     "jobsTest": "Probar el motor",
     "jobsStarted": "Tarea de prueba lanzada: mira la barra lateral.",
-    "jobsMissing": "Falta TRIGGER_SECRET_KEY en las variables de entorno de Vercel."
+    "jobsMissing": "Falta TRIGGER_SECRET_KEY en las variables de entorno de Vercel.",
+    "aiModels": "Modelos de IA",
+    "aiModelsDesc": "Los modelos que tu cuenta de Anthropic ofrece y lo que cuesta cada uno. En cada espacio de abajo eliges cuál usa, en general y por etapa."
   },
   "command": {
     "placeholder": "Busca un episodio, una sección o una acción…",
@@ -579,7 +581,8 @@
       "ping": "Prueba del motor de tareas",
       "direction": "Preguntas de dirección",
       "script": "Guion",
-      "youtube_import": "Importar videos de YouTube"
+      "youtube_import": "Importar videos de YouTube",
+      "ai_models_refresh": "Actualizar modelos de IA"
     },
     "status": {
       "queued": "En cola",
@@ -771,5 +774,29 @@
     "redoHint": "Vuelve a correr desde «Guion verificado»: motion graphics, B-rolls y Publicación incluidos. Cuesta cerca de {cost}.",
     "continue": "Seguir con mis decisiones",
     "continueHint": "Escribe el guion verificado con lo que decidiste; lo que no decidas lo resuelve Claude."
+  },
+  "aiModels": {
+    "refresh": "Actualizar lista",
+    "refreshHint": "Pregunta a Anthropic qué modelos tiene la cuenta; corre en el motor de tareas.",
+    "refreshStarted": "Actualizando la lista de modelos; lo ves en Tareas en curso.",
+    "empty": "Todavía no hay modelos en la lista. Pulsa «Actualizar lista».",
+    "unavailable": "Ya no disponible",
+    "noPrice": "Sin precio",
+    "input": "Entrada US$",
+    "output": "Salida US$",
+    "pricesHint": "Precios en dólares por millón de tokens, para calcular los créditos. Un modelo sin precio se cobra con los precios por defecto del motor de tareas (AI_PRICE_INPUT_USD y AI_PRICE_OUTPUT_USD).",
+    "defaultModel": "Modelo de IA",
+    "platformDefault": "El de la plataforma (variable AI_MODEL)",
+    "byStage": "Por etapa ({count, plural, =0 {todas iguales} one {# distinta} other {# distintas}})",
+    "sameAsDefault": "Igual que el de arriba",
+    "stage": {
+      "direction": "Dirección",
+      "study": "Estudio",
+      "script": "Guion",
+      "verification": "Verificación",
+      "publication": "Publicación",
+      "podcast": "Podcast",
+      "youtube_import": "Importación de YouTube"
+    }
   }
 }

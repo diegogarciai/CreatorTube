@@ -1,6 +1,7 @@
 import "server-only";
 import { tasks } from "@trigger.dev/sdk";
 import type {
+  aiModelsRefreshTask,
   directionTask,
   JobKind,
   pingTask,
@@ -17,6 +18,7 @@ interface JobPayloads {
   direction: typeof directionTask;
   script: typeof scriptTask;
   youtube_import: typeof youtubeImportTask;
+  ai_models_refresh: typeof aiModelsRefreshTask;
 }
 
 export interface JobScope {

@@ -2,10 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import {
-  aiConfigFromEnv,
   generateDirection,
-  pricesFromEnv,
-  usageCostUsd,
   usdToCredits,
   type DirectionInput,
   type MessagesClient,
@@ -17,6 +14,7 @@ import {
   type GuideSection,
   type StageSections,
 } from "@planificador/core";
+import { loadAiSettings } from "../lib/ai-settings";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
@@ -52,9 +50,10 @@ export async function runDirection(taskId: string, db: ServiceClient, anthropic:
       );
 
       await report.progress(0.3, "Preparando las preguntas");
-      const result = await generateDirection(anthropic, aiConfigFromEnv(process.env), input);
+      const ai = await loadAiSettings(db, task.workspace_id);
+      const result = await generateDirection(anthropic, ai.config("direction"), input);
 
-      const usd = usageCostUsd(result.usage, pricesFromEnv(process.env));
+      const usd = ai.costUsd(result.usage, result.model);
       await db.from("usage_ledger").insert({
         workspace_id: task.workspace_id,
         channel_id: task.channel_id,

@@ -932,3 +932,48 @@ describe("Fase 2 · importación desde YouTube", () => {
     ).toEqual([]);
   });
 });
+
+describe("Fase 2 · modelos de IA", () => {
+  it("el catálogo y los ajustes por espacio solo los toca el servidor", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await sql(
+      "insert into public.ai_models (id, display_name, input_price_usd, output_price_usd) values ('modelo-a', 'Modelo A', 3, 15)",
+    );
+    await sql(
+      `insert into public.workspace_ai_settings (workspace_id, default_model, stage_models) values ($1, 'modelo-a', '{"script":"modelo-a"}')`,
+      [ws],
+    );
+    await expect(
+      sql(
+        "insert into public.workspace_ai_settings (workspace_id, default_model) values ($1, 'inventado')",
+        [await createWorkspace(owner.id, "Otro")],
+      ),
+    ).rejects.toThrow(/foreign key/);
+    await expect(
+      sql("update public.ai_models set input_price_usd = -1 where id = 'modelo-a'"),
+    ).rejects.toThrow(/check constraint/);
+    expect(await as(owner.id, (q) => q("select id from public.ai_models"))).toEqual([]);
+    expect(
+      await as(owner.id, (q) => q("select workspace_id from public.workspace_ai_settings")),
+    ).toEqual([]);
+    await expect(
+      as(owner.id, (q) => q("insert into public.ai_models (id) values ('modelo-b')")),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(owner.id, (q) =>
+        q(
+          "update public.workspace_ai_settings set default_model = null where workspace_id = $1 returning 1",
+          [ws],
+        ),
+      ),
+    ).toEqual([]);
+    // Si un modelo sale del catálogo, el espacio vuelve al de la plataforma.
+    await sql("delete from public.ai_models where id = 'modelo-a'");
+    const [row] = await sql(
+      "select default_model from public.workspace_ai_settings where workspace_id = $1",
+      [ws],
+    );
+    expect(row.default_model).toBeNull();
+  });
+});

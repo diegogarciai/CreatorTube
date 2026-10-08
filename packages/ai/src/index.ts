@@ -6,3 +6,4 @@ export * from "./stages";
 export * from "./verification";
 export * from "./publication";
 export * from "./catalog";
+export * from "./models";
