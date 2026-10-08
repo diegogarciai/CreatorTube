@@ -2620,6 +2620,54 @@ export type Database = {
           },
         ];
       };
+      youtube_video_snapshots: {
+        Row: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          workspace_id: string;
+          view_count: number | null;
+          like_count: number | null;
+          comment_count: number | null;
+          taken_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          workspace_id?: string;
+          view_count?: number | null;
+          like_count?: number | null;
+          comment_count?: number | null;
+          taken_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          video_id?: string;
+          day?: string;
+          workspace_id?: string;
+          view_count?: number | null;
+          like_count?: number | null;
+          comment_count?: number | null;
+          taken_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_snapshots_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_video_snapshots_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       youtube_videos: {
         Row: {
           channel_id: string;

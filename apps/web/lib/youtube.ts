@@ -104,6 +104,24 @@ export function supabaseStore(admin: Admin, timezone: string): SyncStore {
         })),
       );
       if (error) throw error;
+      // Foto diaria de los contadores para «Así te fue ayer»: vale la primera
+      // sincronización del día (la del cron), así dos fotos seguidas cubren ~24 h.
+      const day = localDateKey(fetchedAt, timezone);
+      const { error: snapError } = await admin.from("youtube_video_snapshots").upsert(
+        videos
+          .filter((v) => v.privacyStatus === "public")
+          .map((v) => ({
+            channel_id: channelId,
+            video_id: v.id,
+            day,
+            view_count: v.viewCount,
+            like_count: v.likeCount,
+            comment_count: v.commentCount,
+            taken_at: fetchedAt.toISOString(),
+          })),
+        { onConflict: "channel_id,video_id,day", ignoreDuplicates: true },
+      );
+      if (snapError) throw snapError;
     },
     async linkedEpisodes(channelId, videoIds): Promise<LinkedEpisode[]> {
       if (videoIds.length === 0) return [];

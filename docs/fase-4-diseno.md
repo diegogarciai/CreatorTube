@@ -79,6 +79,21 @@ Fuentes:
 - Las 3 caídas mayores se muestran en «Dónde se fue la gente», con el minuto y el texto.
 - Es una estimación (el ritmo al hablar no es parejo) y así se dice en pantalla.
 
+**«Así te fue ayer»** (lo primero de Analítica):
+
+- **Fotos diarias:** la Analytics API llega con 2 o 3 días de atraso, así que «ayer» se aproxima con los contadores públicos (vistas, me gusta y comentarios) de las últimas 50 subidas.
+  - Cada sincronización guarda una foto diaria por video (`youtube_video_snapshots`).
+  - Vale la primera del día, la del cron de las 6:05 en Bogotá, y la resta entre las dos fotos más recientes cubre unas 24 horas.
+  - Un contador que baja (YouTube corrige vistas no válidas) no resta.
+  - Un video nuevo cuenta entero.
+  - Las fotos se guardan 35 días.
+- **Comparación:** cada cifra se compara con el día típico, la mediana de los últimos 28 días completos de Analytics (calculado por la app).
+- **Frase, sin IA:**
+  - «Buen día» con un 20 % o más de vistas sobre lo normal, «Un día flojo» con un 20 % o más por debajo, y «Un día normal» en el resto;
+  - más «impulsado por "título"» si un video trajo al menos el 40 % de las vistas.
+- **El video que más sumó**, con enlace al episodio.
+- **Suscriptores:** no van en «ayer», porque YouTube redondea el contador público. Están en el último día completo de Analytics, que va debajo con las cifras exactas.
+
 **Pantallas:**
 
 - **Analítica:**

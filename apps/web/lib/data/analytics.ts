@@ -6,6 +6,17 @@ import {
   type RetentionPoint,
 } from "@planificador/core";
 import { getSupabase } from "../auth";
+import {
+  daySummary,
+  lastCompleteDay,
+  typicalDay,
+  TYPICAL_WINDOW,
+  yesterdayFromSnapshots,
+  type ChannelDay,
+  type DaySummary,
+  type TypicalDay,
+  type YesterdayReport,
+} from "../daily-report";
 
 /**
  * Analítica de canal y episodio (Fase 4 · paso 1), leída de las tablas que
@@ -215,5 +226,92 @@ export async function loadEpisodeMetrics(episode: {
     paragraphs: retentionByParagraph(points, scriptParagraphs(script)),
     scriptSource: source,
     fetchedAt: retention?.fetched_at ?? days?.at(-1)?.fetched_at ?? null,
+  };
+}
+
+export type YesterdayView = {
+  report: YesterdayReport | null;
+  summary: DaySummary | null;
+  typical: TypicalDay | null;
+  lastDay: ChannelDay | null;
+  /** Título, miniatura y episodio de los videos que aparecen en el panel. */
+  videos: Record<string, { title: string; thumbnailUrl: string | null; episodeId: string | null }>;
+  /** Hay alguna foto (para el aviso «aparecen mañana»). */
+  hasSnapshots: boolean;
+};
+
+/** «Así te fue ayer»: las dos fotos más recientes y el día típico del canal. */
+export async function loadYesterday(channelId: string): Promise<YesterdayView> {
+  const supabase = await getSupabase();
+  const [{ data: snaps }, { data: days }] = await Promise.all([
+    supabase
+      .from("youtube_video_snapshots")
+      .select("video_id, day, view_count, like_count, comment_count, taken_at")
+      .eq("channel_id", channelId)
+      .gte("day", daysAgo(4))
+      .order("day", { ascending: false })
+      .limit(500),
+    supabase
+      .from("youtube_channel_daily_stats")
+      .select(DAY_COLUMNS)
+      .eq("channel_id", channelId)
+      .gte("day", daysAgo(TYPICAL_WINDOW + 7))
+      .order("day"),
+  ]);
+  const report = yesterdayFromSnapshots(
+    (snaps ?? []).map((s) => ({
+      videoId: s.video_id,
+      day: s.day,
+      views: s.view_count,
+      likes: s.like_count,
+      comments: s.comment_count,
+      takenAt: s.taken_at,
+    })),
+  );
+  const channelDays: ChannelDay[] = (days ?? []).map((d) => {
+    const t = totals([d]);
+    return {
+      day: d.day,
+      views: t.views,
+      watchMinutes: t.watchMinutes,
+      averageViewDurationS: t.averageViewDurationS,
+      subscribersNet: t.subscribersNet,
+      likes: t.likes,
+      comments: t.comments,
+    };
+  });
+  const typical = typicalDay(channelDays);
+  const summary = report ? daySummary(report, typical) : null;
+  const ids = [report?.top?.videoId].filter(Boolean) as string[];
+  const [{ data: vids }, { data: eps }] = ids.length
+    ? await Promise.all([
+        supabase
+          .from("youtube_videos")
+          .select("video_id, title, thumbnail_url")
+          .eq("channel_id", channelId)
+          .in("video_id", ids),
+        supabase
+          .from("episodes")
+          .select("id, youtube_video_id")
+          .eq("channel_id", channelId)
+          .in("youtube_video_id", ids),
+      ])
+    : [{ data: [] }, { data: [] }];
+  return {
+    report,
+    summary,
+    typical,
+    lastDay: lastCompleteDay(channelDays),
+    videos: Object.fromEntries(
+      (vids ?? []).map((v) => [
+        v.video_id,
+        {
+          title: v.title ?? v.video_id,
+          thumbnailUrl: v.thumbnail_url,
+          episodeId: eps?.find((e) => e.youtube_video_id === v.video_id)?.id ?? null,
+        },
+      ]),
+    ),
+    hasSnapshots: Boolean(snaps?.length),
   };
 }

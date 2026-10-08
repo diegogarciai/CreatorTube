@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Tile = {
@@ -20,15 +20,23 @@ export function StatTiles({ tiles }: { tiles: Tile[] }) {
             <dd
               className={cn(
                 "mt-0.5 flex items-center gap-0.5 text-xs whitespace-nowrap",
-                t.delta >= 0 ? "text-ok" : "text-critical",
+                Math.round(t.delta * 100) === 0
+                  ? "text-muted"
+                  : t.delta > 0
+                    ? "text-ok"
+                    : "text-critical",
               )}
             >
-              {t.delta >= 0 ? (
+              {Math.round(t.delta * 100) === 0 ? (
+                <Minus className="size-3.5" aria-hidden />
+              ) : t.delta > 0 ? (
                 <ArrowUpRight className="size-3.5" aria-hidden />
               ) : (
                 <ArrowDownRight className="size-3.5" aria-hidden />
               )}
-              {`${t.delta >= 0 ? "+" : "−"}${Math.abs(Math.round(t.delta * 100))} %`}
+              {Math.round(t.delta * 100) === 0
+                ? "0 %"
+                : `${t.delta > 0 ? "+" : "−"}${Math.abs(Math.round(t.delta * 100))} %`}
             </dd>
           ) : null}
         </div>

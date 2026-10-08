@@ -5,12 +5,13 @@ import { BarChart3 } from "lucide-react";
 import { youTubeWatchUrl } from "@planificador/core";
 import { DailyChart } from "@/components/analytics/daily-chart";
 import { RefreshAnalyticsButton } from "@/components/analytics/refresh-button";
+import { YesterdayPanel } from "@/components/analytics/yesterday-panel";
 import { clockLabel, percentLabel, StatTiles } from "@/components/analytics/stat-tiles";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getChannelContext, getSupabase } from "@/lib/auth";
-import { loadChannelAnalytics, type PeriodTotals } from "@/lib/data/analytics";
+import { loadChannelAnalytics, loadYesterday, type PeriodTotals } from "@/lib/data/analytics";
 
 export const metadata: Metadata = { title: "Analítica" };
 
@@ -27,8 +28,9 @@ export default async function AnalyticsPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const [analytics, { data: videos }] = await Promise.all([
+  const [analytics, yesterday, { data: videos }] = await Promise.all([
     loadChannelAnalytics(channelId),
+    loadYesterday(channelId),
     supabase
       .from("youtube_videos")
       .select(
@@ -78,6 +80,9 @@ export default async function AnalyticsPage({
         actions={<RefreshAnalyticsButton channelId={channelId} />}
       />
       <div className="space-y-6">
+        {analytics.connected || yesterday.hasSnapshots ? (
+          <YesterdayPanel view={yesterday} channelId={channelId} timezone={ctx.channel.timezone} />
+        ) : null}
         {analytics.connected ? (
           <>
             <section className="space-y-2">
