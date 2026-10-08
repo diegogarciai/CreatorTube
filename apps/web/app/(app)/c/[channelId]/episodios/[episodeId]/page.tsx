@@ -13,6 +13,7 @@ import {
 import { Page } from "@/components/page-header";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ThumbnailsPanel } from "@/components/episodes/thumbnails-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChecklistPanel } from "@/components/episodes/checklist-panel";
 import { DirectionPanel, type DirectionState } from "@/components/episodes/direction-panel";
@@ -26,6 +27,7 @@ import { StatusSelect } from "@/components/episodes/status-select";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { toPlannedEpisode } from "@/lib/data/episodes";
 import { loadScriptView } from "@/lib/data/script";
+import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -64,7 +66,7 @@ export default async function EpisodePage({
     .maybeSingle();
   if (!row) notFound();
 
-  const [steps, pillars, doneRows, activity, video, idea, direction, guide, script] =
+  const [steps, pillars, doneRows, activity, video, idea, direction, guide, script, thumbnails] =
     await Promise.all([
       getChecklistSteps(channelId),
       getPillars(channelId),
@@ -105,6 +107,14 @@ export default async function EpisodePage({
             channelId,
             keywords: row.keywords,
             pillarId: row.pillar_id,
+          })
+        : null,
+      tab === "production"
+        ? loadThumbnailsView({
+            id: episodeId,
+            channelId,
+            code: row.code,
+            currentScriptRunId: row.current_script_run_id,
           })
         : null,
     ]);
@@ -356,6 +366,13 @@ export default async function EpisodePage({
               />
             ) : null}
           </div>
+        ) : tab === "production" && thumbnails ? (
+          <ThumbnailsPanel
+            episodeId={row.id}
+            channelId={channelId}
+            view={thumbnails}
+            canEdit={ctx.can("write_script")}
+          />
         ) : tab === "publication" ? (
           <Card>
             <CardHeader title={t("episode.linkVideo")} />

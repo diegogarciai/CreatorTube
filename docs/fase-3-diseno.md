@@ -22,7 +22,8 @@ Fuentes:
 ## 2. Decisiones
 
 - **Miniaturas solo con Gemini (Nano Banana) por ahora.** Artlist solo ofrece un MCP para personas, no una API para servidores. Cuando la tenga, se agrega como otro proveedor.
-- **Miniaturas generadas a partir de las fotos de referencia (reglas v4.1).** El manual v3.0 (sección 05) dice «nunca imágenes generadas»; Diego decidió que para las miniaturas mandan las reglas v4.1 y actualiza su manual. En todo lo demás la miniatura sigue el manual: sistema A/B/C (pregunta, dato, veredicto), fondo oscuro con luz cálida y halo naranja, expresión natural, sin flechas, emojis, marcos ni logos inventados.
+- **Miniaturas generadas a partir de las fotos de referencia (reglas v4.1).** El manual v3.0 (sección 05) dice «nunca imágenes generadas»; Diego decidió que para las miniaturas mandan las reglas v4.1 y actualiza su manual. En todo lo demás la miniatura sigue el manual: fondo oscuro con luz cálida y halo naranja, expresión natural, sin flechas, emojis, marcos ni logos inventados.
+- **Tres ángulos de la idea central, no pregunta, dato y veredicto.** El sistema A/B/C del manual no dio resultado. Cada miniatura es un ángulo totalmente distinto (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…) que cambia la motivación, la emoción, la escena y el texto, sin perder el foco en el tema central del episodio (reglas v4.1, sección 14). El JSON de Publicación trae el ángulo de cada una (`angulo`); las letras A, B y C solo sirven para «Probar y comparar».
 - **Gemini genera la imagen sin texto.** El texto (2 a 4 palabras en dos líneas, una en naranja) lo pone la app con la tipografía y los colores del kit, así nunca se sale del manual.
 - **Motion graphics con piezas de marca.** Claude arma cada escena (regla 12.2) con piezas animadas ya hechas (barras, anillos, línea de tiempo, cifras que cuentan, matriz de puntos…) y sus datos. No se genera código: lo que se renderiza siempre es código revisado.
 - **Render en Trigger.dev, sin AWS.** Remotion corre con sus APIs de servidor (`@remotion/bundler` y `@remotion/renderer`) y la extensión de ffmpeg. La licencia de Remotion es gratis para equipos de hasta 3 personas.
@@ -33,7 +34,7 @@ Fuentes:
 | Paso | Qué                                                                                       | Estado    |
 | ---- | ----------------------------------------------------------------------------------------- | --------- |
 | 1    | Este documento; almacenamiento de archivos; kit de marca por canal; fotos del presentador | Hecho     |
-| 2    | Miniaturas con Gemini: generar, poner el texto, calificar con Claude, elegir y descargar  | Pendiente |
+| 2    | Miniaturas con Gemini: generar, poner el texto, calificar con Claude, elegir y descargar  | Hecho     |
 | 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Pendiente |
 | 4    | Render con Remotion en Trigger.dev                                                        | Pendiente |
 | 5    | Recursos del episodio en Producción                                                       | Pendiente |
@@ -84,18 +85,28 @@ Para el paso 4 (piezas animadas) también cuentan, del manual:
 
 ## 7. Miniaturas con Gemini (paso 2)
 
-- **Entrada:** las 3 miniaturas del JSON de Publicación (texto, escena, expresión, protagonista, composición, ayuda visual y emoción), el kit y las fotos del presentador.
-- **Tarea `thumbnails`:** llama a Gemini con las fotos como referencia y pide la imagen en 16:9, sin texto. El modelo va en `GEMINI_IMAGE_MODEL` y la clave en `GEMINI_API_KEY`, solo en Trigger.dev.
-- **Texto:** la app lo compone encima, con la tipografía y los colores del kit.
-- **Calificación:** Claude revisa cada una con la sección 14 (prueba del scroll, protagonista, contraste, emoción, texto legible, coincide con el veredicto) y da una nota con qué mejorar. Se agrega la etapa `thumbnails` a los modelos de Administración.
-- **En Producción:** tres tarjetas con Generar o Regenerar (con una nota opcional), la calificación, Elegir y Descargar.
-- **Tabla `episode_assets`:** `id`, `episode_id`, `channel_id`, `kind` (`thumbnail`; después `motion`), `design_idx`, `status`, `path`, `prompt`, `score`, `chosen`, `task_id` y `credits`.
-- **Costo:** unos US$0,04 por imagen más la calificación. Se registra como `thumbnail_image` y `thumbnail_score`, y el panel de consumo suma la tarjeta «Imágenes (Gemini)».
+Viven en la pestaña **Producción** del episodio. Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
+
+1. **Brief (Claude).** Una llamada para todas las que se generan, con el tema central del episodio y el ángulo de cada una: la escena en inglés para Gemini, el texto del campo «texto» repartido en dos líneas, la palabra en naranja y el lado del texto. La nota de Diego al regenerar entra aquí.
+2. **Imagen (Gemini).** `generateContent` con las fotos del presentador (hasta 4) y del producto (hasta 3) como referencia, 16:9 en 1K y **sin texto**. La instrucción fija (`imagePrompt`) añade la marca: fondo oscuro, luz cálida lateral, halo naranja, el lado del texto libre y nada de letras, logos, flechas, emojis ni marcos.
+3. **Composición (la app).** `sharp` recorta a 1280 × 720 y el texto se dibuja como trazos con Inter Display Black (`opentype.js`): casi la mitad del ancho, blanco, una palabra en Naranja marca y sombra suave. Sale en JPG de menos de 2 MB.
+4. **Calificación (Claude con visión).** Nota de 0 a 10 con los criterios de la sección 14 (ángulo y foco en el tema central, scroll, producto, texto, emoción, cara, contraste, veredicto, limpia) y qué mejorar.
+
+Además:
+
+- **Editar el texto** crea otra versión con la misma imagen: solo se recompone y se califica, sin pagar otra imagen.
+- **Versiones:** cada generación es una fila de `episode_assets` y se conservan todas. Una sola miniatura queda **elegida** por episodio, y cada versión lista se **descarga** con el código del episodio y la letra (A, B o C).
+- **Fotos del producto:** opcionales, hasta 3 por episodio (`episode_refs`, carpeta `{canal}/episodes/{episodio}/refs/`). Las sube quien escribe guiones.
+- **Modelo:** `GEMINI_IMAGE_MODEL` en Trigger.dev, por defecto `gemini-3.1-flash-image` (Nano Banana 2). El modelo de Claude para el brief y la calificación es la etapa «Miniaturas» de Administración.
+- **Costo:** unos US$0,067 por imagen más el brief y la calificación, cerca de US$0,10 por miniatura. Se registra como `thumbnail_brief`, `thumbnail_image` (con `image_usd`) y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
+- **Tablas:**
+  - `episode_assets`: `id`, `episode_id`, `channel_id`, `kind`, `design_idx`, `status`, `source_id`, `base_path`, `path`, `text`, `text_side`, `prompt`, `note`, `score`, `chosen`, `model`, `credits`, `error` y `task_id`. Solo la escribe el servidor.
+  - `episode_refs`: las fotos del producto.
 
 ## 8. Costos estimados por episodio
 
-| Qué                                        | Estimado                               |
-| ------------------------------------------ | -------------------------------------- |
-| 3 miniaturas con una regeneración cada una | unos US$0,25 (imágenes) + calificación |
-| Plan de ayudas visuales                    | una llamada a Claude                   |
-| Render de piezas en Trigger.dev            | minutos de máquina de Trigger.dev      |
+| Qué                                        | Estimado                                      |
+| ------------------------------------------ | --------------------------------------------- |
+| 3 miniaturas con una regeneración cada una | unos US$0,60 (imágenes, brief y calificación) |
+| Plan de ayudas visuales                    | una llamada a Claude                          |
+| Render de piezas en Trigger.dev            | minutos de máquina de Trigger.dev             |

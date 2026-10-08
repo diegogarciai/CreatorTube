@@ -1,3 +1,4 @@
+import { additionalFiles } from "@trigger.dev/build/extensions/core";
 import { defineConfig } from "@trigger.dev/sdk";
 import { markFailed } from "./src/lib/task-row";
 
@@ -11,6 +12,12 @@ export default defineConfig({
   dirs: ["./src/trigger"],
   // Una corrida de guion completa puede tardar varios minutos.
   maxDuration: 1800,
+  build: {
+    // sharp trae binarios nativos: se instala en la imagen y no se empaqueta.
+    external: ["sharp"],
+    // La fuente de las miniaturas viaja con el despliegue.
+    extensions: [additionalFiles({ files: ["./assets/fonts/**"] })],
+  },
   retries: {
     enabledInDev: false,
     default: {

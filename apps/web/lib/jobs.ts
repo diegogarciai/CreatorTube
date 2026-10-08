@@ -6,6 +6,7 @@ import type {
   JobKind,
   pingTask,
   scriptTask,
+  thumbnailsTask,
   youtubeImportTask,
 } from "@planificador/jobs";
 import { createAdminClient } from "./supabase/admin";
@@ -19,6 +20,7 @@ interface JobPayloads {
   script: typeof scriptTask;
   youtube_import: typeof youtubeImportTask;
   ai_models_refresh: typeof aiModelsRefreshTask;
+  thumbnails: typeof thumbnailsTask;
 }
 
 export interface JobScope {

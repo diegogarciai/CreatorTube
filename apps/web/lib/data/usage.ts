@@ -32,13 +32,13 @@ export function lastMonths(month: MonthKey, count: number): MonthKey[] {
   );
 }
 
-export type ServiceBudgets = Partial<Record<"ai" | "parallel" | "youtube", number>>;
+export type ServiceBudgets = Partial<Record<"ai" | "parallel" | "youtube" | "gemini", number>>;
 
 export type UsageView = {
   month: MonthKey;
   workspaces: { id: string; name: string }[];
-  rows: (UsageRow & { stage: UsageStage; aiUsd: number; searchUsd: number })[];
-  monthly: { month: string; aiUsd: number; searchUsd: number }[];
+  rows: (UsageRow & { stage: UsageStage; aiUsd: number; searchUsd: number; imageUsd: number })[];
+  monthly: { month: string; aiUsd: number; searchUsd: number; imageUsd: number }[];
   youtube: {
     channelId: string;
     channel: string;
@@ -109,6 +109,8 @@ export async function loadUsageView(
         searches: num(r.searches),
         search_usd: num(r.search_usd),
         legacy_searches: num(r.legacy_searches),
+        images: num(r.images),
+        image_usd: num(r.image_usd),
       };
       return { ...row, stage: stageOfKind(row.kind), ...splitCost(row) };
     })
@@ -125,8 +127,14 @@ export async function loadUsageView(
         cost_usd: num(m?.cost_usd),
         search_usd: num(m?.search_usd),
         legacy_searches: num(m?.legacy_searches),
+        image_usd: num(m?.image_usd),
       });
-      return { month: key, aiUsd: split.aiUsd, searchUsd: split.searchUsd };
+      return {
+        month: key,
+        aiUsd: split.aiUsd,
+        searchUsd: split.searchUsd,
+        imageUsd: split.imageUsd,
+      };
     }),
     youtube: (connections ?? [])
       .filter((c) => !workspaceId || c.channel?.workspace_id === workspaceId)

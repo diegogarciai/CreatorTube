@@ -1140,3 +1140,154 @@ describe("Fase 3 · kit de marca y fotos del presentador", () => {
     ).toEqual([]);
   });
 });
+
+describe("Fase 3 · miniaturas", () => {
+  it("las miniaturas las escribe el servidor; una sola elegida por episodio", async () => {
+    const owner = await createUser();
+    const viewer = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    await addMember(ws, viewer.id, "viewer");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch);
+    const insert = (idx: number) =>
+      sql(
+        "insert into public.episode_assets (episode_id, channel_id, design_idx) values ($1, $2, $3) returning id, workspace_id, status",
+        [ep, ch, idx],
+      );
+    const [a] = await insert(0);
+    expect(a).toMatchObject({ workspace_id: ws, status: "queued" });
+    const [b] = await insert(1);
+    await sql("update public.episode_assets set chosen = true where id = $1", [a.id]);
+    await expect(
+      sql("update public.episode_assets set chosen = true where id = $1", [b.id]),
+    ).rejects.toThrow(/episode_assets_one_chosen/);
+    await expect(
+      sql("update public.episode_assets set path = $2 where id = $1", [a.id, `${ch}/brand/x.jpg`]),
+    ).rejects.toThrow(/check constraint/);
+    await sql("update public.episode_assets set path = $2 where id = $1", [
+      a.id,
+      `${ch}/episodes/${ep}/thumbnails/${a.id}.jpg`,
+    ]);
+
+    expect(
+      (
+        await as(viewer.id, (q) =>
+          q("select id from public.episode_assets where episode_id = $1", [ep]),
+        )
+      ).length,
+    ).toBe(2);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select id from public.episode_assets where episode_id = $1", [ep]),
+      ),
+    ).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.episode_assets (episode_id, channel_id, design_idx) values ($1, $2, 2)",
+          [ep, ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(owner.id, (q) =>
+        q("update public.episode_assets set chosen = false where id = $1 returning 1", [a.id]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("las fotos del producto las sube quien escribe guiones, en refs/ de su episodio", async () => {
+    const owner = await createUser();
+    const writer = await createUser();
+    const viewer = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await addMember(ws, writer.id, "writer");
+    await addMember(ws, viewer.id, "viewer");
+    const ch = await createChannel(ws);
+    const other = await createChannel(ws, "Otro", "OT");
+    const ep = await createEpisode(ch);
+    const epOther = await createEpisode(other);
+    const ref = `${ch}/episodes/${ep}/refs/a.jpg`;
+    const put = (path: string) =>
+      "insert into storage.objects (bucket_id, name) values ('channel-media', '" + path + "')";
+
+    await as(writer.id, (q) => q(put(ref)));
+    await expect(
+      as(writer.id, (q) => q(put(`${ch}/episodes/${ep}/thumbnails/x.jpg`))),
+    ).rejects.toThrow(/row-level security/);
+    await expect(as(viewer.id, (q) => q(put(`${ch}/episodes/${ep}/refs/b.jpg`)))).rejects.toThrow(
+      /row-level security/,
+    );
+
+    await as(writer.id, (q) =>
+      q(
+        "insert into public.episode_refs (episode_id, channel_id, path, label) values ($1, $2, $3, 'Caja')",
+        [ep, ch, ref],
+      ),
+    );
+    // El episodio tiene que ser del canal, y la ruta, de ese episodio.
+    await expect(
+      as(writer.id, (q) =>
+        q("insert into public.episode_refs (episode_id, channel_id, path) values ($1, $2, $3)", [
+          epOther,
+          ch,
+          `${ch}/episodes/${epOther}/refs/c.jpg`,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      sql("insert into public.episode_refs (episode_id, channel_id, path) values ($1, $2, $3)", [
+        ep,
+        ch,
+        `${ch}/episodes/${ep}/thumbnails/c.jpg`,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      as(viewer.id, (q) =>
+        q("insert into public.episode_refs (episode_id, channel_id, path) values ($1, $2, $3)", [
+          ep,
+          ch,
+          `${ch}/episodes/${ep}/refs/d.jpg`,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(viewer.id, (q) =>
+        q("select label from public.episode_refs where episode_id = $1", [ep]),
+      ),
+    ).toEqual([{ label: "Caja" }]);
+    expect(
+      await as(writer.id, (q) =>
+        q("delete from public.episode_refs where episode_id = $1 returning 1", [ep]),
+      ),
+    ).toEqual([{ "?column?": 1 }]);
+    expect(
+      await as(writer.id, (q) =>
+        q("delete from storage.objects where name = $1 returning 1", [ref]),
+      ),
+    ).toEqual([{ "?column?": 1 }]);
+  });
+
+  it("el consumo separa el gasto en imágenes y acepta el presupuesto de Gemini", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await sql(
+      `insert into public.usage_ledger (workspace_id, kind, credits, cost_usd, meta) values
+        ($1, 'thumbnail_image', 7, 0.07, '{"model":"gemini-x","images":1,"image_usd":0.07}'),
+        ($1, 'thumbnail_image', 7, 0.07, '{"model":"gemini-x","images":1,"image_usd":0.07}')`,
+      [ws],
+    );
+    const [row] = await sql(
+      "select calls, images, image_usd from public.usage_breakdown(now() - interval '1 day', now() + interval '1 day') where workspace_id = $1",
+      [ws],
+    );
+    expect([Number(row.calls), Number(row.images), Number(row.image_usd)]).toEqual([2, 2, 0.14]);
+    const [month] = await sql("select image_usd from public.usage_monthly(1)");
+    expect(Number(month.image_usd)).toBeGreaterThanOrEqual(0.14);
+    await sql(
+      "insert into public.service_budgets (service, monthly_usd) values ('gemini', 10) on conflict (service) do update set monthly_usd = 10",
+    );
+  });
+});

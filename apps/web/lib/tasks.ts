@@ -48,3 +48,9 @@ export const IMPORT_CREDITS_PER_VIDEO = 0.3;
 
 /** Lo que cuesta, más o menos, rehacer desde el guion verificado (y lo que sigue). */
 export const FIX_REDO_ESTIMATE_CREDITS = 100;
+
+/** Una miniatura: brief, imagen de Gemini (~US$0,07) y calificación. */
+export const THUMBNAIL_ESTIMATE_CREDITS = 12;
+
+/** Cambiar el texto de una miniatura: solo se recompone y se califica. */
+export const THUMBNAIL_TEXT_ESTIMATE_CREDITS = 2;

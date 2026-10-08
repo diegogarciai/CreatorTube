@@ -14,6 +14,7 @@ export const AI_STAGES = [
   "publication",
   "podcast",
   "youtube_import",
+  "thumbnails",
 ] as const;
 export type AiStage = (typeof AI_STAGES)[number];
 

@@ -14,7 +14,7 @@ export function BudgetForm({
   service,
   value,
 }: {
-  service: "ai" | "parallel" | "youtube";
+  service: "ai" | "parallel" | "youtube" | "gemini";
   value: number | null;
 }) {
   const t = useTranslations("usage");

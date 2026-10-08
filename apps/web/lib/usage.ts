@@ -18,6 +18,7 @@ export const USAGE_STAGES = [
   "publication",
   "podcast",
   "youtube_import",
+  "thumbnails",
   "other",
 ] as const;
 export type UsageStage = (typeof USAGE_STAGES)[number];
@@ -25,6 +26,7 @@ export type UsageStage = (typeof USAGE_STAGES)[number];
 /** La etapa de un registro según su tipo (`direction`, `script_<paso>`…). */
 export function stageOfKind(kind: string): UsageStage {
   if (kind === "direction" || kind === "youtube_import") return kind;
+  if (kind.startsWith("thumbnail_")) return "thumbnails";
   if (kind.startsWith("script_")) {
     const step = kind.slice("script_".length);
     if (isScriptStep(step)) return stepSpec(step).stage;
@@ -47,15 +49,21 @@ export type UsageRow = {
   searches: number;
   search_usd: number;
   legacy_searches: number;
+  images: number;
+  image_usd: number;
 };
 
-/** Cuánto de un registro fue IA (Claude) y cuánto búsqueda (Parallel). */
-export function splitCost(row: Pick<UsageRow, "cost_usd" | "search_usd" | "legacy_searches">) {
+/** Cuánto de un registro fue IA (Claude), búsqueda (Parallel) e imágenes (Gemini). */
+export function splitCost(
+  row: Pick<UsageRow, "cost_usd" | "search_usd" | "legacy_searches"> &
+    Partial<Pick<UsageRow, "image_usd">>,
+) {
+  const image = Math.min(row.cost_usd, row.image_usd ?? 0);
   const search = Math.min(
-    row.cost_usd,
+    row.cost_usd - image,
     row.search_usd + row.legacy_searches * SEARCH_PRICE_ESTIMATE_USD,
   );
-  return { aiUsd: row.cost_usd - search, searchUsd: search };
+  return { aiUsd: row.cost_usd - search - image, searchUsd: search, imageUsd: image };
 }
 
 export type BudgetState = "none" | "ok" | "warn" | "over";

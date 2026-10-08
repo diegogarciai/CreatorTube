@@ -426,6 +426,127 @@ export type Database = {
           },
         ];
       };
+      episode_assets: {
+        Row: {
+          id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          kind: string;
+          design_idx: number;
+          status: string;
+          source_id: string | null;
+          base_path: string | null;
+          path: string | null;
+          text: Json | null;
+          text_side: string | null;
+          prompt: string | null;
+          note: string | null;
+          score: Json | null;
+          chosen: boolean;
+          model: string | null;
+          credits: number;
+          error: string | null;
+          task_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          kind?: string;
+          design_idx: number;
+          status?: string;
+          source_id?: string | null;
+          base_path?: string | null;
+          path?: string | null;
+          text?: Json | null;
+          text_side?: string | null;
+          prompt?: string | null;
+          note?: string | null;
+          score?: Json | null;
+          chosen?: boolean;
+          model?: string | null;
+          credits?: number;
+          error?: string | null;
+          task_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          kind?: string;
+          design_idx?: number;
+          status?: string;
+          source_id?: string | null;
+          base_path?: string | null;
+          path?: string | null;
+          text?: Json | null;
+          text_side?: string | null;
+          prompt?: string | null;
+          note?: string | null;
+          score?: Json | null;
+          chosen?: boolean;
+          model?: string | null;
+          credits?: number;
+          error?: string | null;
+          task_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "episode_assets_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: true;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "episode_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       episode_checklist_items: {
         Row: {
           episode_id: string;
@@ -638,6 +759,68 @@ export type Database = {
           },
           {
             foreignKeyName: "episode_evaluations_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      episode_refs: {
+        Row: {
+          id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          path: string;
+          label: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          path: string;
+          label?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          path?: string;
+          label?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "episode_refs_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_refs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_refs_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_refs_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";
@@ -2189,6 +2372,8 @@ export type Database = {
           searches: number;
           search_usd: number;
           legacy_searches: number;
+          images: number;
+          image_usd: number;
         }[];
       };
       usage_monthly: {
@@ -2200,6 +2385,7 @@ export type Database = {
           searches: number;
           search_usd: number;
           legacy_searches: number;
+          image_usd: number;
         }[];
       };
       workspace_credits: {
