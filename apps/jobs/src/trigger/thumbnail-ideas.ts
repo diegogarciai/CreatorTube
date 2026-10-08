@@ -2,15 +2,22 @@ import Anthropic from "@anthropic-ai/sdk";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { parseAssets, thumbnailIdeas, usdToCredits, type StreamClient } from "@planificador/ai";
-import { parseBrandKit } from "@planificador/core";
+import {
+  availableSchemes,
+  episodeKind,
+  hasVerdict,
+  parseBrandKit,
+  RECOMMENDED_SETS,
+} from "@planificador/core";
 import { loadAiSettings } from "../lib/ai-settings";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
 /**
- * 30 textos de ángulos distintos alrededor del tema central del episodio, para
- * elegir los 3 de las miniaturas. Reemplaza la tanda anterior y conserva los
- * que ya están en una tarjeta.
+ * 30 textos de ángulos distintos alrededor del tema central del episodio, cada
+ * uno con su esquema de la guía de miniaturas, para elegir los 3 de las
+ * miniaturas. Reemplaza la tanda anterior y conserva los que ya están en una
+ * tarjeta.
  */
 export const thumbnailIdeasTask = schemaTask({
   id: "thumbnail_ideas",
@@ -44,15 +51,20 @@ export async function runThumbnailIdeas(
       const channelId = task.channel_id;
 
       await report.progress(0.1, "Leyendo el episodio");
-      const [{ data: episode }, { data: channel }, { data: kitRow }] = await Promise.all([
-        db.from("episodes").select("title, current_script_run_id").eq("id", episodeId).single(),
-        db.from("channels").select("name, profile").eq("id", channelId).single(),
-        db
-          .from("brand_kits")
-          .select("colors, fonts, style, thumbnail_style, logo_path")
-          .eq("channel_id", channelId)
-          .maybeSingle(),
-      ]);
+      const [{ data: episode }, { data: channel }, { data: kitRow }, { count: productRefs }] =
+        await Promise.all([
+          db.from("episodes").select("title, current_script_run_id").eq("id", episodeId).single(),
+          db.from("channels").select("name, profile").eq("id", channelId).single(),
+          db
+            .from("brand_kits")
+            .select("colors, fonts, style, thumbnail_style, logo_path")
+            .eq("channel_id", channelId)
+            .maybeSingle(),
+          db
+            .from("episode_refs")
+            .select("id", { count: "exact", head: true })
+            .eq("episode_id", episodeId),
+        ]);
       if (!episode || !channel) throw new Error("No se encontró el episodio");
       const { data: steps } = episode.current_script_run_id
         ? await db
@@ -64,6 +76,8 @@ export async function runThumbnailIdeas(
         : { data: [] as { step: string; body: string }[] };
       const assets = parseAssets(steps?.find((s) => s.step === "assets_json")?.body);
       if (!assets) throw new Error("errors.no_publication_assets");
+      // La guía: sin veredicto («el punto»), no se diseña la miniatura.
+      if (!hasVerdict(assets.postura)) throw new Error("errors.no_verdict");
       const sheet = steps?.find((s) => s.step === "sheet")?.body ?? "";
 
       await report.progress(0.3, "Proponiendo los textos");
@@ -76,6 +90,8 @@ export async function runThumbnailIdeas(
         keywords: assets.keywords,
         thumbnailStyle: parseBrandKit(kitRow).thumbnailStyle,
         presenter: ((channel.profile ?? {}) as { hosts?: string[] }).hosts?.[0] || channel.name,
+        schemes: availableSchemes(productRefs ?? 0),
+        recommended: RECOMMENDED_SETS[episodeKind(assets.tipo)],
       });
       const usd = ai.costUsd(out.usage, out.model);
       await db.from("usage_ledger").insert({

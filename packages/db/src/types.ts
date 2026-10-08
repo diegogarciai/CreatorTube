@@ -453,6 +453,10 @@ export type Database = {
           updated_at: string;
           text_v: string | null;
           idea_id: string | null;
+          scheme: string | null;
+          scenario: string | null;
+          mirror: boolean;
+          layout_warnings: string[];
         };
         Insert: {
           id?: string;
@@ -480,6 +484,10 @@ export type Database = {
           updated_at?: string;
           text_v?: string | null;
           idea_id?: string | null;
+          scheme?: string | null;
+          scenario?: string | null;
+          mirror?: boolean;
+          layout_warnings?: string[];
         };
         Update: {
           id?: string;
@@ -507,6 +515,10 @@ export type Database = {
           updated_at?: string;
           text_v?: string | null;
           idea_id?: string | null;
+          scheme?: string | null;
+          scenario?: string | null;
+          mirror?: boolean;
+          layout_warnings?: string[];
         };
         Relationships: [
           {
@@ -1721,6 +1733,7 @@ export type Database = {
           emotion: string;
           slot: number | null;
           created_at: string;
+          scheme: string;
         };
         Insert: {
           id?: string;
@@ -1736,6 +1749,7 @@ export type Database = {
           emotion?: string;
           slot?: number | null;
           created_at?: string;
+          scheme: string;
         };
         Update: {
           id?: string;
@@ -1751,6 +1765,7 @@ export type Database = {
           emotion?: string;
           slot?: number | null;
           created_at?: string;
+          scheme?: string;
         };
         Relationships: [
           {

@@ -5,6 +5,14 @@ import {
   type ThumbnailScore,
   type ThumbnailText,
 } from "@planificador/ai";
+import {
+  episodeKind,
+  hasVerdict,
+  isSchemeId,
+  RECOMMENDED_SETS,
+  type EpisodeKind,
+  type SchemeId,
+} from "@planificador/core";
 import { getSupabase } from "../auth";
 import { MEDIA_BUCKET, SIGNED_URL_SECONDS } from "../media";
 
@@ -14,9 +22,13 @@ export type ThumbnailVersion = {
   url: string | null;
   downloadUrl: string | null;
   text: ThumbnailText | null;
-  /** null: automático (la zona más libre de la imagen). */
-  side: "left" | "right" | null;
-  vertical: "top" | "middle" | "bottom" | null;
+  /** El esquema de la guía (null en versiones de antes de la guía). */
+  scheme: SchemeId | null;
+  /** Texto del otro lado (A y C). */
+  mirror: boolean;
+  scenario: string | null;
+  /** Lo que no se pudo cumplir de la composición. */
+  warnings: string[];
   score: ThumbnailScore | null;
   chosen: boolean;
   error: string | null;
@@ -28,20 +40,15 @@ export type ThumbnailVersion = {
 
 export type ThumbnailDesignView = {
   idx: number;
-  /** El diseño sale de un texto elegido de la lista (y no del JSON). */
-  fromIdea: boolean;
   letter: string;
-  /** El ángulo de la miniatura (el dinero, el error…); vacío en JSON viejos. */
-  angle: string;
-  title: string;
-  text: string;
-  scene: string;
-  emotion: string;
+  /** El texto elegido de la lista para esta tarjeta (con su esquema), si hay. */
+  idea: ThumbnailIdeaView | null;
   versions: ThumbnailVersion[];
 };
 
 export type ThumbnailIdeaView = {
   id: string;
+  scheme: SchemeId;
   angle: string;
   text: string;
   accent: string;
@@ -58,8 +65,13 @@ export type ThumbnailsView = {
   ideasActive: boolean;
   /** La última propuesta falló (mensaje), si es la más reciente. */
   ideasError: string | null;
-  /** Sin el JSON de Publicación no hay diseños que generar. */
+  /** Sin el JSON de Publicación no hay veredicto ni títulos. */
   missingAssets: boolean;
+  /** El guion tiene veredicto («el punto»); sin él no se diseña. */
+  verdict: boolean;
+  /** El tipo de episodio y su set recomendado de esquemas. */
+  kind: EpisodeKind;
+  recommended: SchemeId[];
   designs: ThumbnailDesignView[];
   refs: { id: string; label: string | null; url: string | null }[];
   presenterPhotos: number;
@@ -97,7 +109,7 @@ export async function loadThumbnailsView(episode: {
     supabase
       .from("episode_assets")
       .select(
-        "id, design_idx, status, path, text, text_side, text_v, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
+        "id, design_idx, status, path, text, scheme, mirror, scenario, layout_warnings, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
       )
       .eq("episode_id", episode.id)
       .eq("kind", "thumbnail")
@@ -114,7 +126,7 @@ export async function loadThumbnailsView(episode: {
       .eq("channel_id", episode.channelId),
     supabase
       .from("thumbnail_ideas")
-      .select("id, angle, text, accent, scene, emotion, slot, position")
+      .select("id, scheme, angle, text, accent, scene, emotion, slot, position")
       .eq("episode_id", episode.id)
       .order("position"),
     supabase
@@ -166,9 +178,10 @@ export async function loadThumbnailsView(episode: {
           url: r.path ? (urls.get(r.path) ?? null) : null,
           downloadUrl: download,
           text: (r.text as ThumbnailText | null) ?? null,
-          side: r.text_side === "left" || r.text_side === "right" ? r.text_side : null,
-          vertical:
-            r.text_v === "top" || r.text_v === "middle" || r.text_v === "bottom" ? r.text_v : null,
+          scheme: isSchemeId(r.scheme) ? r.scheme : null,
+          mirror: r.mirror,
+          scenario: r.scenario,
+          warnings: r.layout_warnings ?? [],
           score: (r.score as unknown as ThumbnailScore | null) ?? null,
           chosen: r.chosen,
           error,
@@ -180,35 +193,34 @@ export async function loadThumbnailsView(episode: {
     }),
   );
 
+  // Los textos de la lista: primero los que están en las tarjetas (A, B, C).
+  const ideaViews: ThumbnailIdeaView[] = [...(ideas ?? [])]
+    .filter((i) => isSchemeId(i.scheme))
+    .sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9) || a.position - b.position)
+    .map((i) => ({
+      id: i.id,
+      scheme: i.scheme as SchemeId,
+      angle: i.angle,
+      text: i.text,
+      accent: i.accent,
+      scene: i.scene,
+      emotion: i.emotion,
+      slot: i.slot,
+    }));
+  const kind = episodeKind(assets?.tipo);
+
   return {
-    missingAssets: !assets?.miniaturas.length,
-    designs: (assets?.miniaturas ?? []).slice(0, 3).map((d, idx) => {
-      // Un texto elegido de la lista manda sobre la miniatura del JSON.
-      const idea = ideas?.find((i) => i.slot === idx);
-      return {
-        idx,
-        fromIdea: Boolean(idea),
-        letter: thumbnailLetter(idx),
-        angle: idea?.angle ?? d.angulo,
-        title: idea ? "" : d.titulo,
-        text: idea?.text ?? d.texto,
-        scene: idea?.scene ?? d.escena,
-        emotion: idea?.emotion ?? d.emocion,
-        versions: versions.filter((v) => v.idx === idx).map((v) => v.version),
-      };
-    }),
-    // Primero los que están en las tarjetas (A, B, C); después la tanda nueva.
-    ideas: [...(ideas ?? [])]
-      .sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9) || a.position - b.position)
-      .map((i) => ({
-        id: i.id,
-        angle: i.angle,
-        text: i.text,
-        accent: i.accent,
-        scene: i.scene,
-        emotion: i.emotion,
-        slot: i.slot,
-      })),
+    missingAssets: !assets,
+    verdict: hasVerdict(assets?.postura),
+    kind,
+    recommended: RECOMMENDED_SETS[kind],
+    designs: [0, 1, 2].map((idx) => ({
+      idx,
+      letter: thumbnailLetter(idx),
+      idea: ideaViews.find((i) => i.slot === idx) ?? null,
+      versions: versions.filter((v) => v.idx === idx).map((v) => v.version),
+    })),
+    ideas: ideaViews,
     ideasActive: ideasTask?.status === "queued" || ideasTask?.status === "running",
     ideasError: ideasTask?.status === "failed" ? (ideasTask.error ?? "errors.unknown") : null,
     refs: (refs ?? []).map((r) => ({ id: r.id, label: r.label, url: urls.get(r.path) ?? null })),

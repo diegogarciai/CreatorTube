@@ -1310,7 +1310,7 @@ describe("Fase 3 · textos para miniaturas", () => {
     const ep = await createEpisode(ch);
     const insert = (text: string, slot: number | null) =>
       sql(
-        "insert into public.thumbnail_ideas (episode_id, channel_id, angle, text, slot) values ($1, $2, 'El dinero', $3, $4) returning id, workspace_id",
+        "insert into public.thumbnail_ideas (episode_id, channel_id, scheme, angle, text, slot) values ($1, $2, 'A', 'El dinero', $3, $4) returning id, workspace_id",
         [ep, ch, text, slot],
       );
     const [a] = await insert("¿Pagar más?", 0);
@@ -1318,11 +1318,35 @@ describe("Fase 3 · textos para miniaturas", () => {
     await insert("No compres 8 GB", null);
     await expect(insert("8 GB vs 16 GB", 0)).rejects.toThrow(/duplicate key/);
     await expect(insert("Otro", 3)).rejects.toThrow(/check constraint/);
+    // Cada texto lleva un esquema de la guía (A a F).
+    await expect(
+      sql(
+        "insert into public.thumbnail_ideas (episode_id, channel_id, scheme, angle, text) values ($1, $2, 'G', 'x', 'y')",
+        [ep, ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      sql(
+        "insert into public.thumbnail_ideas (episode_id, channel_id, angle, text) values ($1, $2, 'x', 'y')",
+        [ep, ch],
+      ),
+    ).rejects.toThrow(/not-null/);
 
+    // La versión guarda el esquema, el escenario, el espejo y los avisos.
     const [asset] = await sql(
-      "insert into public.episode_assets (episode_id, channel_id, design_idx, idea_id) values ($1, $2, 0, $3) returning id",
-      [ep, ch, a.id],
+      "insert into public.episode_assets (episode_id, channel_id, design_idx, idea_id, scheme, scenario, mirror, layout_warnings) values ($1, $2, 0, $3, 'A', 'sofá', true, $4) returning id, mirror, layout_warnings",
+      [ep, ch, a.id, ["El texto queda a menos de 40 px de la cara."]],
     );
+    expect(asset).toMatchObject({
+      mirror: true,
+      layout_warnings: ["El texto queda a menos de 40 px de la cara."],
+    });
+    await expect(
+      sql(
+        "insert into public.episode_assets (episode_id, channel_id, design_idx, scheme) values ($1, $2, 1, 'Z')",
+        [ep, ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
     await sql("delete from public.thumbnail_ideas where id = $1", [a.id]);
     const [after] = await sql("select idea_id from public.episode_assets where id = $1", [
       asset.id,
@@ -1342,7 +1366,7 @@ describe("Fase 3 · textos para miniaturas", () => {
     await expect(
       as(owner.id, (q) =>
         q(
-          "insert into public.thumbnail_ideas (episode_id, channel_id, angle, text) values ($1, $2, 'x', 'y')",
+          "insert into public.thumbnail_ideas (episode_id, channel_id, scheme, angle, text) values ($1, $2, 'A', 'x', 'y')",
           [ep, ch],
         ),
       ),

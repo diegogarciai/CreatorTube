@@ -9,5 +9,6 @@ export * from "./planning";
 export * from "./schemas";
 export * from "./signals";
 export * from "./thresholds";
+export * from "./thumbnail-schemes";
 export * from "./time";
 export * from "./youtube-url";

@@ -2,7 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { isEpisodeRefPath } from "@planificador/core";
+import { parseAssets } from "@planificador/ai";
+import {
+  hasFace,
+  hasVerdict,
+  isEpisodeRefPath,
+  isSchemeId,
+  THUMBNAIL_SCHEMES,
+  validateSchemeSet,
+  validateSchemeText,
+  type SchemeId,
+} from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
 import { MEDIA_BUCKET } from "../media";
@@ -15,8 +25,9 @@ import {
 import { errorMessage, type ActionResult } from "../utils";
 
 /**
- * Miniaturas del episodio (Fase 3 · paso 2). Las filas de `episode_assets` las
- * escribe el servidor: aquí se revisa el permiso y se lanza la tarea.
+ * Miniaturas del episodio (Fase 3 · paso 2) con la guía de miniaturas v1.0.
+ * Las filas de `episode_assets` las escribe el servidor: aquí se revisan el
+ * permiso y las reglas de la guía, y se lanza la tarea.
  */
 
 const MAX_PRODUCT_REFS = 3;
@@ -33,6 +44,45 @@ async function loadEpisode(episodeId: string) {
   const ctx = await getChannelContext(row.channel_id);
   if (!ctx.can("write_script")) throw new PermissionError();
   return { user, supabase, row };
+}
+
+/** La guía: sin veredicto («el punto») en el guion, no se diseña la miniatura. */
+async function episodeHasVerdict(episodeId: string) {
+  const admin = createAdminClient();
+  const { data: ep } = await admin
+    .from("episodes")
+    .select("current_script_run_id")
+    .eq("id", episodeId)
+    .single();
+  if (!ep?.current_script_run_id) return { assets: false, verdict: false };
+  const { data: json } = await admin
+    .from("script_step_runs")
+    .select("body")
+    .eq("run_id", ep.current_script_run_id)
+    .eq("step", "assets_json")
+    .eq("status", "succeeded")
+    .maybeSingle();
+  const assets = parseAssets(json?.body);
+  return { assets: Boolean(assets), verdict: hasVerdict(assets?.postura) };
+}
+
+/** Lo que falta para generar esos esquemas: fotos del presentador o del producto. */
+async function missingPhotos(channelId: string, episodeId: string, schemes: SchemeId[]) {
+  const admin = createAdminClient();
+  const [{ count: presenter }, { count: products }] = await Promise.all([
+    admin
+      .from("presenter_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("channel_id", channelId),
+    admin
+      .from("episode_refs")
+      .select("id", { count: "exact", head: true })
+      .eq("episode_id", episodeId),
+  ]);
+  if (schemes.some(hasFace) && !presenter) return "errors.no_presenter_photos";
+  if (schemes.some((s) => THUMBNAIL_SCHEMES[s].productPhotos > (products ?? 0)))
+    return "errors.scheme_needs_product";
+  return null;
 }
 
 const revalidate = (channelId: string, episodeId: string) =>
@@ -52,7 +102,10 @@ const generateSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-/** Genera (o regenera, con una nota) una o varias miniaturas. */
+/**
+ * Genera (o regenera, con una nota) la miniatura de una o varias tarjetas.
+ * Cada tarjeta sale del texto elegido de la lista, con su esquema.
+ */
 export async function generateThumbnails(episodeId: string, input: unknown): Promise<ActionResult> {
   try {
     const { designs, note } = generateSchema.parse(input);
@@ -62,11 +115,22 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
       return { ok: false, error: "errors.no_credits" };
 
     const admin = createAdminClient();
-    const { count } = await admin
-      .from("presenter_photos")
-      .select("id", { count: "exact", head: true })
-      .eq("channel_id", row.channel_id);
-    if (!count) return { ok: false, error: "errors.no_presenter_photos" };
+    const { data: slotted } = await admin
+      .from("thumbnail_ideas")
+      .select("id, slot, scheme")
+      .eq("episode_id", episodeId)
+      .in("slot", unique);
+    const ideas = unique.map((idx) => slotted?.find((i) => i.slot === idx));
+    if (ideas.some((i) => !i || !isSchemeId(i.scheme)))
+      return { ok: false, error: "errors.thumbnail_needs_idea" };
+    const { verdict } = await episodeHasVerdict(episodeId);
+    if (!verdict) return { ok: false, error: "errors.no_verdict" };
+    const missing = await missingPhotos(
+      row.channel_id,
+      episodeId,
+      ideas.map((i) => i!.scheme as SchemeId),
+    );
+    if (missing) return { ok: false, error: missing };
 
     await startJob(
       "thumbnails",
@@ -77,18 +141,13 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
         requestedBy: user.id,
       },
       async (taskId) => {
-        // Si la tarjeta tiene un texto elegido de la lista, la versión sale de él.
-        const { data: slotted } = await admin
-          .from("thumbnail_ideas")
-          .select("id, slot")
-          .eq("episode_id", episodeId)
-          .in("slot", unique);
         const { error } = await admin.from("episode_assets").insert(
-          unique.map((idx) => ({
+          unique.map((idx, i) => ({
             episode_id: episodeId,
             channel_id: row.channel_id,
             design_idx: idx,
-            idea_id: slotted?.find((i) => i.slot === idx)?.id ?? null,
+            idea_id: ideas[i]!.id,
+            scheme: ideas[i]!.scheme,
             note: note || null,
             task_id: taskId,
             created_by: user.id,
@@ -105,27 +164,31 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
 }
 
 const textSchema = z.object({
-  lines: z.array(z.string().trim().max(40)).min(1).max(2),
+  text: z.string().trim().min(1).max(40),
   accent: z.string().trim().min(1).max(40),
-  // «auto»: la app busca la zona con menos detalle (se guarda como null).
-  side: z.enum(["auto", "left", "right"]),
-  vertical: z.enum(["auto", "top", "middle", "bottom"]),
+  // Texto del otro lado: solo en los esquemas que lo admiten (A y C).
+  mirror: z.boolean().default(false),
 });
 
-/** Otra versión con el mismo fondo y otro texto: no vuelve a llamar a Gemini. */
+/**
+ * Otra versión con el mismo fondo y otro texto, con las reglas de texto de su
+ * esquema: no vuelve a llamar a Gemini.
+ */
 export async function editThumbnailText(assetId: string, input: unknown): Promise<ActionResult> {
   try {
-    const text = textSchema.parse(input);
-    const lines = text.lines.filter(Boolean);
-    const words = lines.flatMap((l) => l.split(/\s+/));
-    if (!lines.length || words.length > 6) return { ok: false, error: "errors.invalid_input" };
+    const { text, accent, mirror } = textSchema.parse(input);
     const admin = createAdminClient();
     const { data: source } = await admin
       .from("episode_assets")
-      .select("episode_id, design_idx, base_path, prompt, status, idea_id")
+      .select("episode_id, design_idx, base_path, prompt, idea_id, scheme, scenario")
       .eq("id", assetId)
       .single();
     if (!source?.base_path) return { ok: false, error: "errors.not_found" };
+    // Las versiones de antes de la guía no tienen esquema: se regeneran desde la lista.
+    if (!isSchemeId(source.scheme)) return { ok: false, error: "errors.thumbnail_needs_idea" };
+    const clean = text.replace(/\s+/g, " ");
+    const broken = validateSchemeText(source.scheme, clean, accent);
+    if (broken.length) return { ok: false, error: broken.join(" ") };
     const { user, supabase, row } = await loadEpisode(source.episode_id);
     if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_TEXT_ESTIMATE_CREDITS)))
       return { ok: false, error: "errors.no_credits" };
@@ -147,9 +210,10 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
           idea_id: source.idea_id,
           base_path: source.base_path,
           prompt: source.prompt,
-          text: { lines, accent: text.accent },
-          text_side: text.side === "auto" ? null : text.side,
-          text_v: text.vertical === "auto" ? null : text.vertical,
+          scheme: source.scheme,
+          scenario: source.scenario,
+          mirror: THUMBNAIL_SCHEMES[source.scheme as SchemeId].mirror && mirror,
+          text: { lines: [clean], accent },
           task_id: taskId,
           created_by: user.id,
         });
@@ -243,10 +307,13 @@ export async function deleteEpisodeRef(episodeId: string, id: string): Promise<A
   }
 }
 
-/** Lanza la tarea que propone 30 textos de ángulos distintos para las miniaturas. */
+/** Lanza la tarea que propone 30 textos con su esquema para las miniaturas. */
 export async function proposeThumbnailIdeas(episodeId: string): Promise<ActionResult> {
   try {
     const { user, supabase, row } = await loadEpisode(episodeId);
+    const { assets, verdict } = await episodeHasVerdict(episodeId);
+    if (!assets) return { ok: false, error: "errors.no_publication_assets" };
+    if (!verdict) return { ok: false, error: "errors.no_verdict" };
     if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_IDEAS_ESTIMATE_CREDITS)))
       return { ok: false, error: "errors.no_credits" };
     await startJob("thumbnail_ideas", {
@@ -266,7 +333,8 @@ const fromIdeasSchema = z.object({ ideaIds: z.array(z.uuid()).length(3) });
 
 /**
  * Pone los 3 textos elegidos en las tarjetas A, B y C (en el orden en que se
- * marcaron) y genera sus miniaturas.
+ * marcaron) y genera sus miniaturas. La guía pide tres esquemas distintos, al
+ * menos uno con cara y uno sin cara, y las fotos que necesita cada esquema.
  */
 export async function generateFromIdeas(episodeId: string, input: unknown): Promise<ActionResult> {
   try {
@@ -277,15 +345,19 @@ export async function generateFromIdeas(episodeId: string, input: unknown): Prom
       return { ok: false, error: "errors.no_credits" };
 
     const admin = createAdminClient();
-    const [{ count }, { data: ideas }] = await Promise.all([
-      admin
-        .from("presenter_photos")
-        .select("id", { count: "exact", head: true })
-        .eq("channel_id", row.channel_id),
-      admin.from("thumbnail_ideas").select("id").eq("episode_id", episodeId).in("id", ideaIds),
-    ]);
-    if (!count) return { ok: false, error: "errors.no_presenter_photos" };
+    const { data: ideas } = await admin
+      .from("thumbnail_ideas")
+      .select("id, scheme")
+      .eq("episode_id", episodeId)
+      .in("id", ideaIds);
     if ((ideas ?? []).length !== 3) return { ok: false, error: "errors.not_found" };
+    const schemes = ideaIds.map((id) => ideas!.find((i) => i.id === id)!.scheme);
+    if (!schemes.every(isSchemeId) || validateSchemeSet(schemes).length)
+      return { ok: false, error: "errors.invalid_scheme_set" };
+    const { verdict } = await episodeHasVerdict(episodeId);
+    if (!verdict) return { ok: false, error: "errors.no_verdict" };
+    const missing = await missingPhotos(row.channel_id, episodeId, schemes);
+    if (missing) return { ok: false, error: missing };
 
     // Primero se sueltan las tarjetas y después se asignan, por el único (episodio, tarjeta).
     const { error: clearError } = await admin
@@ -314,6 +386,7 @@ export async function generateFromIdeas(episodeId: string, input: unknown): Prom
             channel_id: row.channel_id,
             design_idx: slot,
             idea_id: id,
+            scheme: schemes[slot]!,
             task_id: taskId,
             created_by: user.id,
           })),

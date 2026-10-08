@@ -85,29 +85,81 @@ Para el paso 4 (piezas animadas) también cuentan, del manual:
 
 ## 7. Miniaturas con Gemini (paso 2)
 
-Viven en la pestaña **Producción** del episodio.
+Viven en la pestaña **Producción** del episodio y siguen de forma estricta la **Guía de miniaturas v1.0** del diseñador (octubre de 2026). Las reglas están en `packages/core/src/thumbnail-schemes.ts`.
 
-**Elegir los ángulos.** Antes de las tarjetas está **«Textos para las miniaturas»**:
+### 7.1 La guía en el sistema
 
-- La tarea `thumbnail_ideas` le pide a Claude 30 textos de 2 a 4 palabras de al menos 8 ángulos distintos alrededor del tema central. Usa el título, el veredicto, la ficha (las cifras solo salen de ahí), los títulos, las keywords y el estilo del kit.
-- Diego marca 3 y genera: van a las tarjetas A, B y C en el orden en que los marcó (`thumbnail_ideas.slot`), y cada versión guarda de qué texto salió (`episode_assets.idea_id`).
-- «Proponer otros 30» reemplaza la lista y conserva los que están en uso.
-- Sin textos elegidos, las tarjetas usan las 3 miniaturas del JSON de Publicación. Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
+**Seis esquemas de composición.**
 
-1. **Brief (Claude).** Una llamada para todas las que se generan, con el tema central del episodio y el ángulo de cada una: la escena en inglés para Gemini, el texto del campo «texto» repartido en dos líneas, la palabra en naranja y el lado del texto. La nota de Diego al regenerar entra aquí.
-2. **Imagen (Gemini).** `generateContent` con las fotos del presentador (hasta 5 con Pro) y del producto (hasta 3) como referencia, cada una con su etiqueta, 16:9 en 2K con Pro y **sin texto**. La cara del presentador va siempre grande y reconocible, también cuando el producto es el protagonista. La instrucción fija (`imagePrompt`) añade la marca: fondo oscuro, luz cálida lateral, halo naranja, el lado del texto libre y nada de letras, logos, flechas, emojis ni marcos.
-3. **Composición (la app).** `sharp` recorta a 1280 × 720. Claude mira la imagen y ubica la cara, el cuerpo y el producto (`thumbnail_layout`), porque la pantalla oscura de un dispositivo parece fondo vacío. La app elige la zona (izquierda o derecha × arriba, centro o abajo) que no los tapa y tiene menos detalle; si en ninguna cabe entero, achica un poco el texto. El texto se dibuja como trazos con Inter Display Black (`opentype.js`): casi la mitad del ancho, blanco, una palabra en Naranja marca, sombra suave en las letras y una mancha negra difusa detrás del bloque. Al editar el texto se puede fijar el lado y la altura. Sale en JPG de menos de 2 MB.
-4. **Calificación (Claude con visión).** Recibe también una foto del presentador para comprobar que es la misma persona. Nota de 0 a 10 con los criterios de la sección 14 (ángulo y foco en el tema central, scroll, producto, texto, emoción, cara, contraste, veredicto, limpia) y qué mejorar.
+| Esquema          | Cara               | Texto                               | Fotos del producto | Texto en                               | Sujeto                                                                  |
+| ---------------- | ------------------ | ----------------------------------- | ------------------ | -------------------------------------- | ----------------------------------------------------------------------- |
+| A · La pregunta  | Sí                 | 2–4 palabras con ¿?                 | opcional           | 50 % izquierdo                         | Diego en el 40 % derecho, duda honesta, mano al mentón                  |
+| B · El dato      | No                 | Cifra ≤ 4 caracteres + 1–2 palabras | 1                  | izquierda, la cifra hasta 300 px       | Producto en el 40 % derecho, girado 5–10°                               |
+| C · El veredicto | Sí                 | 2–3 palabras, sin «?»               | opcional           | 40 % derecho                           | Diego en el 45 % izquierdo sosteniendo el producto, seguridad tranquila |
+| D · El duelo     | Pequeña            | 2–3 palabras en una línea, sin «VS» | 2                  | arriba, centrado                       | Producto 1 y 2 a los lados; Diego pequeño al centro, pensativo          |
+| E · El detalle   | No                 | 2–3 palabras                        | 1                  | abajo a la izquierda, sobre degradado  | Macro arriba a la derecha, que sale del cuadro                          |
+| F · En uso       | Sin mirar a cámara | 2–3 palabras                        | 1                  | arriba a la izquierda, sobre degradado | Escena a sangre sin retícula; Diego a la derecha usando el producto     |
+
+A y C admiten **espejo** (texto del otro lado). Shorts 1080 × 1920 quedan pendientes.
+
+**Lo que valida el código** (no se puede saltar):
+
+- **Set:** tres esquemas distintos, al menos uno con cara (A, C, D, F) y uno sin cara (B, E) (`validateSchemeSet`). Sets recomendados según el `tipo` del JSON de Publicación: reseña A+B+C, comparativa D+B+C, tutorial o largo plazo F+E+A.
+- **Veredicto:** sin `postura` (o si es «depende») no se proponen textos ni se generan miniaturas (`errors.no_verdict`).
+- **Texto** (`validateSchemeText`):
+  - 2–4 palabras (según el esquema), máximo 22 caracteres con espacios;
+  - tipo oración (nunca TODO MAYÚSCULAS), sin emojis ni signos dobles, con ¿ y ¡ de apertura;
+  - sin «VS», sin superlativos vacíos y sin precios sin moneda;
+  - la palabra naranja tiene que estar en el texto;
+  - las reglas propias de A, B (cifra, sin decimales, rangos ni dos cifras; la cifra en naranja) y C.
+- **Fotos:** B, E y F necesitan 1 foto del producto y D necesita 2. Sin ellas el esquema sale bloqueado en la lista, con el motivo. Los esquemas sin cara no mandan las fotos del presentador a Gemini.
+- **Composición** (`apps/jobs/src/lib/compose-thumbnail.ts`):
+  - letra Inter Black, tracking −4 %, interlineado 0,92 y alto de cuerpo de 120 a 150 px (la cifra de B hasta 300);
+  - blanco con una palabra #FF7A29 y sombra negra suave en las letras, sin mancha detrás;
+  - margen de 64 px y la esquina de la duración (220 × 90) vacía;
+  - con la cara ubicada por Claude (`thumbnail_layout`, solo en esquemas con cara), el texto se achica dentro del rango hasta dejar 40 px.
+
+  Lo que no se puede cumplir queda como **aviso** en la versión (`layout_warnings`).
+
+- **Rotación de escenarios:** no se repite dentro del set ni, si se puede, el de las miniaturas elegidas de los últimos 3 videos (`assignScenarios`). Escenarios: set oscuro, escritorio, en la mano, detalle, sofá, café, carro, calle.
+
+**Lo que revisa la calificación** (lo que pide criterio):
+
+- que siga el esquema y que el texto complete el título sin repetirlo;
+- la cara: es Diego, con la expresión del esquema, nunca asombro, boca abierta ni señalar;
+- el producto real y sin inventos;
+- los prohibidos: flechas, círculos rojos, emojis, marcos y colores dominantes;
+- la prueba de móvil a 168 × 94 px;
+- el veredicto.
+
+La separación y la esquina las mide la app y van como dato.
+
+### 7.2 El flujo
+
+**Elegir los textos.** Antes de las tarjetas está **«Textos para las miniaturas»**:
+
+- La tarea `thumbnail_ideas` le pide a Claude 30 textos, cada uno con su esquema (solo los disponibles según las fotos del producto). Pide al menos 3 por esquema y más en el set recomendado. Usa el título, el veredicto, la ficha (las cifras solo salen de ahí), los títulos, las keywords y el estilo del kit. Los que no pasan `validateSchemeText` se descartan.
+- La lista se agrupa y filtra por esquema, marca el set recomendado y dice en vivo por qué una selección no vale.
+- Diego marca 3 y genera: van a las tarjetas A, B y C en el orden en que los marcó (`thumbnail_ideas.slot`). Cada versión guarda el texto (`idea_id`), el esquema, el escenario y el espejo.
+- «Proponer otros 30» reemplaza la lista y conserva los que están en uso. Las tarjetas solo generan desde un texto elegido; las versiones de antes de la guía se siguen viendo.
+
+Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
+
+1. **Brief (Claude).** Una llamada para todas: lo propio de cada una dentro de su esquema y escenario (el producto, el detalle de E, el gesto de C según el veredicto) y si va en espejo. La nota de Diego al regenerar entra aquí.
+2. **Imagen (Gemini).** `generateContent` con las referencias etiquetadas que pide el esquema, 16:9 en 2K con Pro y **sin texto**. La instrucción (`schemeImagePrompt`) es el PROMPT BASE de la guía más la composición del esquema y la escena. Lo único adaptado: Gemini deja libre la zona del texto en vez de pintarlo.
+3. **Composición (la app).** El texto en la zona del esquema, con las medidas de la guía, y JPG de menos de 2 MB.
+4. **Calificación (Claude con visión).** La miniatura, la misma a 168 × 94 y una foto del presentador (si hay cara). Nota de 0 a 10 con los criterios de la guía (esquema, texto, título, cara, producto, separación, esquina, prohibidos, móvil y veredicto) y qué mejorar.
 
 Además:
 
-- **Editar el texto** crea otra versión con la misma imagen: solo se recompone y se califica, sin pagar otra imagen.
+- **Editar el texto** crea otra versión con la misma imagen, validada con las reglas del esquema (y espejo en A y C). Solo se recompone y se califica, sin pagar otra imagen.
 - **Versiones:** cada generación es una fila de `episode_assets` y se conservan todas. Una sola miniatura queda **elegida** por episodio, y cada versión lista se **descarga** con el código del episodio y la letra (A, B o C).
-- **Fotos del producto:** opcionales, hasta 3 por episodio (`episode_refs`, carpeta `{canal}/episodes/{episodio}/refs/`). Las sube quien escribe guiones.
+- **Fotos del producto:** hasta 3 por episodio (`episode_refs`, carpeta `{canal}/episodes/{episodio}/refs/`). La primera es el producto 1 y la segunda el producto 2 del duelo.
 - **Modelo:** `GEMINI_IMAGE_MODEL` en Trigger.dev, por defecto `gemini-3-pro-image` (Nano Banana Pro): con Nano Banana 2 la cara salía como otra persona. El modelo de Claude para el brief y la calificación es la etapa «Miniaturas» de Administración.
-- **Costo:** unos US$0,134 por imagen (Pro, 2K) más el brief y la calificación, cerca de US$0,17 por miniatura. Se registra como `thumbnail_brief`, `thumbnail_image` (con `image_usd`), `thumbnail_layout` y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
+- **Costo:** unos US$0,134 por imagen (Pro, 2K) más el brief y la calificación, cerca de US$0,17 por miniatura. Se registra como `thumbnail_ideas`, `thumbnail_brief`, `thumbnail_image` (con `image_usd`), `thumbnail_layout` y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
 - **Tablas:**
-  - `episode_assets`: `id`, `episode_id`, `channel_id`, `kind`, `design_idx`, `status`, `source_id`, `base_path`, `path`, `text`, `text_side`, `prompt`, `note`, `score`, `chosen`, `model`, `credits`, `error` y `task_id`. Solo la escribe el servidor.
+  - `episode_assets`: `id`, `episode_id`, `channel_id`, `kind`, `design_idx`, `status`, `source_id`, `idea_id`, `scheme`, `scenario`, `mirror`, `layout_warnings`, `base_path`, `path`, `text`, `prompt`, `note`, `score`, `chosen`, `model`, `credits`, `error` y `task_id`. `text_side` y `text_v` quedan de antes de la guía. Solo la escribe el servidor.
+  - `thumbnail_ideas`: los 30 textos con `scheme`, `angle`, `text`, `accent`, `scene`, `emotion` y `slot`.
   - `episode_refs`: las fotos del producto.
 
 ## 8. Costos estimados por episodio

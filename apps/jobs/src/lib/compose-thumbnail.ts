@@ -3,12 +3,24 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import opentype from "opentype.js";
 import sharp from "sharp";
-import type { SubjectBox, TextSide } from "@planificador/ai";
+import type { SubjectBox } from "@planificador/ai";
+import {
+  DURATION_BOX,
+  FACE_GAP,
+  SAFE_MARGIN,
+  schemeLayout,
+  TEXT_SIZE,
+  THUMBNAIL_SCHEMES,
+  type Rect,
+  type SchemeId,
+} from "@planificador/core";
 
 /**
- * Composición de la miniatura: la imagen de Gemini (sin texto) a 1280 × 720 y,
- * encima, el texto de la marca convertido en trazos con la tipografía del kit.
- * Así la letra y los colores son siempre los del manual.
+ * Composición de la miniatura (guía de miniaturas v1.0): la imagen de Gemini
+ * (sin texto) a 1280 × 720 y, encima, el texto en la zona de su esquema,
+ * convertido en trazos: Inter Black, tracking −4 %, interlineado 0,92, alto de
+ * cuerpo de 120 a 150 px (la cifra de B hasta 300), blanco con una palabra
+ * naranja y sombra suave solo para que se lea.
  */
 
 export const THUMB_WIDTH = 1280;
@@ -43,242 +55,292 @@ export async function prepareReference(input: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-export type TextVertical = "top" | "middle" | "bottom";
-export type TextPlacement = {
-  side: TextSide;
-  vertical: TextVertical;
-  /** Escala del texto: 1, o menos si así no tapa la cara ni el producto. */
-  scale?: number;
-};
+const TRACKING = -0.04;
+type Colors = { text: string; accent: string };
+const LEADING = 0.92;
 
 export interface ComposeOptions {
-  lines: string[];
+  scheme: SchemeId;
+  /** Texto del otro lado (solo A y C). */
+  mirror?: boolean;
+  text: string;
   accent: string;
-  /** null o ausente: la app busca la zona con menos detalle. */
-  side?: TextSide | null;
-  vertical?: TextVertical | null;
-  colors: { text: string; accent: string };
-  font?: opentype.Font;
-  /** Lo que el texto no debe tapar (cara, cuerpo, producto), si se ubicó. */
+  colors: Colors;
+  /** La cara y el producto que ubicó Claude (fracciones), para la separación. */
   avoid?: SubjectBox[];
+  font?: opentype.Font;
+}
+
+export interface ComposeResult {
+  jpg: Buffer;
+  /** Las líneas en que quedó partido el texto. */
+  lines: string[];
+  /** Dónde quedó el texto y a qué tamaño (alto de cuerpo). */
+  textBox: Rect;
+  size: number;
+  /** Lo que no se pudo cumplir del manual (para la tarjeta y la calificación). */
+  warnings: string[];
 }
 
 const bare = (w: string) => w.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
-const MARGIN_X = 64;
-const MARGIN_Y = 48;
 
-/** Tamaño de letra y del bloque de texto: casi la mitad del ancho. */
-function layoutText(opts: Pick<ComposeOptions, "lines" | "font"> & { scale?: number }) {
-  const font = opts.font ?? thumbnailFont();
-  const lines = opts.lines
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 2);
-  const width = (text: string, size: number) => font.getAdvanceWidth(text, size);
-  const widest = Math.max(1, ...lines.map((l) => width(l, 100)));
-  const full = Math.max(64, Math.min(190, Math.floor(((THUMB_WIDTH * 0.46) / widest) * 100)));
-  const size = Math.max(48, Math.floor(full * (opts.scale ?? 1)));
-  const lineHeight = size * 1.02;
-  return {
-    font,
-    lines,
-    size,
-    lineHeight,
-    width,
-    blockWidth: Math.max(...lines.map((l) => width(l, size)), 1),
-    blockHeight: lineHeight * Math.max(lines.length, 1),
-  };
+type Glyph = { glyph: opentype.Glyph; x: number; y: number; size: number; fill: string };
+
+/** Color de cada carácter: la palabra naranja (sin ¿?¡! alrededor) en el acento. */
+function charFills(text: string, isAccent: (word: string) => boolean, colors: Colors) {
+  const fills: string[] = [];
+  for (const m of text.matchAll(/(\S+)|(\s+)/g)) {
+    const word = m[0];
+    if (m[2] || !isAccent(word)) {
+      for (const _ of word) fills.push(colors.text);
+      continue;
+    }
+    const [, pre = "", core = word, post = ""] =
+      /^([^\p{L}\p{N}$€%×]*)(.*?)([^\p{L}\p{N}%×]*)$/u.exec(word) ?? [];
+    for (const _ of pre) fills.push(colors.text);
+    for (const _ of core) fills.push(colors.accent);
+    for (const _ of post) fills.push(colors.text);
+  }
+  return fills;
 }
 
-/** Dónde empieza el bloque de texto (esquina superior izquierda) según la zona. */
-function blockOrigin(placement: TextPlacement, blockWidth: number, blockHeight: number) {
-  const x = placement.side === "left" ? MARGIN_X : THUMB_WIDTH - MARGIN_X - blockWidth;
-  const y =
-    placement.vertical === "top"
-      ? MARGIN_Y
-      : placement.vertical === "bottom"
-        ? THUMB_HEIGHT - MARGIN_Y - blockHeight
-        : (THUMB_HEIGHT - blockHeight) / 2;
-  return { x, y };
+/** Ancho de una línea con kerning y el tracking del manual. */
+function measure(font: opentype.Font, text: string, size: number) {
+  const chars = [...text];
+  const scale = size / font.unitsPerEm;
+  let w = 0;
+  chars.forEach((ch, i) => {
+    const g = font.charToGlyph(ch);
+    w += (g.advanceWidth ?? 0) * scale;
+    const next = chars[i + 1];
+    if (next) w += font.getKerningValue(g, font.charToGlyph(next)) * scale + TRACKING * size;
+  });
+  return w;
 }
-
-const ZONE_SCALES = [1, 0.85, 0.72];
 
 /**
- * La zona más libre para el texto (lado × altura) y, si en ninguna cabe entero
- * sin tapar algo, un tamaño algo menor. Mide la imagen ya recortada a
- * 1280 × 720, reducida y en gris, por celdas: una celda con bordes (la cara, el
- * producto) o muy clara cuenta como ocupada. Lo que la persona fijó (lado o
- * altura) se respeta y solo se busca en lo demás.
+ * Las líneas armadas desde el origen (primera línea base en y = 0), con la
+ * caja de la tinta: lo que de verdad ocupan las letras, con sus descendentes.
  */
-export async function findTextZone(
-  image: Buffer,
-  measure: (scale: number) => { width: number; height: number },
-  fixed: { side?: TextSide | null; vertical?: TextVertical | null } = {},
-  avoid: SubjectBox[] = [],
-): Promise<TextPlacement> {
-  const W = 320;
-  const H = 180;
-  const k = W / THUMB_WIDTH;
-  const { data } = await sharp(image)
-    .resize(W, H, { fit: "fill" })
-    .greyscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const at = (x: number, y: number) => data[Math.min(y, H - 1) * W + Math.min(x, W - 1)]!;
-  const CELL = 5;
-  const sides: TextSide[] = fixed.side ? [fixed.side] : ["left", "right"];
-  const verticals: TextVertical[] = fixed.vertical ? [fixed.vertical] : ["middle", "top", "bottom"];
-  let best: { placement: TextPlacement; score: number } | null = null;
-  for (const [si, scale] of ZONE_SCALES.entries()) {
-    const block = measure(scale);
-    for (const side of sides) {
-      for (const vertical of verticals) {
-        const o = blockOrigin({ side, vertical }, block.width, block.height);
-        const x0 = Math.max(0, Math.floor(o.x * k));
-        const y0 = Math.max(0, Math.floor(o.y * k));
-        const x1 = Math.min(W, Math.ceil((o.x + block.width) * k));
-        const y1 = Math.min(H, Math.ceil((o.y + block.height) * k));
-        let cells = 0;
-        let busy = 0;
-        let detailSum = 0;
-        for (let cy = y0; cy < y1; cy += CELL) {
-          for (let cx = x0; cx < x1; cx += CELL) {
-            let detail = 0;
-            let light = 0;
-            let n = 0;
-            for (let y = cy; y < Math.min(cy + CELL, y1); y++) {
-              for (let x = cx; x < Math.min(cx + CELL, x1); x++) {
-                const v = at(x, y);
-                detail += Math.abs(at(x + 1, y) - v) + Math.abs(at(x, y + 1) - v);
-                light += v;
-                n++;
-              }
-            }
-            detail /= n;
-            light /= n;
-            cells++;
-            detailSum += detail;
-            if (detail > 12 || light > 110) busy++;
-          }
-        }
-        // Cuánto del bloque cae sobre la cara, el cuerpo o el producto (con un
-        // margen): pesa más que cualquier otra cosa, y la cara aún más.
-        let covered = 0;
-        for (const b of avoid) {
-          const pad = 0.03;
-          const bx0 = (b.x - pad) * THUMB_WIDTH;
-          const by0 = (b.y - pad) * THUMB_HEIGHT;
-          const bx1 = (b.x + b.w + pad) * THUMB_WIDTH;
-          const by1 = (b.y + b.h + pad) * THUMB_HEIGHT;
-          const ix = Math.max(0, Math.min(o.x + block.width, bx1) - Math.max(o.x, bx0));
-          const iy = Math.max(0, Math.min(o.y + block.height, by1) - Math.max(o.y, by0));
-          covered += ((ix * iy) / (block.width * block.height)) * (b.label === "face" ? 3 : 1);
-        }
-        // Lo que manda es cuánto del bloque tapa algo; después, el detalle
-        // promedio. Achicar el texto o salir del centro cuesta un poco.
-        const score =
-          covered * 300 +
-          (busy / Math.max(cells, 1)) * 100 +
-          detailSum / Math.max(cells, 1) +
-          si * 4 +
-          (vertical === "middle" ? 0 : 1);
-        if (!best || score < best.score) best = { placement: { side, vertical, scale }, score };
+function shape(
+  font: opentype.Font,
+  lines: string[],
+  sizes: number[],
+  align: "left" | "center",
+  fills: string[][],
+) {
+  const glyphs: Glyph[] = [];
+  let [x1, y1, x2, y2] = [Infinity, Infinity, -Infinity, -Infinity];
+  let baseline = 0;
+  lines.forEach((line, li) => {
+    const size = sizes[li]!;
+    if (li > 0) baseline += size * LEADING;
+    const scale = size / font.unitsPerEm;
+    const chars = [...line];
+    let x = align === "center" ? -measure(font, line, size) / 2 : 0;
+    chars.forEach((ch, i) => {
+      const glyph = font.charToGlyph(ch);
+      const bb = glyph.getPath(x, baseline, size).getBoundingBox();
+      if (bb.x2 > bb.x1) {
+        x1 = Math.min(x1, bb.x1);
+        y1 = Math.min(y1, bb.y1);
+        x2 = Math.max(x2, bb.x2);
+        y2 = Math.max(y2, bb.y2);
+        glyphs.push({ glyph, x, y: baseline, size, fill: fills[li]![i]! });
       }
-    }
-  }
-  return best!.placement;
-}
-
-/** El texto en trazos SVG en la zona dada, con una sombra suave detrás para leerlo. */
-export function textOverlaySvg(opts: ComposeOptions & TextPlacement): string {
-  const { font, lines, size, lineHeight, width, blockWidth, blockHeight } = layoutText(opts);
-  const origin = blockOrigin(opts, blockWidth, blockHeight);
-  const top = origin.y + size * 0.8;
-  const space = width(" ", size);
-  let accentDone = false;
-
-  const paths = lines.flatMap((line, i) => {
-    const lineWidth = width(line, size);
-    let x = opts.side === "left" ? MARGIN_X : THUMB_WIDTH - MARGIN_X - lineWidth;
-    const y = top + i * lineHeight;
-    return line.split(/\s+/).map((word) => {
-      const isAccent = !accentDone && bare(word) !== "" && bare(word) === bare(opts.accent);
-      if (isAccent) accentDone = true;
-      // En la palabra en naranja, los signos (¿?¡!) quedan en blanco.
-      const [, pre = "", core = word, post = ""] = isAccent
-        ? (/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u.exec(word) ?? [])
-        : [];
-      const parts = isAccent
-        ? [
-            [pre, opts.colors.text],
-            [core, opts.colors.accent],
-            [post, opts.colors.text],
-          ]
-        : [[word, opts.colors.text]];
-      const out = parts
-        .filter(([text]) => text)
-        .map(([text, fill]) => {
-          const d = font.getPath(text!, x, y, size).toPathData(2);
-          x += width(text!, size);
-          return `<path d="${d}" fill="${fill}"/>`;
-        })
-        .join("");
-      x += space;
-      return out;
+      x += (glyph.advanceWidth ?? 0) * scale;
+      const next = chars[i + 1];
+      if (next) x += font.getKerningValue(glyph, font.charToGlyph(next)) * scale + TRACKING * size;
     });
   });
+  return { glyphs, ink: { x: x1, y: y1, w: x2 - x1, h: y2 - y1 } };
+}
 
-  const cx = origin.x + blockWidth / 2;
-  const cy = origin.y + blockHeight / 2;
+/** Corta el texto en líneas según el esquema (D: una; B: la cifra y lo demás). */
+function breakLines(scheme: SchemeId, text: string, widest: (lines: string[]) => number): string[] {
+  const words = text.trim().split(/\s+/);
+  if (scheme === "D" || words.length < 2) return [words.join(" ")];
+  if (scheme === "B") {
+    const m = /^([$€]?\d+(?:%|×|x)?(?:\s(?:h|GB|TB|W|Hz|K|mAh|min))?)\s+(.*)$/u.exec(text.trim());
+    return m ? [m[1]!, m[2]!] : [words.join(" ")];
+  }
+  // Dos líneas: el corte que deja la línea más ancha más corta.
+  let best: string[] = [words.join(" ")];
+  let bestW = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const lines = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+    const w = widest(lines);
+    if (w < bestW) {
+      bestW = w;
+      best = lines;
+    }
+  }
+  return best;
+}
+
+const intersects = (a: Rect, b: Rect) =>
+  a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+/** Distancia entre dos rectángulos (0 si se tocan). */
+function gap(a: Rect, b: Rect) {
+  const dx = Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w));
+  const dy = Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Coloca el texto del esquema: el tamaño más grande del rango que cabe en su
+ * zona y deja 40 px a la cara. Devuelve los trazos, la caja de la tinta y los
+ * avisos de lo que no se pudo cumplir.
+ */
+export function schemeTextLayout(opts: Omit<ComposeOptions, "colors"> & { colors?: Colors }) {
+  const font = opts.font ?? thumbnailFont();
+  const layout = schemeLayout(opts.scheme, opts.mirror);
+  const zone = layout.zone;
+  const colors = opts.colors ?? { text: "#FFFFFF", accent: "#FF7A29" };
+  const faces = (opts.avoid ?? [])
+    .filter((b) => b.label === "face")
+    .map((b) => ({
+      x: b.x * THUMB_WIDTH,
+      y: b.y * THUMB_HEIGHT,
+      w: b.w * THUMB_WIDTH,
+      h: b.h * THUMB_HEIGHT,
+    }));
+  const warnings: string[] = [];
+
+  const lines = breakLines(opts.scheme, opts.text, (ls) =>
+    Math.max(...ls.map((l) => measure(font, l, TEXT_SIZE.max))),
+  );
+  // Una sola palabra naranja: la primera que coincide.
+  let accentDone = false;
+  const isAccent = (word: string) => {
+    const hit = !accentDone && bare(word) !== "" && bare(word) === bare(opts.accent);
+    if (hit) accentDone = true;
+    return hit;
+  };
+  const fills = lines.map((l) => charFills(l, isAccent, colors));
+
+  /** El bloque a esos tamaños, puesto en la zona según el esquema. */
+  const place = (sizes: number[]) => {
+    const s = shape(font, lines, sizes, layout.align, fills);
+    const dx =
+      layout.align === "center" ? zone.x + zone.w / 2 - (s.ink.x + s.ink.w / 2) : zone.x - s.ink.x;
+    const dy =
+      layout.anchor === "top"
+        ? zone.y - s.ink.y
+        : layout.anchor === "bottom"
+          ? zone.y + zone.h - (s.ink.y + s.ink.h)
+          : zone.y + (zone.h - s.ink.h) / 2 - s.ink.y;
+    const box = { x: s.ink.x + dx, y: s.ink.y + dy, w: s.ink.w, h: s.ink.h };
+    return { sizes, glyphs: s.glyphs, dx, dy, box };
+  };
+  const fits = (p: ReturnType<typeof place>) => p.box.w <= zone.w && p.box.h <= zone.h;
+
+  // Tamaños de mayor a menor (B: la cifra de 300 a 150 y las palabras de 150 a 120).
+  const tries: number[][] = [];
+  if (opts.scheme === "B" && lines.length === 2) {
+    for (let fig = TEXT_SIZE.figureMax; fig >= TEXT_SIZE.max; fig -= 10)
+      for (let size = TEXT_SIZE.max; size >= TEXT_SIZE.min; size -= 5) tries.push([fig, size]);
+  } else {
+    for (let size = TEXT_SIZE.max; size >= TEXT_SIZE.min; size -= 5)
+      tries.push(lines.map(() => size));
+  }
+  let chosen: ReturnType<typeof place> | null = null;
+  let smallest: ReturnType<typeof place> | null = null;
+  for (const sizes of tries) {
+    const p = place(sizes);
+    if (!fits(p)) continue;
+    smallest = p;
+    if (faces.every((f) => gap(p.box, f) >= FACE_GAP)) {
+      chosen = p;
+      break;
+    }
+  }
+  if (!chosen && smallest) {
+    // Ni al mínimo deja los 40 px: el más pequeño, con aviso.
+    chosen = smallest;
+    warnings.push(`El texto queda a menos de ${FACE_GAP} px de la cara.`);
+  }
+  if (!chosen) {
+    // Ni al tamaño mínimo cabe: se reduce lo justo para entrar en la zona.
+    const base = place(tries[tries.length - 1]!);
+    const k = Math.min(zone.w / base.box.w, zone.h / base.box.h, 1) * 0.995;
+    chosen = place(base.sizes.map((c) => c * k));
+    warnings.push(`El texto no cabe a ${TEXT_SIZE.min} px de cuerpo y se redujo.`);
+  }
+  const { box, dx, dy } = chosen;
+  if (intersects(box, DURATION_BOX)) warnings.push("El texto toca la esquina de la duración.");
+  if (
+    box.x < SAFE_MARGIN ||
+    box.y < SAFE_MARGIN ||
+    box.x + box.w > THUMB_WIDTH - SAFE_MARGIN ||
+    box.y + box.h > THUMB_HEIGHT - SAFE_MARGIN
+  )
+    warnings.push(`El texto se sale del margen de ${SAFE_MARGIN} px.`);
+
+  const paths = chosen.glyphs.map((g) => {
+    const d = g.glyph.getPath(g.x + dx, g.y + dy, g.size).toPathData(2);
+    return `<path d="${d}" fill="${g.fill}"/>`;
+  });
+  return { lines, paths, box, size: Math.round(Math.max(...chosen.sizes)), warnings };
+}
+
+/** Degradado negro para E (desde abajo a la izquierda) y F (desde arriba a la izquierda). */
+function gradientSvg(scheme: SchemeId) {
+  const g = THUMBNAIL_SCHEMES[scheme].gradient;
+  if (g === "none") return "";
+  const cy = g === "bottom-left" ? "100%" : "0%";
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMB_WIDTH}" height="${THUMB_HEIGHT}">`,
+    `<radialGradient id="tg" cx="0%" cy="${cy}" r="85%" gradientUnits="objectBoundingBox">`,
+    '<stop offset="0" stop-color="#000" stop-opacity="0.85"/>',
+    '<stop offset="0.55" stop-color="#000" stop-opacity="0.5"/>',
+    '<stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>',
+  ].join("");
+}
+
+/** El SVG que va encima de la foto: viñeteado, degradado del esquema y texto. */
+export function overlaySvg(paths: string[], scheme: SchemeId) {
+  const gradient = gradientSvg(scheme);
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720">',
     "<defs>",
-    // Sombra suave y negra, solo para que se lea sobre la foto (manual v3.0):
-    // una mancha difusa detrás del bloque y otra pegada a las letras.
-    '<radialGradient id="scrim"><stop offset="0" stop-color="#000" stop-opacity="0.55"/>',
-    '<stop offset="0.6" stop-color="#000" stop-opacity="0.3"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>',
+    // Viñeteado a negro (prompt base de la guía).
+    '<radialGradient id="vig" cx="50%" cy="50%" r="75%">',
+    '<stop offset="0.6" stop-color="#000" stop-opacity="0"/>',
+    '<stop offset="1" stop-color="#000" stop-opacity="0.45"/></radialGradient>',
+    gradient,
+    // Sombra negra suave, solo para que se lea.
     '<filter id="s" x="-10%" y="-20%" width="120%" height="140%">',
-    '<feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.55"/>',
+    '<feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.5"/>',
     "</filter></defs>",
-    `<ellipse data-scrim="1" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(blockWidth * 0.8).toFixed(1)}" ry="${(blockHeight * 1.1).toFixed(1)}" fill="url(#scrim)"/>`,
+    '<rect width="1280" height="720" fill="url(#vig)"/>',
+    gradient ? '<rect data-gradient="1" width="1280" height="720" fill="url(#tg)"/>' : "",
     `<g filter="url(#s)">${paths.join("")}</g>`,
     "</svg>",
   ].join("");
 }
 
-/**
- * La miniatura final en JPG de 1280 × 720 y menos de 2 MB, con el texto en la
- * zona pedida o, si no se pidió, en la más libre.
- */
-export async function composeThumbnail(
-  base: Buffer,
-  opts: ComposeOptions,
-): Promise<{ jpg: Buffer; placement: TextPlacement }> {
+/** La miniatura final en JPG de 1280 × 720 y menos de 2 MB, con el texto de su esquema. */
+export async function composeScheme(base: Buffer, opts: ComposeOptions): Promise<ComposeResult> {
   const photo = await sharp(base)
     .rotate()
     .resize(THUMB_WIDTH, THUMB_HEIGHT, { fit: "cover", position: "centre" })
     .png()
     .toBuffer();
-  const placement: TextPlacement =
-    opts.side && opts.vertical
-      ? { side: opts.side, vertical: opts.vertical }
-      : await findTextZone(
-          photo,
-          (scale) => {
-            const l = layoutText({ ...opts, scale });
-            return { width: l.blockWidth, height: l.blockHeight };
-          },
-          { side: opts.side, vertical: opts.vertical },
-          opts.avoid,
-        );
+  const t = schemeTextLayout(opts);
   const image = await sharp(photo)
-    .composite([{ input: Buffer.from(textOverlaySvg({ ...opts, ...placement })), top: 0, left: 0 }])
+    .composite([{ input: Buffer.from(overlaySvg(t.paths, opts.scheme)), top: 0, left: 0 }])
     .png()
     .toBuffer();
   for (const quality of [88, 80, 72, 64]) {
     const jpg = await sharp(image).jpeg({ quality, mozjpeg: true }).toBuffer();
-    if (jpg.length < MAX_BYTES) return { jpg, placement };
+    if (jpg.length < MAX_BYTES)
+      return { jpg, lines: t.lines, textBox: t.box, size: t.size, warnings: t.warnings };
   }
   throw new Error("La miniatura no cabe en 2 MB");
+}
+
+/** La miniatura reducida a 168 × 94 para la prueba de móvil. */
+export async function mobilePreview(jpg: Buffer): Promise<Buffer> {
+  return sharp(jpg).resize(168, 94).jpeg({ quality: 90 }).toBuffer();
 }

@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  findAccent,
   generateImage,
   geminiConfigFromEnv,
   ImageBlockedError,
   imageCostUsd,
   maxPresenterRefs,
-  imagePrompt,
   locateSubjects,
+  schemeImagePrompt,
+  SCORE_CRITERIA,
   thumbnailIdeas,
-  designFromIdea,
-  normalizeText,
   scoreThumbnail,
   thumbnailBriefs,
-  type ThumbnailDesign,
 } from "../src";
 
 const usage = {
@@ -22,25 +21,14 @@ const usage = {
   cache_read_input_tokens: 0,
 };
 
-const design: ThumbnailDesign = {
-  angulo: "El dinero",
-  texto: "¿Pagar más por RAM?",
-  escena: "Diego con dos portátiles",
-  expresion: "duda",
-  protagonista: "Diego",
-  composicion: "Diego a la derecha",
-  ayuda_visual: "ninguna",
-  emocion: "pagar de más",
-  titulo: "¿Vale la pena 16 GB?",
-  texto_alternativo: "Diego compara dos portátiles",
-};
-
 const kit = {
   canvas: "#111213",
   glow: "#E87026",
   amberDeep: "#C65014",
   accent: "#FF7A29",
-  thumbnailStyle: "Sistema A/B/C",
+  cream: "#FFD9BD",
+  grid: "#E2661F",
+  thumbnailStyle: "Guía de miniaturas v1.0",
 };
 
 function fakeClient(output: unknown) {
@@ -58,143 +46,201 @@ function fakeClient(output: unknown) {
   return { client, calls };
 }
 
-describe("texto de la miniatura", () => {
-  it("deja dos líneas y una palabra en naranja que exista", () => {
-    expect(normalizeText(["¿Pagar más", "por RAM?"], "RAM")).toEqual({
-      lines: ["¿Pagar más", "por RAM?"],
-      accent: "RAM?",
-    });
-    expect(normalizeText(["No compres 8 GB"], "amarillo")).toEqual({
-      lines: ["No compres", "8 GB"],
-      accent: "GB",
-    });
-    expect(normalizeText(["  8 GB  vs ", " 16 GB"], "16")).toEqual({
-      lines: ["8 GB vs", "16 GB"],
-      accent: "16",
-    });
+describe("palabra naranja", () => {
+  it("la toma tal como está en el texto", () => {
+    expect(findAccent("¿Vale la pena?", "PENA")).toBe("pena?");
+    expect(findAccent("40% más barato", "40%")).toBe("40%");
+    expect(findAccent("Sí lo compro", "amarillo")).toBe("compro");
   });
 });
 
+const item = {
+  idx: 0,
+  scheme: "C" as const,
+  scenario: "en la mano" as const,
+  text: "No lo compres",
+  accent: "compres",
+  angle: "El veredicto",
+  emotion: "alivio",
+  idea: "Diego sostiene el portátil",
+};
+
 describe("brief de las miniaturas", () => {
-  it("pide la escena, el texto y el lado en una sola llamada", async () => {
+  it("pide la escena de cada esquema en una sola llamada", async () => {
     const { client, calls } = fakeClient({
       briefs: [
-        {
-          idx: 0,
-          scene: "A man between two laptops",
-          lines: ["¿Pagar más", "por RAM?"],
-          accent: "RAM",
-          text_side: "left",
-        },
+        { idx: 0, scene: "Diego holds the laptop", mirror: true },
+        { idx: 1, scene: "The laptop alone", mirror: true },
       ],
     });
     const out = await thumbnailBriefs(
       client,
       { model: "m" },
       {
-        designs: [{ idx: 0, design, note: "más cerca" }],
+        items: [
+          { ...item, note: "más cerca" },
+          { ...item, idx: 1, scheme: "B", scenario: "set oscuro", text: "40% más barato" },
+        ],
         kit,
         episodeTitle: "RAM",
-        verdict: "16 GB sí",
+        verdict: "No compres 8 GB",
         presenter: "Diego",
-        productRefs: 1,
+        productRefs: ["portátil gris"],
       },
     );
+    // El espejo solo vale en A y C.
     expect(out.briefs).toEqual([
-      {
-        idx: 0,
-        scene: "A man between two laptops",
-        textSide: "left",
-        lines: ["¿Pagar más", "por RAM?"],
-        accent: "RAM?",
-      },
+      { idx: 0, scene: "Diego holds the laptop", mirror: true },
+      { idx: 1, scene: "The laptop alone", mirror: false },
     ]);
     const user = (calls[0]!.messages as { content: string }[])[0]!.content;
     expect(user).toContain("Miniatura A (idx 0)");
-    expect(user).toContain("ángulo: El dinero");
-    expect(user).toContain("Tema central del episodio: RAM");
-    expect(String(calls[0]!.system)).toContain("tres ángulos totalmente distintos");
+    expect(user).toContain("esquema: C · El veredicto");
+    expect(user).toContain("escenario: en la mano");
+    expect(user).toContain("Product photo 1: portátil gris");
     expect(user).toContain("Indicación del presentador para esta versión: más cerca");
-    expect(String(calls[0]!.system)).toContain("nunca lleva letras");
+    const system = String(calls[0]!.system);
+    expect(system).toContain("nunca lleva letras");
+    expect(system).toContain("Nunca asombro, boca abierta, señalar");
   });
 
-  it("si falta un brief, usa el texto y la escena del diseño", async () => {
+  it("si falta un brief, usa la escena de la lista", async () => {
     const { client } = fakeClient({ briefs: [] });
     const out = await thumbnailBriefs(
       client,
       { model: "m" },
-      {
-        designs: [{ idx: 1, design }],
-        kit,
-        episodeTitle: "RAM",
-        verdict: "",
-        presenter: "Diego",
-        productRefs: 0,
-      },
+      { items: [item], kit, episodeTitle: "RAM", verdict: "", presenter: "Diego", productRefs: [] },
     );
-    expect(out.briefs[0]).toMatchObject({
-      idx: 1,
-      scene: design.escena,
-      lines: ["¿Pagar más", "por RAM?"],
-    });
+    expect(out.briefs[0]).toEqual({ idx: 0, scene: item.idea, mirror: false });
+  });
+});
+
+describe("prompt por esquema (guía v1.0)", () => {
+  const base = {
+    scene: "S",
+    scenario: "set oscuro" as const,
+    presenterRefs: 3,
+    productRefs: 2,
+    kit,
+  };
+
+  it("todos llevan el prompt base y dejan libre la zona del texto y la esquina", () => {
+    for (const scheme of ["A", "B", "C", "D", "E", "F"] as const) {
+      const p = schemeImagePrompt({ ...base, scheme });
+      expect(p).toContain("16:9, 1280×720");
+      expect(p).toContain("#E87026");
+      expect(p).toContain("#C65014");
+      expect(p).toContain("#FFD9BD");
+      expect(p).toContain("vignette to black");
+      expect(p).toContain("64 px safe margin");
+      expect(p).toContain("bottom-right corner (220×90 px) stays empty");
+      expect(p).toMatch(/no text, letters, numbers/);
+      expect(p).toContain("No blue, neon, RGB, yellow, wood or gold");
+      expect(p).toContain("Scene: S");
+    }
   });
 
-  it("la instrucción para Gemini fija la marca y prohíbe el texto", () => {
-    const p = imagePrompt({ scene: "S", textSide: "left", presenterRefs: 3, productRefs: 1, kit });
-    expect(p).toContain(
+  it("cada esquema pone a cada uno donde manda la guía", () => {
+    const a = schemeImagePrompt({ ...base, scheme: "A" });
+    expect(a).toContain("On the right (40% of the width), the presenter from the waist up");
+    expect(a).toContain("hand on the chin");
+    expect(a).toContain("The left 50% of the frame stays as empty");
+    expect(schemeImagePrompt({ ...base, scheme: "A", mirror: true })).toContain(
+      "On the left (40% of the width)",
+    );
+    const b = schemeImagePrompt({ ...base, scheme: "B" });
+    expect(b).toContain("No people at all");
+    expect(b).toContain("rotated 5–10°");
+    // Sin cara, sin fotos del presentador.
+    expect(b).not.toContain("Reference photo of the presenter");
+    const c = schemeImagePrompt({ ...base, scheme: "C" });
+    expect(c).toContain("On the left (45% of the width)");
+    expect(c).toContain("holding the real product toward the camera");
+    const d = schemeImagePrompt({ ...base, scheme: "D" });
+    expect(d).toContain("Real product 1 (Product photo 1) on the left");
+    expect(d).toContain("presenter small (about 25% of the width)");
+    expect(d).toContain("No dividing lines");
+    expect(schemeImagePrompt({ ...base, scheme: "E" })).toContain("upper-right two thirds");
+    const f = schemeImagePrompt({ ...base, scheme: "F", scenario: "café" });
+    expect(f).toContain("without the grid");
+    expect(f).toContain("in a café table");
+    expect(f).toContain("not looking at the camera");
+    expect(f).not.toContain("faint orange grid");
+    expect(a).toContain("faint orange grid");
+  });
+
+  it("las referencias del presentador solo en los esquemas con cara", () => {
+    expect(schemeImagePrompt({ ...base, scheme: "A" })).toContain(
       'The 3 images labeled "Reference photo of the presenter" all show the same real person',
     );
-    expect(p).toContain('The images labeled "Product photo" show the real product');
-    // La cara grande también cuando el producto manda: una cara chica sale como otra persona.
-    expect(p).toContain("even when the product is the main subject");
-    expect(p).toContain("occupy the right half; keep the left ~45%");
-    expect(p).toContain("#E87026");
-    expect(p).toMatch(/no text, letters, numbers/);
-    expect(
-      imagePrompt({ scene: "S", textSide: "right", presenterRefs: 0, productRefs: 0, kit }),
-    ).not.toContain("Reference photo");
+    expect(schemeImagePrompt({ ...base, scheme: "E" })).not.toContain("Reference photo");
+    expect(schemeImagePrompt({ ...base, scheme: "B", productRefs: 1 })).toContain(
+      'The images labeled "Product photo" show the real product',
+    );
   });
 });
 
 describe("calificación", () => {
-  it("manda la imagen y devuelve la nota", async () => {
+  const input = {
+    image: Buffer.from("jpg"),
+    mobile: Buffer.from("mini"),
+    mime: "image/jpeg",
+    scheme: "A" as const,
+    text: { lines: ["¿Vale la", "pena?"], accent: "pena?" },
+    topic: "¿Vale la pena 16 GB?",
+    titles: ["16 GB de RAM en 2026"],
+    verdict: "16 GB sí",
+    warnings: [],
+    reference: { data: Buffer.from("cara"), mime: "image/jpeg" },
+  };
+
+  it("manda la miniatura, la prueba de móvil y la referencia, con los criterios de la guía", async () => {
     const score = {
       score: 8,
-      criteria: [{ key: "scroll", ok: true, note: "Se entiende" }],
+      criteria: [{ key: "mobile", ok: true, note: "Se lee" }],
       improve: "Nada",
     };
     const { client, calls } = fakeClient(score);
-    const out = await scoreThumbnail(
+    const out = await scoreThumbnail(client, { model: "m" }, input);
+    expect(out.score).toEqual(score);
+    const content = (
+      calls[0]!.messages as {
+        content: { type: string; text?: string; source?: { data: string } }[];
+      }[]
+    )[0]!.content;
+    expect(content[0]).toMatchObject({ source: { data: Buffer.from("jpg").toString("base64") } });
+    expect(content[1]).toMatchObject({
+      text: "La misma miniatura a 168 × 94 px (prueba de móvil):",
+    });
+    expect(content[2]).toMatchObject({ source: { data: Buffer.from("mini").toString("base64") } });
+    expect(content[3]).toMatchObject({ text: "Foto de referencia del presentador:" });
+    const facts = String(content[5]!.text);
+    expect(facts).toContain("Esquema: A · La pregunta");
+    expect(facts).toContain("Reglas de texto medibles: cumple.");
+    expect(facts).toContain("Medido por la app: el texto deja 40 px");
+    expect(facts).toContain("Títulos del video: 16 GB de RAM en 2026");
+    const system = String(calls[0]!.system);
+    for (const key of SCORE_CRITERIA) expect(system).toContain(`- ${key}:`);
+  });
+
+  it("pasa los avisos de la app y lo que el texto no cumple; sin cara, sin referencia", async () => {
+    const { client, calls } = fakeClient({ score: 5, criteria: [], improve: "x" });
+    await scoreThumbnail(
       client,
       { model: "m" },
       {
-        image: Buffer.from("jpg"),
-        mime: "image/jpeg",
-        design,
-        text: { lines: ["¿Pagar más", "por RAM?"], accent: "RAM?" },
-        topic: "¿Vale la pena 16 GB?",
-        verdict: "16 GB sí",
-        reference: { data: Buffer.from("cara"), mime: "image/jpeg" },
+        ...input,
+        scheme: "B",
+        text: { lines: ["Mucho más", "barato"], accent: "barato" },
+        warnings: ["El texto queda a menos de 40 px de la cara."],
       },
     );
-    expect(out.score).toEqual(score);
-    const content = (
-      calls[0]!.messages as { content: { type: string; source?: { data: string } }[] }[]
-    )[0]!.content;
-    expect(content[0]).toMatchObject({
-      type: "image",
-      source: { data: Buffer.from("jpg").toString("base64") },
-    });
-    // Después de la miniatura va la foto de referencia, para comparar la cara.
-    expect(content[1]).toMatchObject({ type: "text", text: "Foto de referencia del presentador:" });
-    expect(content[2]).toMatchObject({
-      type: "image",
-      source: { data: Buffer.from("cara").toString("base64") },
-    });
-    expect(JSON.stringify(content[3])).toContain("Ángulo de esta miniatura: El dinero");
-    expect(JSON.stringify(content[3])).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
-    expect(String(calls[0]!.system)).toContain("misma persona de la foto de referencia");
-    expect(String(calls[0]!.system)).toContain("- angle:");
+    const content = (calls[0]!.messages as { content: { type: string; text?: string }[] }[])[0]!
+      .content;
+    expect(content.some((c) => c.text === "Foto de referencia del presentador:")).toBe(false);
+    const facts = String(content.at(-1)!.text);
+    expect(facts).toContain("Reglas de texto que no cumple: El dato empieza con una cifra");
+    expect(facts).toContain("Medido por la app: El texto queda a menos de 40 px de la cara.");
   });
 });
 
@@ -350,82 +396,57 @@ describe("ubicar la cara y el producto", () => {
 });
 
 describe("textos para miniaturas", () => {
-  it("pide 30 textos de ángulos distintos con la ficha y limpia la salida", async () => {
+  const input = {
+    episodeTitle: "¿Vale la pena 16 GB?",
+    verdict: "16 GB para trabajar",
+    sheet: "Ficha con cifras: 23 % más.",
+    titles: ["16 GB de RAM en 2026"],
+    keywords: ["16 gb ram"],
+    thumbnailStyle: "Guía v1.0",
+    presenter: "Diego",
+    schemes: ["A", "B", "C"] as ("A" | "B" | "C")[],
+    recommended: ["A", "B", "C"] as ("A" | "B" | "C")[],
+  };
+
+  it("pide 30 textos con su esquema y descarta los que no cumplen la guía", async () => {
+    const idea = (scheme: string, text: string, accent: string) => ({
+      scheme,
+      angle: "El dinero",
+      text,
+      accent,
+      scene: "s",
+      emotion: "e",
+    });
     const { client, calls } = fakeClient({
       ideas: [
-        {
-          angle: "El dinero",
-          text: "¿Pagar  más por RAM?",
-          accent: "ram",
-          scene: "s",
-          emotion: "pagar de más",
-        },
-        {
-          angle: "El dinero",
-          text: "¿pagar más por ram?",
-          accent: "RAM",
-          scene: "s",
-          emotion: "x",
-        },
-        {
-          angle: "El mito",
-          text: "8 GB alcanzan",
-          accent: "nada",
-          scene: "s2",
-          emotion: "sorpresa",
-        },
+        idea("A", "¿Vale  la pena?", "PENA"),
+        idea("A", "¿vale la pena?", "pena"), // repetido
+        idea("A", "¿VALE LA PENA EN 2026 O NO?", "pena"), // mayúsculas y largo
+        idea("B", "40% más barato", "40%"),
+        idea("B", "Mucho más barato", "barato"), // sin dato
+        idea("C", "No lo compres", "compres"),
+        idea("C", "¿No lo compres?", "compres"), // C sin pregunta
+        idea("D", "¿Cuál gana?", "gana"), // esquema no disponible
       ],
     });
-    const out = await thumbnailIdeas(
-      client,
-      { model: "m" },
-      {
-        episodeTitle: "¿Vale la pena 16 GB?",
-        verdict: "16 GB para trabajar",
-        sheet: "Ficha con cifras: 23 % más.",
-        titles: ["No compres 8 GB"],
-        keywords: ["16 gb ram"],
-        thumbnailStyle: "Tres ángulos",
-        presenter: "Diego",
-      },
-    );
-    expect(out.ideas).toEqual([
-      {
-        angle: "El dinero",
-        text: "¿Pagar más por RAM?",
-        accent: "RAM?",
-        scene: "s",
-        emotion: "pagar de más",
-      },
-      {
-        angle: "El mito",
-        text: "8 GB alcanzan",
-        accent: "alcanzan",
-        scene: "s2",
-        emotion: "sorpresa",
-      },
+    const out = await thumbnailIdeas(client, { model: "m" }, input);
+    expect(out.ideas.map((i) => [i.scheme, i.text, i.accent])).toEqual([
+      ["A", "¿Vale la pena?", "pena?"],
+      ["B", "40% más barato", "40%"],
+      ["C", "No lo compres", "compres"],
     ]);
     const user = (calls[0]!.messages as { content: string }[])[0]!.content;
     expect(user).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
     expect(user).toContain("Ficha con cifras: 23 % más.");
-    expect(String(calls[0]!.system)).toContain("al menos 8 ángulos");
-    expect(String(calls[0]!.system)).toContain("Las cifras solo pueden salir de la ficha");
-  });
-
-  it("un texto elegido sirve como diseño de miniatura", () => {
-    expect(
-      designFromIdea({
-        angle: "El error",
-        text: "No compres 8 GB",
-        accent: "GB",
-        scene: "e",
-        emotion: "miedo",
-      }),
-    ).toMatchObject({
-      angulo: "El error",
-      texto: "No compres 8 GB",
-      escena: "e",
-      emocion: "miedo",
-    });
+    expect(user).toContain("Veredicto («el punto»): 16 GB para trabajar");
+    const system = String(calls[0]!.system);
+    expect(system).toContain("- A · La pregunta.");
+    expect(system).toContain("- C · El veredicto.");
+    expect(system).not.toContain("- D · El duelo.");
+    expect(system).toContain(
+      "al menos 3 por esquema, y más en el set recomendado para este episodio (A+B+C)",
+    );
+    expect(system).toContain("Las cifras solo pueden salir de la ficha");
+    expect(system).toContain("El texto completa el título, no lo repite");
   });
 });
