@@ -118,10 +118,10 @@ Cada etapa es una llamada a la API de Claude con:
 
 Pasos de Estudio y Guion:
 
-| Etapa   | Pasos, en orden                                                                                                                                                             |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Estudio | 1. Dossier (sección 4) · 2. Tarjetas (sección 5)                                                                                                                            |
-| Guion   | 1. Escaleta · 2. Teleprompter · 3. Control de calidad (tabla 8.8 sobre el guion terminado) · 4. Reels marcados · 5. Verificación de datos · 6. Motion graphics · 7. B-rolls |
+| Etapa   | Pasos, en orden                                                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Estudio | 1. Dossier (sección 4) · 2. Tarjetas (sección 5)                                                                                                                                                                                                      |
+| Guion   | 1. Escaleta · 2. Teleprompter · 3. Control de calidad (tabla 8.8 sobre el guion terminado) · 4. Corrección (aplica los cambios del control; se salta si todo cumple) · 5. Reels marcados · 6. Verificación de datos · 7. Motion graphics · 8. B-rolls |
 
 | #   | Etapa        | Bloques que se esperan                                                                                                           | Web           |
 | --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------- |
@@ -343,3 +343,9 @@ Pendientes:
   - tabla `script_step_runs` con el texto, el uso, los créditos y la vista previa en vivo de cada paso;
   - el panel muestra una pestaña por paso con su estado, la vista previa mientras escribe y **Regenerar desde este paso**;
   - si Claude está saturado, el paso espera y reintenta solo.
+
+- **Corrección tras el control de calidad:**
+  - el control termina con «VEREDICTO: CUMPLE» o «VEREDICTO: CORREGIR»;
+  - con CORREGIR, el paso Corrección reescribe el teleprompter aplicando solo esos cambios; con CUMPLE queda «Sin cambios», sin llamada ni costo;
+  - desde Reels, los pasos reciben un solo teleprompter (el final) y ya no la tabla de calidad;
+  - una sola corrección, sin volver a pasar el control, para que el costo tenga tope.

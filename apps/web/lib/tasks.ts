@@ -38,4 +38,4 @@ export function mergeTasks(prev: readonly TaskRow[], incoming: readonly TaskRow[
 export const DIRECTION_ESTIMATE_CREDITS = 5;
 
 /** Lo que cuesta, más o menos, generar Estudio y Guion paso a paso. */
-export const SCRIPT_ESTIMATE_CREDITS = 85;
+export const SCRIPT_ESTIMATE_CREDITS = 100;

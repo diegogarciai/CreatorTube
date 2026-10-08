@@ -6,6 +6,7 @@ import {
   IMPLEMENTED_STEPS,
   isScriptStep,
   SCRIPT_STAGES,
+  stageBlocks,
   type DirectionAnswers,
   type DirectionQuestion,
 } from "@planificador/ai";
@@ -91,7 +92,9 @@ export async function startScript(
     const doneStage = (stage: string) =>
       current?.stages.find((s) => s.stage === stage && s.status === "succeeded");
     const doneStep = (key: string) =>
-      current?.steps.find((s) => s.step === key && s.status === "succeeded");
+      current?.steps.find(
+        (s) => s.step === key && (s.status === "succeeded" || s.status === "skipped"),
+      );
     const ready = earlier.every((s) =>
       SCRIPT_STAGES.indexOf(s.stage) < stageIndex ? doneStage(s.stage) : doneStep(s.key),
     );
@@ -130,7 +133,9 @@ export async function startScript(
     // pasos, y los pasos ya listos de la etapa desde la que se regenera.
     if (current && earlier.length) {
       const copiedSteps = current.steps.filter(
-        (s) => s.status === "succeeded" && earlier.some((e) => e.key === s.step),
+        (s) =>
+          (s.status === "succeeded" || s.status === "skipped") &&
+          earlier.some((e) => e.key === s.step),
       );
       const earlierStages = SCRIPT_STAGES.slice(0, stageIndex);
       const stageRows = current.stages
@@ -154,10 +159,12 @@ export async function startScript(
           channel_id: row.channel_id,
           stage: spec.stage,
           status: "queued",
-          blocks: IMPLEMENTED_STEPS.flatMap((e) => {
-            const s = partial.find((p) => p.step === e.key);
-            return s ? [{ title: e.title, body: s.body }] : [];
-          }),
+          blocks: stageBlocks(
+            spec.stage,
+            Object.fromEntries(
+              partial.filter((p) => p.status === "succeeded").map((p) => [p.step, p.body]),
+            ),
+          ),
           raw: "",
           usage: {},
           credits: 0,

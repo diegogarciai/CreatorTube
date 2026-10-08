@@ -10,7 +10,11 @@ import {
   parseBlocks,
   previewTail,
   runStep,
+  qualityVerdict,
+  skipsStep,
   STAGE_STEPS,
+  stageBlocks,
+  stepInputs,
   type StageContext,
   type StageProgress,
 } from "../src/stages";
@@ -36,7 +40,7 @@ const ctx: StageContext = {
 };
 
 describe("pasos", () => {
-  it("Estudio en 2 pasos y Guion en 7, con el control de calidad después del teleprompter", () => {
+  it("Estudio en 2 pasos y Guion en 8, con control de calidad y corrección tras el teleprompter", () => {
     expect(STAGE_STEPS.study!.map((s) => s.title)).toEqual([
       "DOSSIER DE ESTUDIO",
       "TARJETAS DE ESTUDIO",
@@ -45,6 +49,7 @@ describe("pasos", () => {
       "ESCALETA",
       "GUION — TELEPROMPTER",
       "CONTROL DE CALIDAD",
+      "GUION — TELEPROMPTER CORREGIDO",
       "GUION CON REELS MARCADOS",
       "VERIFICACIÓN DE DATOS",
       "MOTION GRAPHICS",
@@ -56,6 +61,7 @@ describe("pasos", () => {
       "outline",
       "teleprompter",
       "quality",
+      "revision",
       "reels",
       "fact_check",
       "motion",
@@ -123,14 +129,70 @@ describe("prompts de los pasos", () => {
     expect(outline.shared).toContain("«GUION SIN VERIFICAR — NO GRABAR»");
     expect(outline.shared).toContain("POSTURA: ninguna anotada");
     expect(outline.shared).toContain("Diego saltó la entrevista de dirección");
-    expect(outline.task).toContain("PASO 1 de 7");
+    expect(outline.task).toContain("PASO 1 de 8");
     expect(outline.task).toContain("Sin la tabla 8.8");
     expect(quality.done).toEqual(done);
     expect(quality.task).toContain(
       "Arriba están los bloques de esta etapa que ya quedaron listos.",
     );
-    expect(quality.task).toContain("PASO 3 de 7");
+    expect(quality.task).toContain("PASO 3 de 8");
     expect(quality.task).toContain("### BLOQUE: CONTROL DE CALIDAD — la tabla 8.8");
+  });
+});
+
+describe("control de calidad y corrección", () => {
+  it("lee el veredicto; sin línea, decide por «No cumple»", () => {
+    expect(qualityVerdict("| Gancho | Cumple |\n\nVEREDICTO: CUMPLE")).toBe("pass");
+    expect(qualityVerdict("| Gancho | No cumple |\n**VEREDICTO:** CORREGIR")).toBe("fix");
+    expect(qualityVerdict("veredicto: corregir")).toBe("fix");
+    expect(qualityVerdict("| Gancho | No cumple |")).toBe("fix");
+    expect(qualityVerdict("| Gancho | Cumple |")).toBe("pass");
+    expect(skipsStep("revision", { quality: "VEREDICTO: CUMPLE" })).toBe(true);
+    expect(skipsStep("revision", { quality: "VEREDICTO: CORREGIR" })).toBe(false);
+    expect(skipsStep("reels", { quality: "VEREDICTO: CUMPLE" })).toBe(false);
+  });
+
+  const bodies = {
+    outline: "Escaleta",
+    teleprompter: "Original",
+    quality: "| Ritmo | No cumple |\nVEREDICTO: CORREGIR",
+    revision: "Corregido",
+    reels: "Reels",
+  };
+
+  it("la Corrección ve la tabla; desde Reels, solo el teleprompter final", () => {
+    expect(stepInputs("revision", bodies).map((b) => b.title)).toEqual([
+      "ESCALETA",
+      "GUION — TELEPROMPTER",
+      "CONTROL DE CALIDAD",
+    ]);
+    expect(stepInputs("reels", bodies)).toEqual([
+      { title: "ESCALETA", body: "Escaleta" },
+      { title: "GUION — TELEPROMPTER", body: "Corregido" },
+    ]);
+    expect(stepInputs("motion", bodies).map((b) => b.title)).toEqual([
+      "ESCALETA",
+      "GUION — TELEPROMPTER",
+      "GUION CON REELS MARCADOS",
+    ]);
+    // Corrección saltada: va el original.
+    const skipped = { ...bodies, quality: "VEREDICTO: CUMPLE", revision: "" };
+    expect(stepInputs("reels", skipped)[1]).toEqual({
+      title: "GUION — TELEPROMPTER",
+      body: "Original",
+    });
+    expect(stepInputs("cards", { dossier: "D" })).toEqual([
+      { title: "DOSSIER DE ESTUDIO", body: "D" },
+    ]);
+  });
+
+  it("la etapa entrega el teleprompter final y no la corrección aparte", () => {
+    expect(stageBlocks("script", bodies)).toEqual([
+      { title: "ESCALETA", body: "Escaleta" },
+      { title: "GUION — TELEPROMPTER", body: "Corregido" },
+      { title: "CONTROL DE CALIDAD", body: bodies.quality },
+      { title: "GUION CON REELS MARCADOS", body: "Reels" },
+    ]);
   });
 });
 
@@ -264,7 +326,7 @@ describe("llamada en streaming", () => {
     expect(content[0]!.cache_control).toEqual({ type: "ephemeral" });
     expect(content[1]).toEqual({ type: "text", text: "### BLOQUE: ESCALETA\n1. Gancho" });
     expect(content[2]!.cache_control).toEqual({ type: "ephemeral" });
-    expect(content[3]!.text).toContain("PASO 3 de 7");
+    expect(content[3]!.text).toContain("PASO 3 de 8");
     expect(content[3]!.cache_control).toBeUndefined();
   });
 

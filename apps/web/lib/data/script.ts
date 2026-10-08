@@ -112,7 +112,9 @@ export async function loadScriptView(
     return IMPLEMENTED_STEPS.slice(0, index).every((s) =>
       SCRIPT_STAGES.indexOf(s.stage) < SCRIPT_STAGES.indexOf(spec.stage)
         ? stageDone(s.stage)
-        : stepsOf.some((r) => r.step === s.key && r.status === "succeeded"),
+        : stepsOf.some(
+            (r) => r.step === s.key && (r.status === "succeeded" || r.status === "skipped"),
+          ),
     );
   };
 
@@ -134,7 +136,10 @@ export async function loadScriptView(
         preview: row?.preview ?? null,
         error: row?.error ?? null,
         body,
-        words: spec.key === "teleprompter" && body ? countWords(body) : null,
+        words:
+          (spec.key === "teleprompter" || spec.key === "revision") && body
+            ? countWords(body)
+            : null,
         canRestart: canRestart(IMPLEMENTED_STEPS.indexOf(spec)),
       };
     });

@@ -8,13 +8,16 @@ import {
   pricesFromEnv,
   runStep,
   SCRIPT_STAGES,
+  skipsStep,
+  stageBlocks,
   STAGE_STEPS,
+  stepInputs,
   usageCostUsd,
   usdToCredits,
   type Block,
   type ScriptStage,
   type StageContext,
-  type StepSpec,
+  type StepBodies,
   type StreamClient,
 } from "@planificador/ai";
 import {
@@ -42,7 +45,7 @@ const LABEL: Record<ScriptStage, string> = {
 export const scriptTask = schemaTask({
   id: "script",
   schema: z.object({ taskId: z.uuid() }),
-  // Nueve pasos, más las esperas si Claude está saturado.
+  // Hasta diez pasos, más las esperas si Claude está saturado.
   maxDuration: 3600,
   // runStep ya reintenta la saturación; este reintento, más espaciado, es el
   // respaldo. Los pasos listos no se repiten.
@@ -84,9 +87,34 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
           .eq("run_id", run.id)
           .eq("step", spec.key)
           .maybeSingle();
-        if (existing?.status === "succeeded") continue;
+        if (existing?.status === "succeeded" || existing?.status === "skipped") continue;
 
         const now = new Date().toISOString();
+        const bodies = await stepBodies(db, run.id, stage);
+
+        // Lo que no hace falta (la corrección sin fallas) queda «Sin cambios»,
+        // sin llamar a Claude ni cobrar.
+        if (skipsStep(spec.key, bodies)) {
+          await db.from("script_step_runs").upsert(
+            {
+              run_id: run.id,
+              channel_id: run.channel_id,
+              stage,
+              step: spec.key,
+              status: "skipped",
+              body: "",
+              started_at: now,
+              finished_at: now,
+              error: null,
+              progress_message: null,
+              preview: null,
+            },
+            { onConflict: "run_id,step" },
+          );
+          await syncStage(db, run, stage, {});
+          continue;
+        }
+
         await db
           .from("script_stage_runs")
           .upsert(
@@ -122,7 +150,7 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
           channel: stage === "study" ? null : base.ctx.channel,
           previous: await previousBlocks(db, run.id, stage),
         };
-        const done = await doneBlocks(db, run.id, spec);
+        const done = stepInputs(spec.key, bodies);
 
         let result;
         try {
@@ -187,34 +215,21 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
           .eq("step", spec.key);
 
         // La etapa guarda sus bloques listos, en orden: los usa la etapa siguiente.
-        const stageSteps = STAGE_STEPS[stage]!;
-        const last = stageSteps.at(-1)!.key === spec.key;
-        const { data: rows } = await db
-          .from("script_step_runs")
-          .select("step, status, body, credits")
-          .eq("run_id", run.id)
-          .eq("stage", stage);
-        const blocks = stageSteps.flatMap((s) => {
-          const row = rows?.find((r) => r.step === s.key && r.status === "succeeded");
-          return row ? [{ title: s.title, body: row.body }] : [];
-        });
-        await db
-          .from("script_stage_runs")
-          .update({
-            blocks,
-            credits: (rows ?? []).reduce((sum, r) => sum + Number(r.credits), 0),
-            ...(result.incomplete
-              ? {
-                  status: "incomplete" as const,
-                  error: `${spec.title}: la respuesta se cortó o llegó vacía`,
-                  finished_at: new Date().toISOString(),
-                }
-              : last
-                ? { status: "succeeded" as const, finished_at: new Date().toISOString() }
-                : {}),
-          })
-          .eq("run_id", run.id)
-          .eq("stage", stage);
+        const last = STAGE_STEPS[stage]!.at(-1)!.key === spec.key;
+        await syncStage(
+          db,
+          run,
+          stage,
+          result.incomplete
+            ? {
+                status: "incomplete",
+                error: `${spec.title}: la respuesta se cortó o llegó vacía`,
+                finished_at: new Date().toISOString(),
+              }
+            : last
+              ? { status: "succeeded", finished_at: new Date().toISOString() }
+              : {},
+        );
 
         // Un paso incompleto no alimenta a los siguientes: se regenera desde ahí.
         if (result.incomplete) {
@@ -242,26 +257,48 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
   );
 }
 
-/** Los bloques de la misma etapa que ya quedaron listos antes de este paso. */
-async function doneBlocks(db: ServiceClient, runId: string, spec: StepSpec): Promise<Block[]> {
-  const before = STAGE_STEPS[spec.stage]!.slice(
-    0,
-    STAGE_STEPS[spec.stage]!.findIndex((s) => s.key === spec.key),
-  );
-  if (before.length === 0) return [];
+/** Los textos de los pasos de la etapa que ya quedaron listos. */
+async function stepBodies(
+  db: ServiceClient,
+  runId: string,
+  stage: ScriptStage,
+): Promise<StepBodies> {
   const { data } = await db
     .from("script_step_runs")
     .select("step, body")
     .eq("run_id", runId)
-    .eq("status", "succeeded")
-    .in(
-      "step",
-      before.map((s) => s.key),
-    );
-  return before.flatMap((s) => {
-    const row = data?.find((r) => r.step === s.key);
-    return row ? [{ title: s.title, body: row.body }] : [];
-  });
+    .eq("stage", stage)
+    .eq("status", "succeeded");
+  return Object.fromEntries(
+    (data ?? []).filter((r) => isScriptStep(r.step)).map((r) => [r.step, r.body]),
+  );
+}
+
+/** Copia en la etapa sus bloques listos (con el teleprompter final) y su costo. */
+async function syncStage(
+  db: ServiceClient,
+  run: { id: string },
+  stage: ScriptStage,
+  patch: {
+    status?: "succeeded" | "incomplete";
+    error?: string;
+    finished_at?: string;
+  },
+) {
+  const { data: rows } = await db
+    .from("script_step_runs")
+    .select("credits")
+    .eq("run_id", run.id)
+    .eq("stage", stage);
+  await db
+    .from("script_stage_runs")
+    .update({
+      blocks: stageBlocks(stage, await stepBodies(db, run.id, stage)),
+      credits: (rows ?? []).reduce((sum, r) => sum + Number(r.credits), 0),
+      ...patch,
+    })
+    .eq("run_id", run.id)
+    .eq("stage", stage);
 }
 
 async function previousBlocks(

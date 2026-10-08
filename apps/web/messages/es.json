@@ -610,7 +610,7 @@
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
     "savedToast": "Respuestas guardadas.",
     "skippedToast": "Listo: decide el guionista.",
-    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio en 2 pasos y Guion en 7. Cuesta cerca de {cost}."
+    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio en 2 pasos y Guion en 8. Cuesta cerca de {cost}."
   },
   "script": {
     "title": "Guion",
@@ -645,7 +645,8 @@
       "running": "En curso",
       "succeeded": "Lista",
       "failed": "Falló",
-      "incomplete": "Incompleta"
+      "incomplete": "Incompleta",
+      "skipped": "Sin cambios"
     },
     "stageFailed": "La etapa falló.",
     "failedAt": "La corrida falló en {step}.",
@@ -661,10 +662,13 @@
       "outline": "Escaleta",
       "teleprompter": "Teleprompter",
       "quality": "Control de calidad",
+      "revision": "Corrección",
       "reels": "Reels marcados",
       "fact_check": "Verificación de datos",
       "motion": "Motion graphics",
       "broll": "B-rolls"
-    }
+    },
+    "revisionSkipped": "El control de calidad no encontró nada que corregir: los pasos siguientes usan el teleprompter tal cual.",
+    "revisionNote": "Primera versión. Los pasos siguientes usan la corregida (paso 4, Corrección)."
   }
 }

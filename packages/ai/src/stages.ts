@@ -27,6 +27,7 @@ export const SCRIPT_STEPS = [
   "outline",
   "teleprompter",
   "quality",
+  "revision",
   "reels",
   "fact_check",
   "motion",
@@ -81,7 +82,14 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       "quality",
       "script",
       "CONTROL DE CALIDAD",
-      "la tabla 8.8 aplicada al teleprompter de arriba, criterio por criterio con Cumple o No cumple; por cada No cumple, la frase exacta que hay que cambiar y cómo",
+      "la tabla 8.8 aplicada al teleprompter de arriba, criterio por criterio con Cumple o No cumple; por cada No cumple, la frase exacta que hay que cambiar y cómo. Termina con una sola línea: «VEREDICTO: CUMPLE» si todo cumple, o «VEREDICTO: CORREGIR» si algo no cumple",
+    ),
+    step(
+      "revision",
+      "script",
+      "GUION — TELEPROMPTER CORREGIDO",
+      "el teleprompter de arriba con cada cambio que pide el control de calidad aplicado, y nada más: conserva todo lo que cumple. Texto plano, sin ninguna marca",
+      { plain: true, effort: "high" },
     ),
     step(
       "reels",
@@ -116,6 +124,60 @@ export function stepSpec(key: ScriptStep): StepSpec {
   const spec = SPECS.get(key);
   if (!spec) throw new Error(`El paso ${key} no existe`);
   return spec;
+}
+
+/** Lo que dice el control de calidad: todo cumple, o hay que corregir. */
+export function qualityVerdict(body: string): "pass" | "fix" {
+  const m = /VEREDICTO\s*:\s*\**\s*(CUMPLE|CORREGIR)/i.exec(body);
+  if (m) return m[1]!.toUpperCase() === "CUMPLE" ? "pass" : "fix";
+  return /no\s+cumple/i.test(body) ? "fix" : "pass";
+}
+
+/** Textos de los pasos ya listos, por clave. */
+export type StepBodies = Partial<Record<ScriptStep, string>>;
+
+/** La Corrección se salta cuando el control de calidad no encontró nada. */
+export function skipsStep(key: ScriptStep, bodies: StepBodies): boolean {
+  return key === "revision" && qualityVerdict(bodies.quality ?? "") === "pass";
+}
+
+const AFTER_REVISION: readonly ScriptStep[] = ["reels", "fact_check", "motion", "broll"];
+
+/**
+ * Los bloques de la misma etapa que recibe un paso. Desde Reels en adelante el
+ * teleprompter es el final (el corregido, si lo hay) y la tabla de calidad ya
+ * no va: sus cambios quedaron aplicados.
+ */
+export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
+  const spec = stepSpec(key);
+  const steps = STAGE_STEPS[spec.stage]!;
+  const before = steps.slice(0, steps.indexOf(spec));
+  if (!AFTER_REVISION.includes(key)) {
+    return before.flatMap((s) =>
+      bodies[s.key]?.trim() ? [{ title: s.title, body: bodies[s.key]! }] : [],
+    );
+  }
+  return before.flatMap((s): Block[] => {
+    if (s.key === "quality" || s.key === "revision") return [];
+    if (s.key === "teleprompter") {
+      const body = bodies.revision?.trim() ? bodies.revision : bodies.teleprompter;
+      return body?.trim() ? [{ title: s.title, body }] : [];
+    }
+    return bodies[s.key]?.trim() ? [{ title: s.title, body: bodies[s.key]! }] : [];
+  });
+}
+
+/**
+ * Los bloques que una etapa entrega a las siguientes, en orden: el
+ * teleprompter es el final y la corrección no va aparte.
+ */
+export function stageBlocks(stage: ScriptStage, bodies: StepBodies): Block[] {
+  return (STAGE_STEPS[stage] ?? []).flatMap((s): Block[] => {
+    if (s.key === "revision") return [];
+    const body =
+      s.key === "teleprompter" && bodies.revision?.trim() ? bodies.revision : bodies[s.key];
+    return body?.trim() ? [{ title: s.title, body }] : [];
+  });
 }
 
 /** Los pasos que la app genera, en orden, desde el primero de Estudio. */
