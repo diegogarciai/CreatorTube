@@ -1,26 +1,37 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { directionBlock, type DirectionAnswers, type DirectionQuestion } from "@planificador/ai";
+import {
+  directionBlock,
+  IMPLEMENTED_STEPS,
+  isScriptStep,
+  SCRIPT_STAGES,
+  type DirectionAnswers,
+  type DirectionQuestion,
+} from "@planificador/ai";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
 import { SCRIPT_ESTIMATE_CREDITS } from "../tasks";
 import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 
-const fromStageSchema = z.enum(["study", "script"]);
+/** El paso desde el que se arranca; "study" o "script" valen como su primer paso. */
+function fromStep(from: unknown) {
+  if (isScriptStep(from)) return IMPLEMENTED_STEPS.find((s) => s.key === from);
+  return IMPLEMENTED_STEPS.find((s) => s.stage === from);
+}
 
 /**
- * Arranca una corrida del guion. Desde Estudio corre todo; desde Guion
- * reutiliza el Estudio de la corrida vigente.
+ * Arranca una corrida del guion desde un paso. Los pasos anteriores se copian
+ * de la corrida vigente (su costo ya se cobró); desde el primero corre todo.
  */
 export async function startScript(
   episodeId: string,
-  from: unknown = "study",
+  from: unknown = "dossier",
 ): Promise<ActionResult> {
   try {
-    const fromStage = fromStageSchema.parse(from);
+    const spec = fromStep(from);
+    if (!spec) throw new Error("errors.not_found");
     const user = await requireUser();
     const supabase = await getSupabase();
     const { data: row } = await supabase
@@ -59,7 +70,9 @@ export async function startScript(
     const { data: current } = row.current_script_run_id
       ? await admin
           .from("script_runs")
-          .select("id, status, tasks(status), stages:script_stage_runs(*)")
+          .select(
+            "id, status, tasks(status), stages:script_stage_runs(*), steps:script_step_runs(*)",
+          )
           .eq("id", row.current_script_run_id)
           .maybeSingle()
       : { data: null };
@@ -71,8 +84,18 @@ export async function startScript(
     ) {
       return { ok: true };
     }
-    const study = current?.stages.find((s) => s.stage === "study" && s.status === "succeeded");
-    if (fromStage === "script" && !study) return { ok: false, error: "errors.script_no_study" };
+    // Los pasos anteriores tienen que estar listos. De una etapa anterior
+    // terminada vale la etapa entera (también las corridas de antes de los pasos).
+    const earlier = IMPLEMENTED_STEPS.slice(0, IMPLEMENTED_STEPS.indexOf(spec));
+    const stageIndex = SCRIPT_STAGES.indexOf(spec.stage);
+    const doneStage = (stage: string) =>
+      current?.stages.find((s) => s.stage === stage && s.status === "succeeded");
+    const doneStep = (key: string) =>
+      current?.steps.find((s) => s.step === key && s.status === "succeeded");
+    const ready = earlier.every((s) =>
+      SCRIPT_STAGES.indexOf(s.stage) < stageIndex ? doneStage(s.stage) : doneStep(s.key),
+    );
+    if (!ready) return { ok: false, error: "errors.script_from_missing" };
 
     // Copia fija de la Dirección: si después cambian las respuestas, esta
     // corrida sigue siendo coherente.
@@ -94,7 +117,8 @@ export async function startScript(
         channel_id: row.channel_id,
         episode_id: episodeId,
         guide_version_id: guide.current_version_id,
-        from_stage: fromStage,
+        from_stage: spec.stage,
+        from_step: spec.key,
         direction_block: block,
         created_by: user.id,
       })
@@ -102,21 +126,67 @@ export async function startScript(
       .single();
     if (error) throw error;
 
-    // Regenerar desde Guion: el Estudio pasa tal cual (su costo ya se cobró).
-    if (fromStage === "script" && study) {
-      const { error: copyError } = await admin.from("script_stage_runs").insert({
-        run_id: run.id,
-        channel_id: row.channel_id,
-        stage: "study",
-        status: "succeeded",
-        blocks: study.blocks,
-        raw: study.raw,
-        usage: study.usage,
-        credits: 0,
-        started_at: study.started_at,
-        finished_at: study.finished_at,
-      });
-      if (copyError) throw copyError;
+    // Lo anterior pasa tal cual, sin costo: las etapas terminadas con sus
+    // pasos, y los pasos ya listos de la etapa desde la que se regenera.
+    if (current && earlier.length) {
+      const copiedSteps = current.steps.filter(
+        (s) => s.status === "succeeded" && earlier.some((e) => e.key === s.step),
+      );
+      const earlierStages = SCRIPT_STAGES.slice(0, stageIndex);
+      const stageRows = current.stages
+        .filter((s) => s.status === "succeeded" && earlierStages.includes(s.stage))
+        .map((s) => ({
+          run_id: run.id,
+          channel_id: row.channel_id,
+          stage: s.stage,
+          status: s.status,
+          blocks: s.blocks,
+          raw: s.raw,
+          usage: s.usage,
+          credits: 0,
+          started_at: s.started_at,
+          finished_at: s.finished_at,
+        }));
+      const partial = copiedSteps.filter((s) => s.stage === spec.stage);
+      if (partial.length) {
+        stageRows.push({
+          run_id: run.id,
+          channel_id: row.channel_id,
+          stage: spec.stage,
+          status: "queued",
+          blocks: IMPLEMENTED_STEPS.flatMap((e) => {
+            const s = partial.find((p) => p.step === e.key);
+            return s ? [{ title: e.title, body: s.body }] : [];
+          }),
+          raw: "",
+          usage: {},
+          credits: 0,
+          started_at: null,
+          finished_at: null,
+        });
+      }
+      if (stageRows.length) {
+        const { error: copyError } = await admin.from("script_stage_runs").insert(stageRows);
+        if (copyError) throw copyError;
+      }
+      if (copiedSteps.length) {
+        const { error: copyError } = await admin.from("script_step_runs").insert(
+          copiedSteps.map((s) => ({
+            run_id: run.id,
+            channel_id: row.channel_id,
+            stage: s.stage,
+            step: s.step,
+            status: s.status,
+            body: s.body,
+            raw: s.raw,
+            usage: s.usage,
+            credits: 0,
+            started_at: s.started_at,
+            finished_at: s.finished_at,
+          })),
+        );
+        if (copyError) throw copyError;
+      }
     }
 
     await admin.from("episodes").update({ current_script_run_id: run.id }).eq("id", episodeId);

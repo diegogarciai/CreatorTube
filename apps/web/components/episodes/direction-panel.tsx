@@ -196,7 +196,7 @@ function DirectionForm({
     start(async () => {
       const saved = await saveDirection(episodeId, { answers, extra, skip: false });
       if (!saved.ok) return void toast.error(errorText(saved.error));
-      const res = await startScript(episodeId, "study");
+      const res = await startScript(episodeId, "dossier");
       if (!res.ok) toast.error(errorText(res.error));
       router.refresh();
       document.getElementById("guion")?.scrollIntoView({ behavior: "smooth" });

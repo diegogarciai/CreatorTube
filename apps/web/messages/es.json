@@ -517,11 +517,11 @@
     "direction_no_guide": "El canal no tiene guía del guionista. Pégala en Ajustes del canal.",
     "no_credits": "No te alcanzan los créditos de IA de este mes.",
     "script_needs_direction": "Primero responde o salta las preguntas de dirección.",
-    "script_no_study": "Para regenerar desde Guion hace falta un Estudio listo.",
     "ai_overloaded": "Claude está saturado en este momento; espera unos minutos.",
     "ai_rate_limited": "Se alcanzó el límite de uso de la API de Claude; espera unos minutos.",
     "ai_unavailable": "Claude no respondió; espera unos minutos.",
-    "ai_refusal": "El modelo no quiso responder este tema."
+    "ai_refusal": "El modelo no quiso responder este tema.",
+    "script_from_missing": "Para regenerar desde ese paso hacen falta los anteriores listos."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -610,15 +610,14 @@
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
     "savedToast": "Respuestas guardadas.",
     "skippedToast": "Listo: decide el guionista.",
-    "generateHint": "Guarda tus respuestas y arranca Estudio y Guion. Cuesta cerca de {cost}."
+    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio en 2 pasos y Guion en 7. Cuesta cerca de {cost}."
   },
   "script": {
     "title": "Guion",
-    "subtitle": "Se genera en etapas con tu guía del guionista: Estudio, Guion, Verificación, Publicación y Podcast. Cada etapa recibe solo sus reglas y el material de las anteriores.",
+    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada bloque es un paso que empieza cuando termina el anterior y recibe solo sus reglas y lo ya escrito.",
     "needsDirection": "Responde o salta la dirección de arriba para generar el guion.",
     "generate": "Generar guion",
     "estimate": "Cuesta cerca de {cost} de tus créditos.",
-    "regenerateFrom": "Regenerar desde {stage}",
     "running": "Generando…",
     "queued": "En cola…",
     "failed": "La corrida falló.",
@@ -632,7 +631,7 @@
     "copied": "Copiado.",
     "words": "{words} palabras · objetivo {target} ({minutes} min)",
     "history": "Corridas",
-    "historyRow": "{date} · desde {stage} · {model} · {cost}",
+    "historyRow": "{date} · desde {from} · {model} · {cost}",
     "current": "vigente",
     "stage": {
       "study": "Estudio",
@@ -649,7 +648,23 @@
       "incomplete": "Incompleta"
     },
     "stageFailed": "La etapa falló.",
-    "failedAt": "La corrida falló en {stage}.",
-    "preview": "Vista previa"
+    "failedAt": "La corrida falló en {step}.",
+    "preview": "Vista previa",
+    "regenerateAll": "Regenerar todo",
+    "regenerateHere": "Regenerar desde este paso",
+    "waiting": "En espera: empieza cuando termine «{previous}».",
+    "stages": "Etapas del guion",
+    "steps": "Pasos de la etapa",
+    "step": {
+      "dossier": "Dossier",
+      "cards": "Tarjetas",
+      "outline": "Escaleta",
+      "teleprompter": "Teleprompter",
+      "quality": "Control de calidad",
+      "reels": "Reels marcados",
+      "fact_check": "Verificación de datos",
+      "motion": "Motion graphics",
+      "broll": "B-rolls"
+    }
   }
 }
