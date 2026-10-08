@@ -61,6 +61,7 @@ export function VerificationTable({
   canEdit,
   onRedo,
   redoCost,
+  continuing = false,
   pending,
 }: {
   episodeId: string;
@@ -71,6 +72,8 @@ export function VerificationTable({
   /** Rehacer el guion verificado con las decisiones; null si no se puede ahora. */
   onRedo: (() => void) | null;
   redoCost: string;
+  /** La corrida espera las decisiones para escribir el guion verificado por primera vez. */
+  continuing?: boolean;
   pending: boolean;
 }) {
   const t = useTranslations("verification");
@@ -131,15 +134,21 @@ export function VerificationTable({
           <span className="text-muted">{t("summary", { decided, undecided })}</span>
           {onRedo ? (
             <>
-              <Button size="sm" onClick={onRedo} disabled={pending || decided === 0}>
+              <Button
+                size="sm"
+                onClick={onRedo}
+                disabled={pending || (!continuing && decided === 0)}
+              >
                 {pending ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <RotateCcw className="size-4" />
                 )}
-                {t("redo")}
+                {continuing ? t("continue") : t("redo")}
               </Button>
-              <span className="text-xs text-muted">{t("redoHint", { cost: redoCost })}</span>
+              <span className="text-xs text-muted">
+                {continuing ? t("continueHint") : t("redoHint", { cost: redoCost })}
+              </span>
             </>
           ) : null}
         </div>

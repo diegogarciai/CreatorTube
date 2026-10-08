@@ -3,6 +3,8 @@ import { APIError } from "@anthropic-ai/sdk";
 import {
   blockingClaims,
   needsDecision,
+  pauseAfterFix,
+  pauseAfterVerify,
   checkEvidence,
   extractClaims,
   normalizeUrl,
@@ -379,5 +381,32 @@ describe("tabla", () => {
       "- #5 (Afirmación 5): dejar ___DATO POR CONFIRMAR___",
     ]);
     expect(verificationTable([claim(1, { status: "unverifiable" })])).not.toContain("Decisiones");
+  });
+
+  it("pausa tras Verificar con filas sin decidir; tras el guion verificado, salvo ___DATO a propósito", () => {
+    const ok = claim(1, { status: "verified" });
+    const bad = claim(2, { status: "unverifiable" });
+    const dato = claim(3, { kind: "dato", status: "unverifiable" });
+    expect(pauseAfterVerify([])).toBe(false);
+    expect(pauseAfterVerify([ok])).toBe(false);
+    expect(pauseAfterVerify([ok, bad])).toBe(true);
+    expect(pauseAfterVerify([{ ...bad, decision: "remove" }])).toBe(false);
+
+    const withDato = "Llega el ___DATO POR CONFIRMAR___.";
+    expect(pauseAfterFix("Sin pendientes.", [bad])).toBe(false);
+    // Nadie decidió: decide Claude y se revisa antes de seguir.
+    expect(pauseAfterFix(withDato, [bad, dato])).toBe(true);
+    // Todo decidido y el dato se dejó marcado a propósito: sigue.
+    expect(
+      pauseAfterFix(withDato, [
+        { ...bad, decision: "remove" },
+        { ...dato, decision: "mark" },
+      ]),
+    ).toBe(false);
+    // Todo decidido pero ninguno como marcado: el ___DATO salió de otro lado.
+    expect(pauseAfterFix(withDato, [{ ...bad, decision: "remove" }])).toBe(true);
+    // Una fila quedó en manos de Claude.
+    expect(pauseAfterFix(withDato, [bad, { ...dato, decision: "mark" }])).toBe(true);
+    expect(pauseAfterFix(withDato, [])).toBe(true);
   });
 });

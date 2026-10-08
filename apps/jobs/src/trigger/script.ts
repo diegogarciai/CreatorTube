@@ -10,6 +10,8 @@ import {
   findBlock,
   IMPLEMENTED_STEPS,
   isScriptStep,
+  pauseAfterFix,
+  pauseAfterVerify,
   pendingDatos,
   pricesFromEnv,
   runStep,
@@ -304,10 +306,16 @@ export async function runScript(
           return { stopped: spec.key };
         }
 
-        // Regla de bloqueo (10.4): si el guion verificado quedó con datos por
-        // confirmar, la corrida se pausa antes de los motion graphics y espera la
-        // decisión del presentador. Así no se paga material que puede cambiar.
-        if (spec.key === "fix" && pendingDatos(result.body).length) {
+        // Regla de bloqueo (10.4): la corrida espera al presentador
+        // - al terminar Verificar, si hay filas que piden decisión y no la
+        //   tienen: el guion verificado se escribe una sola vez, con lo decidido;
+        // - después del guion verificado, si quedaron ___DATO que nadie dejó así
+        //   a propósito: no se paga lo que sigue sobre datos sin revisar.
+        const pause =
+          spec.key === "verify"
+            ? pauseAfterVerify(await loadClaims(db, run.id))
+            : spec.key === "fix" && pauseAfterFix(result.body, await loadClaims(db, run.id));
+        if (pause) {
           await db
             .from("script_runs")
             .update({ status: "paused", finished_at: new Date().toISOString() })

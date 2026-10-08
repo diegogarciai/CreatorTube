@@ -71,6 +71,9 @@ export function ScriptPanel({
   const router = useRouter();
   const [pending, start] = useTransition();
   const { run, stages, history, verification, podcastReady, suggestion } = view;
+  const fixStep = stages.flatMap((s) => s.steps).find((s) => s.key === "fix");
+  // En pausa antes del guion verificado: espera las decisiones de la tabla.
+  const pausedAtVerify = run?.status === "paused" && !fixStep?.body;
   const active = run?.status === "queued" || run?.status === "running";
   // Una corrida que no empieza en el Podcast termina al cerrar Publicación.
   const podcastInRun = run?.fromStage === "podcast";
@@ -170,7 +173,6 @@ export function ScriptPanel({
   };
   const index = currentStage.steps.findIndex((s) => s.key === currentStep?.key);
   const isPodcast = currentStage.stage === "podcast";
-  const fixStep = stages.flatMap((s) => s.steps).find((s) => s.key === "fix");
   const podcastDone = isPodcast && currentStage.steps.some((s) => s.body);
   const stepActive = active && (!isPodcast || podcastInRun);
 
@@ -212,7 +214,32 @@ export function ScriptPanel({
           </p>
         ) : null}
 
-        {run?.status === "paused" ? (
+        {pausedAtVerify ? (
+          <div
+            role="alert"
+            className="space-y-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-3 text-sm"
+          >
+            <p className="font-semibold text-warn">
+              {t("pausedVerifyTitle", { count: verification.undecided })}
+            </p>
+            <p className="text-muted">{t("pausedVerifyHint")}</p>
+            {canEdit ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setSel({ stage: "verification", step: "verify" })}
+                >
+                  {t("decideInTable")}
+                </Button>
+                <Button size="sm" onClick={() => generate("fix")} disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {t("continueWithDecisions")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : run?.status === "paused" ? (
           <div
             role="alert"
             className="space-y-2 rounded-lg border border-warn/40 bg-warn-soft px-3 py-3 text-sm"
@@ -447,6 +474,7 @@ export function ScriptPanel({
                                   : null
                               }
                               redoCost={usd(FIX_REDO_ESTIMATE_CREDITS)}
+                              continuing={pausedAtVerify}
                               pending={pending}
                             />
                           ) : undefined
