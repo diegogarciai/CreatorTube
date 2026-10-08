@@ -181,6 +181,21 @@ describe("assets en JSON", () => {
     expect(parseAssets("no es json")).toBeNull();
     expect(parseAssets('{"titulos": []}')).toBeNull();
     expect(parseAssets(null)).toBeNull();
+    // Un JSON guardado antes de que existiera el ángulo sigue sirviendo.
+    const thumb = {
+      texto: "8 GB vs 16 GB",
+      escena: "e",
+      expresion: "x",
+      protagonista: "p",
+      composicion: "c",
+      ayuda_visual: "a",
+      emocion: "m",
+      titulo: "t",
+      texto_alternativo: "alt",
+    };
+    expect(
+      parseAssets(JSON.stringify({ ...assets, miniaturas: [thumb] }))?.miniaturas[0]?.angulo,
+    ).toBe("");
   });
 
   it("limpia las keywords: sin vacías ni repetidas, máximo 8", () => {

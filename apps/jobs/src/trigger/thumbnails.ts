@@ -323,6 +323,7 @@ export async function runThumbnails(
               mime: "image/jpeg",
               design,
               text,
+              topic: episode.title,
               verdict: assets.postura,
             });
             const usd = ai.costUsd(out.usage, out.model);

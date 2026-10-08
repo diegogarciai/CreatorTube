@@ -136,10 +136,10 @@ export const DEFAULT_BRAND_KIT: BrandKit = {
     safeZone: { top: 250, bottom: 340, left: 0, right: 120 },
   },
   thumbnailStyle: [
-    "Tres miniaturas, una promesa: A la pregunta, B el dato (solo si está verificado), C el veredicto con postura.",
+    "Tres ángulos totalmente distintos de la idea central del episodio (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…): cada uno cambia la motivación, la emoción, la escena y el texto, sin perder el foco en el tema central, sin contradecir el veredicto y sin prometer lo que el video no entrega. Toda cifra en pantalla está verificada.",
     "Texto de 2 a 4 palabras en dos líneas, casi la mitad del ancho, en blanco con una sola palabra clave en naranja; nunca amarillo.",
     "Fondo oscuro y luz cálida con halo naranja. Sin flechas, emojis, marcos ni logos inventados.",
-    "El presentador con expresión natural, nunca cara de asombro; de medio cuerpo al menos en el veredicto.",
+    "El presentador con expresión natural, nunca cara de asombro; de medio cuerpo en al menos una de las tres.",
     "Sombra suave y negra solo para que se lea el texto. Baldosa G. como marca de agua. 1280 × 720 y menos de 2 MB.",
   ].join(" "),
   logoPath: null,

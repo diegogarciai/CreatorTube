@@ -19,6 +19,7 @@ const usage = {
 };
 
 const design: ThumbnailDesign = {
+  angulo: "El dinero",
   texto: "¿Pagar más por RAM?",
   escena: "Diego con dos portátiles",
   expresion: "duda",
@@ -106,6 +107,9 @@ describe("brief de las miniaturas", () => {
     ]);
     const user = (calls[0]!.messages as { content: string }[])[0]!.content;
     expect(user).toContain("Miniatura A (idx 0)");
+    expect(user).toContain("ángulo: El dinero");
+    expect(user).toContain("Tema central del episodio: RAM");
+    expect(String(calls[0]!.system)).toContain("tres ángulos totalmente distintos");
     expect(user).toContain("Indicación del presentador para esta versión: más cerca");
     expect(String(calls[0]!.system)).toContain("nunca lleva letras");
   });
@@ -160,6 +164,7 @@ describe("calificación", () => {
         mime: "image/jpeg",
         design,
         text: { lines: ["¿Pagar más", "por RAM?"], accent: "RAM?" },
+        topic: "¿Vale la pena 16 GB?",
         verdict: "16 GB sí",
       },
     );
@@ -171,6 +176,9 @@ describe("calificación", () => {
       type: "image",
       source: { data: Buffer.from("jpg").toString("base64") },
     });
+    expect(JSON.stringify(content[1])).toContain("Ángulo de esta miniatura: El dinero");
+    expect(JSON.stringify(content[1])).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
+    expect(String(calls[0]!.system)).toContain("- angle:");
   });
 });
 

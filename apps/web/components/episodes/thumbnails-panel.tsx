@@ -351,7 +351,7 @@ function DesignCard({
         title={
           <span className="flex items-center gap-2">
             <Badge tone="accent">{design.letter}</Badge>
-            {t(`angle.${design.letter as "A"}`)}
+            {design.angle || t("thumbnail", { letter: design.letter })}
             {current?.chosen ? (
               <Badge tone="ok">
                 <Star className="size-3 fill-current" /> {t("chosen")}

@@ -15,7 +15,10 @@ import type { StreamClient } from "./stages";
 export type ThumbnailDesign = PublicationAssets["miniaturas"][number];
 export type TextSide = "left" | "right";
 
-/** El sistema A/B/C del manual: la pregunta, el dato y el veredicto. */
+/**
+ * Letras para «Probar y comparar» de YouTube. No tienen un papel fijo: cada
+ * miniatura es un ángulo distinto de la idea central del episodio.
+ */
 export const THUMBNAIL_LETTERS = ["A", "B", "C"] as const;
 export const thumbnailLetter = (idx: number) => THUMBNAIL_LETTERS[idx] ?? String(idx + 1);
 
@@ -96,12 +99,13 @@ export async function thumbnailBriefs(
   const system = [
     "Diriges el arte de las miniaturas de YouTube de un canal de tecnología. Para cada miniatura escribes el brief de la imagen y repartes el texto.",
     "La imagen la genera otro modelo a partir de fotos reales del presentador; el texto lo pone después la app con la tipografía de la marca. Por eso la escena nunca lleva letras, números, logos, flechas, emojis ni marcos.",
-    "Estilo de la marca: fondo oscuro, luz cálida lateral y un halo naranja detrás; expresión natural, nunca cara de asombro; el presentador de medio cuerpo al menos en el veredicto; el producto real, grande e idéntico a sus fotos si las hay.",
+    "Las tres miniaturas son tres ángulos totalmente distintos de la idea central del episodio (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…). Cada ángulo cambia la motivación, la emoción, la escena y el texto, pero las tres hablan del mismo tema central y se entienden sin el título. Ningún ángulo contradice el veredicto ni promete lo que el video no entrega.",
+    "Estilo de la marca: fondo oscuro, luz cálida lateral y un halo naranja detrás; expresión natural, nunca cara de asombro; el presentador de medio cuerpo en al menos una de las tres; el producto real, grande e idéntico a sus fotos si las hay.",
     "La escena deja libre casi la mitad del ancho del lado del texto, con fondo oscuro y limpio para que se lea. Las tres miniaturas no repiten la misma distribución.",
     "El texto usa exactamente las palabras del campo «texto» de la miniatura, en 2 líneas, y una sola palabra en naranja: la que carga la emoción o el dato.",
   ].join("\n");
   const user = [
-    `Episodio: ${input.episodeTitle}`,
+    `Tema central del episodio: ${input.episodeTitle}`,
     `Veredicto del guion: ${input.verdict || "(sin veredicto)"}`,
     `Presentador: ${input.presenter}`,
     `Fotos del producto disponibles: ${input.productRefs}`,
@@ -110,6 +114,7 @@ export async function thumbnailBriefs(
     ...input.designs.map(({ idx, design, note }) =>
       [
         `## Miniatura ${thumbnailLetter(idx)} (idx ${idx})`,
+        ...(design.angulo?.trim() ? [`ángulo: ${design.angulo.trim()}`] : []),
         `texto: ${design.texto}`,
         `escena: ${design.escena}`,
         `expresión: ${design.expresion}`,
@@ -184,6 +189,7 @@ export function imagePrompt(input: {
 }
 
 export const SCORE_CRITERIA = [
+  "angle",
   "scroll",
   "product",
   "text",
@@ -218,12 +224,14 @@ export async function scoreThumbnail(
     mime: string;
     design: ThumbnailDesign;
     text: ThumbnailText;
+    topic: string;
     verdict: string;
   },
 ): Promise<{ score: ThumbnailScore; usage: UsageTotals; model: string }> {
   const system = [
     "Calificas miniaturas de YouTube de un canal de tecnología con las reglas del canal. Respondes en español.",
     "Criterios (uno por clave):",
+    "- angle: cuenta su ángulo con claridad y sin perder el foco en el tema central del episodio.",
     "- scroll: vista sola en el celular, sin el título, dice en un segundo de qué se habla.",
     "- product: el producto real se ve grande y reconocible.",
     "- text: 2 a 4 palabras legibles que nombran algo concreto (producto, componente, cifra o precio), una sola palabra en naranja y nunca amarillo.",
@@ -253,6 +261,8 @@ export async function scoreThumbnail(
           {
             type: "text",
             text: [
+              `Tema central del episodio: ${input.topic}`,
+              `Ángulo de esta miniatura: ${input.design.angulo || "(sin nombre)"}`,
               `Texto de la miniatura: ${input.text.lines.join(" / ")} (en naranja: ${input.text.accent})`,
               `Escena pedida: ${input.design.escena}`,
               `Emoción buscada: ${input.design.emocion}`,

@@ -14,6 +14,11 @@ const assetsSchema = z.object({
   titulos: z.array(z.string()).describe("Los 3 títulos de los assets, de máximo 60 caracteres."),
   miniaturas: z.array(
     z.object({
+      angulo: z
+        .string()
+        .describe(
+          "El ángulo de la miniatura en 1 a 4 palabras: el dinero, el error, la comparación, el mito, el uso real, para quién sí…",
+        ),
       texto: z.string(),
       escena: z.string(),
       expresion: z.string(),
@@ -43,6 +48,13 @@ const assetsSchema = z.object({
 });
 
 export type PublicationAssets = z.infer<typeof assetsSchema>;
+
+// Lo guardado antes de que existiera el ángulo sigue siendo válido.
+const storedAssetsSchema = assetsSchema.extend({
+  miniaturas: z.array(
+    assetsSchema.shape.miniaturas.element.extend({ angulo: z.string().default("") }),
+  ),
+});
 
 export interface AssetsPrompt {
   system: string;
@@ -77,6 +89,7 @@ export async function extractAssets(
               "PASO 4 de 4. Pasa a JSON los assets y la ficha de arriba, sin cambiar lo que ya dicen: títulos, miniaturas, descripción, capítulos, etiquetas, comentario fijado, fuentes, postura, tipo y público.",
               "Agrega de 6 a 8 keywords: lo que la gente escribe en el buscador para encontrar este video, en minúsculas.",
               "Elige el pilar del episodio entre los pilares del canal, con su nombre exacto.",
+              "En cada miniatura, nombra su ángulo: las tres son ángulos distintos de la idea central del episodio.",
             ].join("\n"),
           },
         ],
@@ -101,7 +114,7 @@ export async function extractAssets(
 export function parseAssets(body: string | null | undefined): PublicationAssets | null {
   if (!body?.trim()) return null;
   try {
-    const out = assetsSchema.safeParse(JSON.parse(body));
+    const out = storedAssetsSchema.safeParse(JSON.parse(body));
     return out.success ? out.data : null;
   } catch {
     return null;

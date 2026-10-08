@@ -27,6 +27,8 @@ export type ThumbnailVersion = {
 export type ThumbnailDesignView = {
   idx: number;
   letter: string;
+  /** El ángulo de la miniatura (el dinero, el error…); vacío en JSON viejos. */
+  angle: string;
   title: string;
   text: string;
   scene: string;
@@ -141,6 +143,7 @@ export async function loadThumbnailsView(episode: {
     designs: (assets?.miniaturas ?? []).slice(0, 3).map((d, idx) => ({
       idx,
       letter: thumbnailLetter(idx),
+      angle: d.angulo,
       title: d.titulo,
       text: d.texto,
       scene: d.escena,

@@ -964,7 +964,7 @@
   },
   "thumbnails": {
     "title": "Miniaturas",
-    "description": "Tres miniaturas para «Probar y comparar»: Gemini pinta la imagen con tus fotos, la app pone el texto de la marca y Claude la califica.",
+    "description": "Tres ángulos distintos de la idea central del episodio para «Probar y comparar»: Gemini pinta la imagen con tus fotos, la app pone el texto de la marca y Claude la califica.",
     "missingAssets": "Las miniaturas salen del JSON de Publicación. Genera primero el guion hasta Publicación.",
     "goToScript": "Ir al guion",
     "generateAll": "Generar las tres",
@@ -980,11 +980,6 @@
     "deleteRef": "Borrar foto del producto",
     "deleteRefConfirm": "¿Borrar esta foto del producto?",
     "noRefs": "Sin fotos del producto.",
-    "angle": {
-      "A": "La pregunta",
-      "B": "El dato",
-      "C": "El veredicto"
-    },
     "text": "Texto",
     "imageAlt": "Miniatura {letter}",
     "notGenerated": "Sin generar",
@@ -1017,6 +1012,7 @@
     "download": "Descargar",
     "score": "{score}/10",
     "criteria": {
+      "angle": "Ángulo",
       "scroll": "Prueba del scroll",
       "product": "Producto",
       "text": "Texto",
@@ -1025,6 +1021,7 @@
       "contrast": "Contraste",
       "verdict": "Veredicto",
       "clean": "Limpia"
-    }
+    },
+    "thumbnail": "Miniatura {letter}"
   }
 }
