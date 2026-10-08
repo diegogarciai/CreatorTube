@@ -3,19 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
-import type { Tables } from "@planificador/db";
 import { createClient } from "@/lib/supabase/browser";
+import { isActive, mergeTasks, type TaskRow } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
 import { cn } from "@/lib/utils";
-
-type TaskRow = Pick<
-  Tables<"tasks">,
-  "id" | "kind" | "status" | "progress" | "message" | "error" | "created_at" | "finished_at"
->;
 
 const COLUMNS = "id, kind, status, progress, message, error, created_at, finished_at";
 /** Lo terminado se ve 10 minutos; lo que corre, siempre. */
 const RECENT_MS = 10 * 60 * 1000;
+/** Mientras algo corre, se relee la tabla por si se perdió un evento en vivo. */
+const POLL_MS = 5000;
 
 /**
  * Bandeja de tareas largas: lo que corre en los espacios de la persona, en
@@ -36,14 +33,14 @@ export function TaskTray() {
       .gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())
       .order("created_at", { ascending: false })
       .limit(10)
-      .then(({ data }) => alive && data && setRows(data));
+      .then(({ data }) => alive && data && setRows((prev) => mergeTasks(prev, data)));
 
     const channel = supabase
       .channel("task-tray")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, (change) => {
         const row = change.new as TaskRow;
         if (!row?.id) return;
-        setRows((prev) => [row, ...prev.filter((r) => r.id !== row.id)].slice(0, 10));
+        setRows((prev) => mergeTasks(prev, [row]));
       })
       .subscribe();
     const tick = setInterval(() => setNow(Date.now()), 30_000);
@@ -54,11 +51,22 @@ export function TaskTray() {
     };
   }, [supabase]);
 
+  // Respaldo: si un evento en vivo se pierde, la fila se corrige en segundos.
+  const activeIds = rows
+    .filter(isActive)
+    .map((r) => r.id)
+    .join(",");
+  useEffect(() => {
+    if (!activeIds) return;
+    const timer = setInterval(async () => {
+      const { data } = await supabase.from("tasks").select(COLUMNS).in("id", activeIds.split(","));
+      if (data) setRows((prev) => mergeTasks(prev, data));
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [supabase, activeIds]);
+
   const visible = rows.filter(
-    (r) =>
-      r.status === "queued" ||
-      r.status === "running" ||
-      now - new Date(r.finished_at ?? r.created_at).getTime() < RECENT_MS,
+    (r) => isActive(r) || now - new Date(r.finished_at ?? r.created_at).getTime() < RECENT_MS,
   );
   if (visible.length === 0) return null;
 
