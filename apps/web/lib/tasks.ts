@@ -37,5 +37,8 @@ export function mergeTasks(prev: readonly TaskRow[], incoming: readonly TaskRow[
 /** Lo que cuesta, a lo sumo, preparar las preguntas de dirección (créditos de US$0,01). */
 export const DIRECTION_ESTIMATE_CREDITS = 5;
 
-/** Lo que cuesta, más o menos, generar Estudio, Guion y Verificación paso a paso. */
-export const SCRIPT_ESTIMATE_CREDITS = 150;
+/** Lo que cuesta, más o menos, generar Estudio, Guion, Verificación y Publicación paso a paso. */
+export const SCRIPT_ESTIMATE_CREDITS = 200;
+
+/** Lo que cuesta, más o menos, generar el Podcast desde el guion verificado. */
+export const PODCAST_ESTIMATE_CREDITS = 30;

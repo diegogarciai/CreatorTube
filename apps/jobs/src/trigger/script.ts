@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   aiConfigFromEnv,
   buildStepPrompt,
+  episodePatchFromAssets,
+  extractAssets,
   extractClaims,
   findBlock,
   IMPLEMENTED_STEPS,
@@ -11,6 +13,7 @@ import {
   pendingDatos,
   pricesFromEnv,
   runStep,
+  runSteps,
   SCRIPT_STAGES,
   skipsStep,
   stageBlocks,
@@ -23,6 +26,7 @@ import {
   type AiConfig,
   type Block,
   type Claim,
+  type Pillar,
   type ScriptStage,
   type SearchFn,
   type StageContext,
@@ -58,7 +62,8 @@ const LABEL: Record<ScriptStage, string> = {
 export const scriptTask = schemaTask({
   id: "script",
   schema: z.object({ taskId: z.uuid() }),
-  // Doce pasos con la verificación, más las esperas si Claude está saturado.
+  // Hasta dieciséis pasos con verificación y publicación, más las esperas si
+  // Claude está saturado.
   maxDuration: 3600,
   // runStep ya reintenta la saturación; este reintento, más espaciado, es el
   // respaldo. Los pasos listos no se repiten.
@@ -101,10 +106,11 @@ export async function runScript(
         .eq("id", run.id);
 
       // Desde el paso pedido; si no hay, desde el primero de la etapa de inicio.
+      // Hasta Publicación: el Podcast corre solo si la corrida empieza en él.
       const first = isScriptStep(run.from_step)
-        ? IMPLEMENTED_STEPS.findIndex((s) => s.key === run.from_step)
-        : IMPLEMENTED_STEPS.findIndex((s) => s.stage === run.from_stage);
-      const steps = IMPLEMENTED_STEPS.slice(Math.max(first, 0));
+        ? run.from_step
+        : (IMPLEMENTED_STEPS.find((s) => s.stage === run.from_stage)?.key ?? "dossier");
+      const steps = runSteps(first);
       const base = await loadStageBase(db, run);
 
       for (const [i, spec] of steps.entries()) {
@@ -184,8 +190,10 @@ export async function runScript(
           ...base.ctx,
           guideSections: sectionsText(base.sections, base.stageSections[spec.guide] ?? []),
           channel: stage === "study" ? null : base.ctx.channel,
-          // La verificación recibe el guion por sus entradas, no el material entero.
-          previous: stage === "verification" ? [] : await previousBlocks(db, run.id, stage),
+          // Desde Verificación cada paso recibe por sus entradas lo que usa, no
+          // el material entero de las etapas anteriores.
+          previous:
+            stage === "study" || stage === "script" ? await previousBlocks(db, run.id, stage) : [],
         };
         const done = stepInputs(spec.key, bodies);
         const progress = async (message: string, preview?: string) => {
@@ -221,6 +229,7 @@ export async function runScript(
                 ctx,
                 bodies,
                 searcher,
+                pillars: base.pillars,
                 progress,
               })
             : await runTextStep({ db, run, taskId, client, config, spec, ctx, done, progress });
@@ -402,11 +411,45 @@ const claimRow = (c: Claim) => ({
 
 /**
  * Los pasos que no son un bloque de texto: extraer las afirmaciones y
- * verificarlas con búsqueda, de 4 en 4 (los ___DATO, de uno en uno).
+ * verificarlas con búsqueda, de 4 en 4 (los ___DATO, de uno en uno), y los
+ * assets en JSON, que llenan las keywords y el pilar del episodio.
  */
-async function runSpecialStep(args: StepArgs & { bodies: StepBodies; searcher: () => Searcher }) {
+async function runSpecialStep(
+  args: StepArgs & { bodies: StepBodies; searcher: () => Searcher; pillars: Pillar[] },
+) {
   const { db, run, client, config, spec, ctx, bodies, progress } = args;
   const prompt = buildStepPrompt(spec.key, ctx, []);
+
+  if (spec.key === "assets_json") {
+    await progress("armando el JSON");
+    const out = await extractAssets(client, config, {
+      system: prompt.system,
+      shared: prompt.shared,
+      blocks: stepInputs("assets_json", bodies),
+    });
+    // Keywords y pilar solo si el episodio no los tiene; si ya tiene, el
+    // panel los muestra como sugerencia.
+    const { data: episode } = await db
+      .from("episodes")
+      .select("keywords, pillar_id")
+      .eq("id", run.episode_id)
+      .single();
+    if (episode) {
+      const { patch } = episodePatchFromAssets(episode, out.assets, args.pillars);
+      if (Object.keys(patch).length) {
+        const { error } = await db.from("episodes").update(patch).eq("id", run.episode_id);
+        if (error) throw error;
+      }
+    }
+    const body = JSON.stringify(out.assets, null, 2);
+    return {
+      body,
+      raw: body,
+      usage: out.usage,
+      credits: await charge(args, out.usage, out.model),
+      incomplete: false,
+    };
+  }
 
   if (spec.key === "claims") {
     await progress("leyendo el guion");
@@ -632,27 +675,38 @@ type RunRow = {
 
 /** Lo que comparten todas las etapas de una corrida. */
 async function loadStageBase(db: ServiceClient, run: RunRow) {
-  const [{ data: channel }, { data: episode }, { data: version }, { data: dist }] =
-    await Promise.all([
-      db.from("channels").select("name, timezone, profile").eq("id", run.channel_id).single(),
-      db
-        .from("episodes")
-        .select(
-          "code, title, stance, stance_confirmed, notes, target_minutes, episode_type, own_measurements, sponsorship, pillar:pillars(name)",
-        )
-        .eq("id", run.episode_id)
-        .single(),
-      db
-        .from("writer_guide_versions")
-        .select("sections, stage_sections")
-        .eq("id", run.guide_version_id ?? "")
-        .maybeSingle(),
-      db
-        .from("distribution_settings")
-        .select("newsletter_name")
-        .eq("channel_id", run.channel_id)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: channel },
+    { data: episode },
+    { data: version },
+    { data: dist },
+    { data: pillars },
+  ] = await Promise.all([
+    db.from("channels").select("name, timezone, profile").eq("id", run.channel_id).single(),
+    db
+      .from("episodes")
+      .select(
+        "code, title, stance, stance_confirmed, notes, target_minutes, episode_type, own_measurements, sponsorship, pillar:pillars(name)",
+      )
+      .eq("id", run.episode_id)
+      .single(),
+    db
+      .from("writer_guide_versions")
+      .select("sections, stage_sections")
+      .eq("id", run.guide_version_id ?? "")
+      .maybeSingle(),
+    db
+      .from("distribution_settings")
+      .select("newsletter_name, podcast_name, socials")
+      .eq("channel_id", run.channel_id)
+      .maybeSingle(),
+    db
+      .from("pillars")
+      .select("id, name")
+      .eq("channel_id", run.channel_id)
+      .is("archived_at", null)
+      .order("position"),
+  ]);
   if (!channel || !episode) throw new Error("No se encontró el episodio");
   if (!version) throw new Error("La corrida no tiene guía del guionista");
 
@@ -731,11 +785,23 @@ async function loadStageBase(db: ServiceClient, run: RunRow) {
       newsletter: dist?.newsletter_name ?? null,
       nextVideo: next?.[0] ? { title: next[0].title, date: next[0].publish_date } : null,
       published: publishedList,
+      pillars: (pillars ?? []).map((p) => p.name),
+      podcastName: dist?.podcast_name ?? null,
+      socials: socialLinks(dist?.socials),
     },
   };
   return {
     ctx,
+    pillars: (pillars ?? []) as Pillar[],
     sections: version.sections as unknown as GuideSection[],
     stageSections,
   };
+}
+
+/** Las redes guardadas como { nombre: enlace }; se ignora lo que no es texto. */
+function socialLinks(value: unknown): { name: string; url: string }[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.entries(value as Record<string, unknown>)
+    .filter((e): e is [string, string] => typeof e[1] === "string" && e[1].trim() !== "")
+    .map(([name, url]) => ({ name, url: url.trim() }));
 }

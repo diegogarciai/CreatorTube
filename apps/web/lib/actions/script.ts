@@ -7,12 +7,13 @@ import {
   isScriptStep,
   SCRIPT_STAGES,
   stageBlocks,
+  stepPrerequisites,
   type DirectionAnswers,
   type DirectionQuestion,
 } from "@planificador/ai";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
-import { SCRIPT_ESTIMATE_CREDITS } from "../tasks";
+import { PODCAST_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "../tasks";
 import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 
@@ -63,7 +64,8 @@ export async function startScript(
     if (direction?.status !== "answered" && direction?.status !== "skipped") {
       return { ok: false, error: "errors.script_needs_direction" };
     }
-    if (Number(credits?.[0]?.remaining ?? 0) < SCRIPT_ESTIMATE_CREDITS) {
+    const estimate = spec.stage === "podcast" ? PODCAST_ESTIMATE_CREDITS : SCRIPT_ESTIMATE_CREDITS;
+    if (Number(credits?.[0]?.remaining ?? 0) < estimate) {
       return { ok: false, error: "errors.no_credits" };
     }
 
@@ -85,8 +87,9 @@ export async function startScript(
     ) {
       return { ok: true };
     }
-    // Los pasos anteriores tienen que estar listos. De una etapa anterior
-    // terminada vale la etapa entera (también las corridas de antes de los pasos).
+    // Los pasos anteriores tienen que estar listos (el Podcast no espera a
+    // Publicación). De una etapa anterior terminada vale la etapa entera
+    // (también las corridas de antes de los pasos).
     const earlier = IMPLEMENTED_STEPS.slice(0, IMPLEMENTED_STEPS.indexOf(spec));
     const stageIndex = SCRIPT_STAGES.indexOf(spec.stage);
     const doneStage = (stage: string) =>
@@ -95,7 +98,7 @@ export async function startScript(
       current?.steps.find(
         (s) => s.step === key && (s.status === "succeeded" || s.status === "skipped"),
       );
-    const ready = earlier.every((s) =>
+    const ready = stepPrerequisites(spec.key).every((s) =>
       SCRIPT_STAGES.indexOf(s.stage) < stageIndex ? doneStage(s.stage) : doneStep(s.key),
     );
     if (!ready) return { ok: false, error: "errors.script_from_missing" };

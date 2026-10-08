@@ -1,17 +1,21 @@
 import "server-only";
 import {
+  assetsSuggestion,
   countWords,
   findBlock,
   IMPLEMENTED_STAGES,
   IMPLEMENTED_STEPS,
+  parseAssets,
   pendingDatoLines,
   SCRIPT_STAGES,
   STAGE_STEPS,
+  stepPrerequisites,
   type Block,
   type ScriptStage,
 } from "@planificador/ai";
 import type { Enums } from "@planificador/db";
 import { getSupabase } from "../auth";
+import { getPillars } from "./queries";
 
 type RunStatus = Enums<"stage_run_status">;
 
@@ -56,15 +60,29 @@ export type ScriptView = {
   history: ScriptRunView[];
   /** Si el guion ya pasó la verificación y qué ___DATO quedaron por confirmar. */
   verification: { done: boolean; pending: string[] };
+  /** El Podcast se puede generar: la Verificación está lista. */
+  podcastReady: boolean;
+  /** Keywords y pilar de los assets que no coinciden con los del episodio. */
+  suggestion: {
+    keywords: string[] | null;
+    pillar: { id: string; name: string } | null;
+  } | null;
+};
+
+export type EpisodeTags = {
+  channelId: string;
+  keywords: string[];
+  pillarId: string | null;
 };
 
 /** La corrida vigente del guion, lista para el panel (que no carga la lógica de IA). */
 export async function loadScriptView(
   episodeId: string,
   currentRunId: string | null,
+  tags: EpisodeTags,
 ): Promise<ScriptView> {
   const supabase = await getSupabase();
-  const [{ data: runs }, { data: stageRows }, { data: stepRows }] = await Promise.all([
+  const [{ data: runs }, { data: stageRows }, { data: stepRows }, pillars] = await Promise.all([
     supabase
       .from("script_runs")
       .select(
@@ -85,6 +103,7 @@ export async function loadScriptView(
           .select("stage, step, status, body, error, progress_message, preview")
           .eq("run_id", currentRunId)
       : Promise.resolve({ data: [] }),
+    getPillars(tags.channelId),
   ]);
 
   const history: ScriptRunView[] = (runs ?? []).map((r) => {
@@ -107,12 +126,13 @@ export async function loadScriptView(
   const stepsOf = run ? (stepRows ?? []) : [];
 
   // Mismas reglas que startScript: de una etapa anterior terminada vale la
-  // etapa entera; de la misma etapa, cada paso tiene que estar listo.
+  // etapa entera; de la misma etapa, cada paso tiene que estar listo. El
+  // Podcast no espera a Publicación.
   const stageDone = (stage: ScriptStage) =>
     stagesOf.some((s) => s.stage === stage && s.status === "succeeded");
   const canRestart = (index: number) => {
     const spec = IMPLEMENTED_STEPS[index]!;
-    return IMPLEMENTED_STEPS.slice(0, index).every((s) =>
+    return stepPrerequisites(spec.key).every((s) =>
       SCRIPT_STAGES.indexOf(s.stage) < SCRIPT_STAGES.indexOf(spec.stage)
         ? stageDone(s.stage)
         : stepsOf.some(
@@ -144,7 +164,7 @@ export async function loadScriptView(
         error: row?.error ?? null,
         body,
         words:
-          (spec.key === "teleprompter" || spec.key === "revision" || spec.key === "fix") && body
+          ["teleprompter", "revision", "fix", "podcast_script"].includes(spec.key) && body
             ? countWords(body)
             : null,
         canRestart: canRestart(IMPLEMENTED_STEPS.indexOf(spec)),
@@ -183,5 +203,20 @@ export async function loadScriptView(
     ? { done: true, pending: pendingDatoLines(fix.body) }
     : { done: false, pending: [] };
 
-  return { run, stages, history, verification };
+  const podcastReady = canRestart(IMPLEMENTED_STEPS.findIndex((s) => s.key === "podcast_script"));
+
+  // Lo que proponen los assets en JSON y el episodio no tiene: se ofrece
+  // como sugerencia (lo que estaba vacío ya se guardó al generarlos).
+  const json = stages.flatMap((s) => s.steps).find((s) => s.key === "assets_json");
+  const assets = parseAssets(json?.body);
+  const diff = assets
+    ? assetsSuggestion(
+        { keywords: tags.keywords, pillar_id: tags.pillarId },
+        assets,
+        pillars.map((p) => ({ id: p.id, name: p.name })),
+      )
+    : null;
+  const suggestion = diff && (diff.keywords || diff.pillar) ? diff : null;
+
+  return { run, stages, history, verification, podcastReady, suggestion };
 }

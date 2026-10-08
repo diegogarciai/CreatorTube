@@ -100,7 +100,13 @@ export default async function EpisodePage({
             .eq("channel_id", channelId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
-      tab === "script" ? loadScriptView(episodeId, row.current_script_run_id) : null,
+      tab === "script"
+        ? loadScriptView(episodeId, row.current_script_run_id, {
+            channelId,
+            keywords: row.keywords,
+            pillarId: row.pillar_id,
+          })
+        : null,
     ]);
   const directionState: DirectionState | null = direction.data
     ? {
@@ -326,6 +332,7 @@ export default async function EpisodePage({
                 episodeId={row.id}
                 view={script}
                 canEdit={ctx.can("write_script")}
+                canTag={canManage}
                 directionDone={
                   directionState?.status === "answered" || directionState?.status === "skipped"
                 }

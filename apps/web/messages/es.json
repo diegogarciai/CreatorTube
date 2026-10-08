@@ -611,11 +611,11 @@
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
     "savedToast": "Respuestas guardadas.",
     "skippedToast": "Listo: decide el guionista.",
-    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio, Guion y Verificación con búsqueda en la web. Cuesta cerca de {cost}."
+    "generateHint": "Guarda tus respuestas y arranca el guion: Estudio, Guion, Verificación con búsqueda en la web y Publicación. Cuesta cerca de {cost}."
   },
   "script": {
     "title": "Guion",
-    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada paso empieza cuando termina el anterior. La Verificación busca en la web con Parallel, y los reels, motion graphics y B-rolls se hacen sobre el guion ya verificado.",
+    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada paso empieza cuando termina el anterior. La Verificación busca en la web con Parallel; los reels, motion graphics, B-rolls y la Publicación se hacen sobre el guion ya verificado. El Podcast se genera aparte, con su botón.",
     "needsDirection": "Responde o salta la dirección de arriba para generar el guion.",
     "generate": "Generar guion",
     "estimate": "Cuesta cerca de {cost} de tus créditos.",
@@ -624,7 +624,6 @@
     "failed": "La corrida falló.",
     "incomplete": "La etapa quedó incompleta.",
     "retryHint": "Puedes regenerar desde esa etapa.",
-    "comingSoon": "Llega en el paso 6.",
     "notYet": "Todavía no se genera.",
     "unverified": "GUION SIN VERIFICAR — NO GRABAR",
     "unverifiedHint": "Los datos todavía no se han comprobado en la web: la etapa Verificación los contrasta con Parallel.",
@@ -670,7 +669,13 @@
       "fix": "Guion verificado",
       "reels": "Reels marcados",
       "motion": "Motion graphics",
-      "broll": "B-rolls"
+      "broll": "B-rolls",
+      "reels_final": "Reels R1–R3",
+      "assets": "Assets",
+      "sheet": "Ficha",
+      "assets_json": "Assets en JSON",
+      "podcast_script": "Guion del podcast",
+      "podcast_desc": "Descripción"
     },
     "revisionSkipped": "El control de calidad no encontró nada que corregir: los pasos siguientes usan el teleprompter tal cual.",
     "revisionNote": "Primera versión. Los pasos siguientes usan la corregida (paso 4, Corrección).",
@@ -680,6 +685,16 @@
     "pendingHint": "El guion verificado tiene {count, plural, one {# dato} other {# datos}} marcado como ___DATO POR CONFIRMAR___ (regla 10.4).",
     "pausedTitle": "La corrida se pausó antes de los reels: {count, plural, one {queda # dato} other {quedan # datos}} por confirmar",
     "pausedHint": "Para no pagar reels, motion graphics y B-rolls que pueden cambiar, la corrida espera tu decisión. Puedes seguir con los datos marcados en el texto o regenerar desde «Verificar» o «Guion verificado».",
-    "continueWithPending": "Seguir con los pendientes marcados"
+    "continueWithPending": "Seguir con los pendientes marcados",
+    "podcast": "El podcast se genera aparte, desde el guion verificado: no espera a Publicación.",
+    "podcastNeedsVerification": "Se puede generar cuando la Verificación esté lista.",
+    "generatePodcast": "Generar podcast",
+    "podcastEstimate": "Cuesta cerca de {cost} de tus créditos.",
+    "suggestionTitle": "Sugerencias de los assets",
+    "suggestionHint": "El episodio ya tenía estos datos, así que no se cambiaron. Usa la sugerencia si te parece mejor.",
+    "suggestedKeywords": "Keywords: {keywords}",
+    "suggestedPillar": "Pilar: {pillar}",
+    "use": "Usar",
+    "used": "Listo: se guardó en el episodio."
   }
 }

@@ -13,8 +13,8 @@ import type { GuideStage } from "@planificador/core";
 export const SCRIPT_STAGES = ["study", "script", "verification", "publication", "podcast"] as const;
 export type ScriptStage = (typeof SCRIPT_STAGES)[number];
 
-/** Etapas que la app ya genera (Publicación y Podcast llegan en el paso 6). */
-export const IMPLEMENTED_STAGES: readonly ScriptStage[] = ["study", "script", "verification"];
+/** Etapas que la app genera (todas). */
+export const IMPLEMENTED_STAGES: readonly ScriptStage[] = SCRIPT_STAGES;
 
 /**
  * Cada etapa se genera por pasos: una llamada por bloque, en orden, y cada paso
@@ -35,6 +35,12 @@ export const SCRIPT_STEPS = [
   "reels",
   "motion",
   "broll",
+  "reels_final",
+  "assets",
+  "sheet",
+  "assets_json",
+  "podcast_script",
+  "podcast_desc",
 ] as const;
 export type ScriptStep = (typeof SCRIPT_STEPS)[number];
 
@@ -49,8 +55,9 @@ export interface StepSpec {
   /** Qué secciones de la guía recibe (tabla de etapas de la guía). */
   guide: GuideStage;
   /**
-   * Pasos que no son un bloque de texto: extraer afirmaciones (salida
-   * estructurada) y verificar con búsqueda. Los corre la tarea con su lógica.
+   * Pasos que no son un bloque de texto: extraer afirmaciones y los assets en
+   * JSON (salida estructurada) y verificar con búsqueda. Los corre la tarea
+   * con su lógica.
    */
   special?: true;
 }
@@ -151,6 +158,51 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       { guide: "script" },
     ),
   ],
+  publication: [
+    step(
+      "reels_final",
+      "publication",
+      "REELS R1, R2 Y R3",
+      "sección 13.4: los tres reels en orden (R1, R2 y R3), cada uno con título interno, origen, ubicación, guion, texto en pantalla, B-roll, caption, hashtags y, solo si es toma aparte, gancho alternativo. El GUION de cada reel es el fragmento marcado entre >>> y <<< en el guion con reels marcados de arriba, palabra por palabra; el B-roll, si usa motion graphic, la versión vertical del más fuerte de arriba",
+      { plain: true },
+    ),
+    step(
+      "assets",
+      "publication",
+      "ASSETS DE PUBLICACIÓN",
+      "sección 14: 3 títulos; 3 miniaturas desde el concepto de la escaleta, cada una con texto, escena, expresión, protagonista, composición, ayuda visual, emoción, título y texto alternativo; descripción de YouTube con capítulos tomados del guion verificado; 8 etiquetas; comentario fijado; y las fuentes de la 10.8. Toda cifra sale de filas Verificado o Con matiz de la tabla de verificación de arriba",
+      { effort: "high" },
+    ),
+    step(
+      "sheet",
+      "publication",
+      "FICHA DEL EPISODIO",
+      "sección 16, con lo que ya quedó listo arriba. El estado de verificación sale de la tabla y de las marcas ___DATO que quedan en el guion verificado",
+    ),
+    step(
+      "assets_json",
+      "publication",
+      "ASSETS EN JSON",
+      "los assets y la ficha de arriba en JSON: títulos, miniaturas, descripción, capítulos, etiquetas, comentario fijado, fuentes, postura, tipo, público, 6 a 8 keywords y pilar",
+      { plain: true, effort: "low", special: true },
+    ),
+  ],
+  podcast: [
+    step(
+      "podcast_script",
+      "podcast",
+      "GUION DEL PODCAST",
+      "sección 22: el guion verificado de arriba adaptado para escucharse sin ver nada. Cada motion graphic se vuelve narración y no se agrega ningún dato que no esté en el guion verificado o en la tabla. Texto plano, con las marcas [CORTINILLA] y [PAUSA] de la 22.8 como única excepción",
+      { plain: true, effort: "high" },
+    ),
+    step(
+      "podcast_desc",
+      "podcast",
+      "DESCRIPCIÓN DEL PODCAST",
+      "sección 22.9, sobre el guion del podcast de arriba: título, gancho, dos párrafos, «En este episodio:», «Fuentes:» con las de la tabla de verificación y los enlaces del contexto del canal. Texto plano",
+      { plain: true },
+    ),
+  ],
 };
 
 const SPECS = new Map(
@@ -195,9 +247,26 @@ const block = (key: ScriptStep, body: string | undefined): Block[] =>
  * - Verificación: el teleprompter final y, según el paso, la tabla de
  *   verificación o el guion verificado. Nunca el teleprompter sin verificar
  *   junto al verificado, para que no se mezclen.
+ * - Publicación y Podcast: solo lo que cada paso usa, siempre del guion
+ *   verificado; el teleprompter sin verificar no llega a ninguno.
  */
 export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
   const spec = stepSpec(key);
+  const blocks = (...keys: ScriptStep[]) => keys.flatMap((k) => block(k, bodies[k]));
+  switch (key) {
+    case "reels_final":
+      return blocks("reels", "motion");
+    case "assets":
+      return blocks("outline", "verify", "fix");
+    case "sheet":
+      return blocks("outline", "quality", "verify", "fix", "reels", "reels_final", "motion");
+    case "assets_json":
+      return blocks("assets", "sheet");
+    case "podcast_script":
+      return blocks("verify", "fix");
+    case "podcast_desc":
+      return blocks("verify", "podcast_script");
+  }
   if (spec.stage === "verification") {
     const tele = [
       { title: stepSpec("teleprompter").title, body: finalTeleprompter(bodies) },
@@ -256,6 +325,26 @@ export const IMPLEMENTED_STEPS: readonly StepSpec[] = IMPLEMENTED_STAGES.flatMap
   (stage) => STAGE_STEPS[stage] ?? [],
 );
 
+/**
+ * Lo que tiene que estar listo para arrancar desde un paso: todo lo anterior,
+ * salvo que el Podcast no espera a Publicación (sale del guion verificado).
+ */
+export function stepPrerequisites(key: ScriptStep): StepSpec[] {
+  const spec = stepSpec(key);
+  const before = IMPLEMENTED_STEPS.slice(0, IMPLEMENTED_STEPS.indexOf(spec));
+  return spec.stage === "podcast" ? before.filter((s) => s.stage !== "publication") : [...before];
+}
+
+/**
+ * Los pasos que corre una corrida que arranca en `from`: hasta el final de
+ * Publicación. El Podcast solo corre si se pide (botón «Generar podcast»).
+ */
+export function runSteps(from: ScriptStep): StepSpec[] {
+  const spec = stepSpec(from);
+  const rest = IMPLEMENTED_STEPS.slice(IMPLEMENTED_STEPS.indexOf(spec));
+  return spec.stage === "podcast" ? rest : rest.filter((s) => s.stage !== "podcast");
+}
+
 export const isScriptStep = (v: unknown): v is ScriptStep =>
   typeof v === "string" && SPECS.has(v as ScriptStep);
 
@@ -302,6 +391,11 @@ export interface StageContext {
       keywords: string[];
       stance: string;
     }[];
+    /** Pilares activos del canal: Publicación elige uno. */
+    pillars?: string[];
+    podcastName?: string | null;
+    /** Redes del canal (nombre y enlace), para las descripciones. */
+    socials?: { name: string; url: string }[];
   } | null;
   previous: { stage: ScriptStage; blocks: Block[] }[];
 }
@@ -394,6 +488,23 @@ export function buildStepPrompt(
           )
         : ["  - (todavía no hay videos publicados)"]),
     );
+    // Lo que solo usan Publicación y Podcast; el resto de etapas no cambia.
+    if (stage === "publication" || stage === "podcast") {
+      const { pillars = [], podcastName, socials = [] } = ctx.channel;
+      if (stage === "publication") {
+        parts.push(
+          `- Pilares del canal (el pilar del episodio es uno de estos, con el nombre exacto): ${
+            pillars.length ? pillars.join(", ") : "el canal no tiene pilares"
+          }`,
+        );
+      }
+      if (podcastName) parts.push(`- Nombre del podcast: ${podcastName}`);
+      parts.push(
+        `- Redes del canal: ${
+          socials.length ? socials.map((s) => `${s.name}: ${s.url}`).join(" · ") : "ninguna anotada"
+        }`,
+      );
+    }
   }
 
   for (const prev of ctx.previous) {

@@ -74,6 +74,12 @@ describe("pasos", () => {
       "reels",
       "motion",
       "broll",
+      "reels_final",
+      "assets",
+      "sheet",
+      "assets_json",
+      "podcast_script",
+      "podcast_desc",
     ]);
     // Cada paso recibe las secciones de su parte de la tabla de la guía.
     expect(STAGE_STEPS.verification!.map((s) => s.guide)).toEqual([
