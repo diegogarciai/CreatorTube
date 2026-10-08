@@ -647,6 +647,7 @@ export type Database = {
           sponsorship: Database["public"]["Enums"]["sponsorship"] | null;
           own_measurements: string;
           stance_confirmed: boolean;
+          current_script_run_id: string | null;
         };
         Insert: {
           id?: string;
@@ -682,6 +683,7 @@ export type Database = {
           sponsorship?: Database["public"]["Enums"]["sponsorship"] | null;
           own_measurements?: string;
           stance_confirmed?: boolean;
+          current_script_run_id?: string | null;
         };
         Update: {
           id?: string;
@@ -717,6 +719,7 @@ export type Database = {
           sponsorship?: Database["public"]["Enums"]["sponsorship"] | null;
           own_measurements?: string;
           stance_confirmed?: boolean;
+          current_script_run_id?: string | null;
         };
         Relationships: [
           {
@@ -731,6 +734,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episodes_current_script_run_id_fkey";
+            columns: ["current_script_run_id"];
+            isOneToOne: false;
+            referencedRelation: "script_runs";
             referencedColumns: ["id"];
           },
           {
@@ -1053,6 +1063,170 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      script_runs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          channel_id: string;
+          episode_id: string;
+          guide_version_id: string | null;
+          model: string;
+          from_stage: Database["public"]["Enums"]["script_stage"];
+          status: Database["public"]["Enums"]["stage_run_status"];
+          direction_block: string;
+          task_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id?: string;
+          channel_id: string;
+          episode_id: string;
+          guide_version_id?: string | null;
+          model?: string;
+          from_stage?: Database["public"]["Enums"]["script_stage"];
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          direction_block?: string;
+          task_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          finished_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          episode_id?: string;
+          guide_version_id?: string | null;
+          model?: string;
+          from_stage?: Database["public"]["Enums"]["script_stage"];
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          direction_block?: string;
+          task_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          finished_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "script_runs_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_runs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_runs_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_runs_guide_version_id_fkey";
+            columns: ["guide_version_id"];
+            isOneToOne: false;
+            referencedRelation: "writer_guide_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_runs_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_runs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      script_stage_runs: {
+        Row: {
+          id: string;
+          run_id: string;
+          workspace_id: string;
+          channel_id: string;
+          stage: Database["public"]["Enums"]["script_stage"];
+          status: Database["public"]["Enums"]["stage_run_status"];
+          blocks: Json;
+          raw: string;
+          usage: Json;
+          credits: number;
+          error: string | null;
+          progress_message: string | null;
+          started_at: string | null;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          workspace_id?: string;
+          channel_id: string;
+          stage: Database["public"]["Enums"]["script_stage"];
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          blocks?: Json;
+          raw?: string;
+          usage?: Json;
+          credits?: number;
+          error?: string | null;
+          progress_message?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          run_id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          stage?: Database["public"]["Enums"]["script_stage"];
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          blocks?: Json;
+          raw?: string;
+          usage?: Json;
+          credits?: number;
+          error?: string | null;
+          progress_message?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "script_stage_runs_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_stage_runs_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "script_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_stage_runs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       tasks: {
         Row: {
@@ -1612,7 +1786,9 @@ export type Database = {
       idea_origin: "recommendation" | "own" | "pain_point";
       idea_status: "new" | "in_progress" | "discarded";
       invitation_kind: "platform" | "workspace";
+      script_stage: "study" | "script" | "verification" | "publication" | "podcast";
       sponsorship: "none" | "sponsor" | "affiliate";
+      stage_run_status: "queued" | "running" | "succeeded" | "failed" | "incomplete";
       task_status: "queued" | "running" | "succeeded" | "failed" | "canceled";
       workspace_role: "owner" | "admin" | "producer" | "writer" | "video_editor" | "viewer";
     };

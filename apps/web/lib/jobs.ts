@@ -1,6 +1,6 @@
 import "server-only";
 import { tasks } from "@trigger.dev/sdk";
-import type { directionTask, JobKind, pingTask } from "@planificador/jobs";
+import type { directionTask, JobKind, pingTask, scriptTask } from "@planificador/jobs";
 import { createAdminClient } from "./supabase/admin";
 
 /** Sin la clave de Trigger.dev la app funciona, pero no puede lanzar tareas largas. */
@@ -9,6 +9,7 @@ export const JOBS_CONFIGURED = () => Boolean(process.env.TRIGGER_SECRET_KEY);
 interface JobPayloads {
   ping: typeof pingTask;
   direction: typeof directionTask;
+  script: typeof scriptTask;
 }
 
 export interface JobScope {
@@ -20,9 +21,14 @@ export interface JobScope {
 
 /**
  * Crea la fila en `tasks` (la que ve la bandeja) y dispara la tarea en
- * Trigger.dev. Quien llama ya verificó permisos.
+ * Trigger.dev. Quien llama ya verificó permisos. `onCreated` corre antes de
+ * disparar, para enlazar la fila a lo que la tarea va a buscar.
  */
-export async function startJob(kind: JobKind, scope: JobScope): Promise<string> {
+export async function startJob(
+  kind: JobKind,
+  scope: JobScope,
+  onCreated?: (taskId: string) => Promise<void>,
+): Promise<string> {
   const admin = createAdminClient();
   const { data: row, error } = await admin
     .from("tasks")
@@ -37,6 +43,8 @@ export async function startJob(kind: JobKind, scope: JobScope): Promise<string> 
     .select("id")
     .single();
   if (error) throw error;
+
+  if (onCreated) await onCreated(row.id);
 
   if (!JOBS_CONFIGURED()) {
     await admin

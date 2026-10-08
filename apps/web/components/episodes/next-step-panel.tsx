@@ -43,15 +43,28 @@ export function NextStepPanel({
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         {t("episode.nextStep")}
       </p>
-      {step.action === "answer_direction" && canAct ? (
+      {(step.action === "answer_direction" || step.action === "generate_script") && canAct ? (
         <div className="mt-2">
           <Link
-            href="?tab=script#direccion"
+            href={
+              step.action === "answer_direction" ? "?tab=script#direccion" : "?tab=script#guion"
+            }
             scroll={false}
             className={buttonClass("primary", "lg")}
           >
             {label} <ArrowRight className="size-4" />
           </Link>
+          {step.action === "generate_script" && canSkip ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-2"
+              disabled={pending}
+              onClick={() => run(() => completeEpisodeStage(episodeId))}
+            >
+              {t("action.skipStage")}
+            </Button>
+          ) : null}
         </div>
       ) : step.action === "link_video" && canAct ? (
         <form

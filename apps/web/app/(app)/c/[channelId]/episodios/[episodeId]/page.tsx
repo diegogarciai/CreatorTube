@@ -16,6 +16,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChecklistPanel } from "@/components/episodes/checklist-panel";
 import { DirectionPanel, type DirectionState } from "@/components/episodes/direction-panel";
+import { ScriptPanel } from "@/components/episodes/script-panel";
 import { ArchiveButton, VideoLink } from "@/components/episodes/episode-actions";
 import { EpisodeForm } from "@/components/episodes/episode-form";
 import { NextStepPanel } from "@/components/episodes/next-step-panel";
@@ -24,6 +25,7 @@ import { StatusBadge } from "@/components/episodes/status-badge";
 import { StatusSelect } from "@/components/episodes/status-select";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { toPlannedEpisode } from "@/lib/data/episodes";
+import { loadScriptView } from "@/lib/data/script";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -62,42 +64,44 @@ export default async function EpisodePage({
     .maybeSingle();
   if (!row) notFound();
 
-  const [steps, pillars, doneRows, activity, video, idea, direction, guide] = await Promise.all([
-    getChecklistSteps(channelId),
-    getPillars(channelId),
-    supabase.from("episode_checklist_items").select("step_id").eq("episode_id", episodeId),
-    supabase
-      .from("activity_log")
-      .select("id, action, details, created_at, actor:profiles(full_name, email)")
-      .eq("episode_id", episodeId)
-      .order("created_at", { ascending: false })
-      .limit(20),
-    row.youtube_video_id
-      ? supabase
-          .from("youtube_videos")
-          .select("*")
-          .eq("channel_id", channelId)
-          .eq("video_id", row.youtube_video_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    row.idea_id
-      ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    tab === "script"
-      ? supabase
-          .from("episode_direction")
-          .select("status, reading, questions, answers, extra, task:tasks(status, error)")
-          .eq("episode_id", episodeId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    tab === "script"
-      ? supabase
-          .from("writer_guides")
-          .select("current_version_id")
-          .eq("channel_id", channelId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
+  const [steps, pillars, doneRows, activity, video, idea, direction, guide, script] =
+    await Promise.all([
+      getChecklistSteps(channelId),
+      getPillars(channelId),
+      supabase.from("episode_checklist_items").select("step_id").eq("episode_id", episodeId),
+      supabase
+        .from("activity_log")
+        .select("id, action, details, created_at, actor:profiles(full_name, email)")
+        .eq("episode_id", episodeId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      row.youtube_video_id
+        ? supabase
+            .from("youtube_videos")
+            .select("*")
+            .eq("channel_id", channelId)
+            .eq("video_id", row.youtube_video_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      row.idea_id
+        ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      tab === "script"
+        ? supabase
+            .from("episode_direction")
+            .select("status, reading, questions, answers, extra, task:tasks(status, error)")
+            .eq("episode_id", episodeId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      tab === "script"
+        ? supabase
+            .from("writer_guides")
+            .select("current_version_id")
+            .eq("channel_id", channelId)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      tab === "script" ? loadScriptView(episodeId, row.current_script_run_id) : null,
+    ]);
   const directionState: DirectionState | null = direction.data
     ? {
         status: direction.data.status,
@@ -190,7 +194,10 @@ export default async function EpisodePage({
         <NextStepPanel
           episodeId={row.id}
           step={step}
-          canAct={canAct || (ctx.can("write_script") && step.stage === "direction")}
+          canAct={
+            canAct ||
+            (ctx.can("write_script") && (step.stage === "direction" || step.stage === "script"))
+          }
           canSkip={canManage}
         />
       </div>
@@ -303,13 +310,27 @@ export default async function EpisodePage({
             </div>
           </div>
         ) : tab === "script" ? (
-          <DirectionPanel
-            episodeId={row.id}
-            channelId={channelId}
-            direction={directionState}
-            hasGuide={Boolean(guide.data?.current_version_id)}
-            canEdit={ctx.can("write_script")}
-          />
+          <div className="space-y-6">
+            <DirectionPanel
+              episodeId={row.id}
+              channelId={channelId}
+              direction={directionState}
+              hasGuide={Boolean(guide.data?.current_version_id)}
+              canEdit={ctx.can("write_script")}
+            />
+            {script ? (
+              <ScriptPanel
+                episodeId={row.id}
+                view={script}
+                canEdit={ctx.can("write_script")}
+                directionDone={
+                  directionState?.status === "answered" || directionState?.status === "skipped"
+                }
+                targetMinutes={row.target_minutes}
+                timezone={tz}
+              />
+            ) : null}
+          </div>
         ) : tab === "publication" ? (
           <Card>
             <CardHeader title={t("episode.linkVideo")} />

@@ -9,12 +9,13 @@ export interface Prices {
   outputPerMTok: number;
 }
 
-export interface UsageTotals {
+// Alias, no interface: se guarda en columnas jsonb.
+export type UsageTotals = {
   input_tokens: number;
   output_tokens: number;
   cache_creation_input_tokens: number;
   cache_read_input_tokens: number;
-}
+};
 
 export const emptyUsage = (): UsageTotals => ({
   input_tokens: 0,

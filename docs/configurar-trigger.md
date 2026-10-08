@@ -26,6 +26,7 @@ No hace falta la integración de GitHub dentro de Trigger.dev. Si más adelante 
 | `AI_MODEL`                  | ID del modelo de Claude que usan las preguntas y el guion (está en la consola de Anthropic). Cambiarlo no requiere desplegar |
 | `AI_PRICE_INPUT_USD`        | Opcional. Precio por millón de tokens de entrada de ese modelo, para los créditos. Por defecto 2                             |
 | `AI_PRICE_OUTPUT_USD`       | Opcional. Precio por millón de tokens de salida. Por defecto 10                                                              |
+| `AI_FALLBACKS`              | Opcional. `off` apaga el respaldo automático cuando el modelo se niega a responder. Por defecto está encendido               |
 
 **En Vercel** (Settings → Environment Variables, Production):
 

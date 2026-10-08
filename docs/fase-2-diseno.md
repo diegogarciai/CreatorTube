@@ -316,3 +316,10 @@ Pendientes:
   - tabla `episode_direction`;
   - sección **Dirección del episodio** en la pestaña Guion, con **Guardar respuestas**, **Saltar** y **Volver a preparar**;
   - el modelo se elige con `AI_MODEL` en Trigger.dev.
+
+- **Paso 4 (Estudio y Guion):**
+  - `packages/ai/src/stages.ts`: prompt por etapa con solo sus secciones de la guía, corte por `### BLOQUE:`, bloques faltantes y streaming con avance en palabras;
+  - tablas `script_runs` y `script_stage_runs`; cada corrida guarda una copia fija de la Dirección y la versión de la guía;
+  - tarea `script` en Trigger.dev: corre Estudio y Guion en orden, salta lo que ya quedó listo si reintenta, registra el consumo por etapa y deja el episodio en Verificación;
+  - **Generar guion con mis respuestas** en la Dirección y sección **Guion** con pestañas por etapa, copiar, conteo de palabras del teleprompter, aviso «GUION SIN VERIFICAR — NO GRABAR», **Regenerar desde Estudio**, **Regenerar desde Guion** (conserva el Estudio) e historial de corridas;
+  - el despliegue de Trigger.dev también se dispara con cambios en `packages/ai`.
