@@ -107,6 +107,7 @@ export type Database = {
           logo_path: string | null;
           thumbnail_style: string | null;
           updated_at: string;
+          style: Json;
         };
         Insert: {
           channel_id: string;
@@ -116,6 +117,7 @@ export type Database = {
           logo_path?: string | null;
           thumbnail_style?: string | null;
           updated_at?: string;
+          style?: Json;
         };
         Update: {
           channel_id?: string;
@@ -125,6 +127,7 @@ export type Database = {
           logo_path?: string | null;
           thumbnail_style?: string | null;
           updated_at?: string;
+          style?: Json;
         };
         Relationships: [
           {
@@ -1063,6 +1066,58 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      presenter_photos: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          path: string;
+          label: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          path: string;
+          label?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          path?: string;
+          label?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "presenter_photos_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "presenter_photos_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "presenter_photos_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profiles: {
         Row: {
@@ -2084,6 +2139,10 @@ export type Database = {
       is_workspace_member: {
         Args: { ws: string };
         Returns: boolean;
+      };
+      media_path_channel: {
+        Args: { path: string };
+        Returns: string;
       };
       my_pending_invitations: {
         Args: Record<PropertyKey, never>;

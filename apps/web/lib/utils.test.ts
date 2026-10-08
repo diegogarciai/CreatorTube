@@ -12,6 +12,8 @@ describe("utils", () => {
     expect(errorMessage(new Error("errors.forbidden"))).toBe("errors.forbidden");
     expect(errorMessage({ message: "fallo de la base" })).toBe("fallo de la base");
     expect(errorMessage({ issues: [] })).toBe("errors.invalid_input");
+    expect(errorMessage({ issues: [{ message: "errors.brand_mix" }] })).toBe("errors.brand_mix");
+    expect(errorMessage({ issues: [{ message: "Too small" }] })).toBe("errors.invalid_input");
     expect(errorMessage(42)).toBe("errors.unknown");
   });
 

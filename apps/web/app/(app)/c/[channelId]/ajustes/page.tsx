@@ -3,8 +3,10 @@ import { getTranslations } from "next-intl/server";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { CopyField } from "@/components/copy-field";
+import { BrandKitForm } from "@/components/settings/brand-kit-form";
 import { ChecklistEditor } from "@/components/settings/checklist-editor";
 import { ConnectionPanel, RegenerateIcsButton } from "@/components/settings/connection-panel";
+import { PresenterPhotos } from "@/components/settings/presenter-photos";
 import { PillarsEditor } from "@/components/settings/pillars-editor";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { RhythmForm } from "@/components/settings/rhythm-form";
@@ -12,6 +14,7 @@ import { WriterGuide } from "@/components/settings/writer-guide";
 import { YouTubeImport } from "@/components/settings/youtube-import";
 import { DEFAULT_STAGE_SECTIONS, type GuideSection, type StageSections } from "@planificador/core";
 import { getChannelContext, getSupabase } from "@/lib/auth";
+import { loadBrandView } from "@/lib/data/brand";
 import { channelProfile, channelRhythm } from "@/lib/data/channel";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { env, YOUTUBE_CONFIGURED } from "@/lib/env";
@@ -23,24 +26,27 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("settings");
   const tImport = await getTranslations("import");
+  const tBrand = await getTranslations("brand");
   const supabase = await getSupabase();
-  const [pillars, steps, { data: conn }, { data: guide }, { data: versions }] = await Promise.all([
-    getPillars(channelId, true),
-    getChecklistSteps(channelId),
-    supabase.rpc("channel_connection_info", { ch: channelId }),
-    supabase
-      .from("writer_guides")
-      .select("current_version_id")
-      .eq("channel_id", channelId)
-      .maybeSingle(),
-    supabase
-      .from("writer_guide_versions")
-      .select(
-        "id, version, notes, created_at, sections, stage_sections, author:profiles(full_name, email)",
-      )
-      .eq("channel_id", channelId)
-      .order("version", { ascending: false }),
-  ]);
+  const [pillars, steps, { data: conn }, { data: guide }, { data: versions }, brand] =
+    await Promise.all([
+      getPillars(channelId, true),
+      getChecklistSteps(channelId),
+      supabase.rpc("channel_connection_info", { ch: channelId }),
+      supabase
+        .from("writer_guides")
+        .select("current_version_id")
+        .eq("channel_id", channelId)
+        .maybeSingle(),
+      supabase
+        .from("writer_guide_versions")
+        .select(
+          "id, version, notes, created_at, sections, stage_sections, author:profiles(full_name, email)",
+        )
+        .eq("channel_id", channelId)
+        .order("version", { ascending: false }),
+      loadBrandView(channelId),
+    ]);
   const canConfigure = ctx.can("configure_channel");
   const connection = conn?.[0] ?? null;
   const fmt = new Intl.DateTimeFormat("es", {
@@ -164,6 +170,24 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
               versions={guideVersions}
               disabled={!canConfigure}
             />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={tBrand("title")} description={tBrand("description")} />
+          <CardBody>
+            <BrandKitForm
+              channelId={channelId}
+              initial={brand.kit}
+              isDefault={brand.isDefault}
+              logoUrl={brand.logoUrl}
+              disabled={!canConfigure}
+            />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={tBrand("photos")} description={tBrand("photosDesc")} />
+          <CardBody>
+            <PresenterPhotos channelId={channelId} photos={brand.photos} disabled={!canConfigure} />
           </CardBody>
         </Card>
         <Card>

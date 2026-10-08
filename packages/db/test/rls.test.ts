@@ -1029,3 +1029,114 @@ describe("Fase 2 · panel de consumo", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("Fase 3 · kit de marca y fotos del presentador", () => {
+  it("el bucket del canal: lee quien lo ve y sube quien lo configura", async () => {
+    const owner = await createUser();
+    const viewer = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    await addMember(ws, viewer.id, "viewer");
+    const ch = await createChannel(ws);
+    const put = (path: string) =>
+      "insert into storage.objects (bucket_id, name) values ('channel-media', '" + path + "')";
+
+    await as(owner.id, (q) => q(put(`${ch}/brand/logo.png`)));
+    await as(owner.id, (q) => q(put(`${ch}/presenter/a.jpg`)));
+    // Los recursos de episodios y las rutas sin canal no las sube un usuario.
+    await expect(as(owner.id, (q) => q(put(`${ch}/episodes/x/m.png`)))).rejects.toThrow(
+      /row-level security/,
+    );
+    await expect(as(owner.id, (q) => q(put("sin-canal/brand/x.png")))).rejects.toThrow(
+      /row-level security/,
+    );
+    await expect(as(viewer.id, (q) => q(put(`${ch}/brand/otro.png`)))).rejects.toThrow(
+      /row-level security/,
+    );
+    await expect(as(outsider.id, (q) => q(put(`${ch}/brand/otro.png`)))).rejects.toThrow(
+      /row-level security/,
+    );
+
+    const list = "select name from storage.objects where bucket_id = 'channel-media' order by name";
+    expect(await as(viewer.id, (q) => q(list))).toEqual([
+      { name: `${ch}/brand/logo.png` },
+      { name: `${ch}/presenter/a.jpg` },
+    ]);
+    expect(await as(outsider.id, (q) => q(list))).toEqual([]);
+    expect(
+      await as(viewer.id, (q) =>
+        q("delete from storage.objects where name like $1 returning 1", [`${ch}/%`]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(owner.id, (q) =>
+        q("delete from storage.objects where name = $1 returning 1", [`${ch}/presenter/a.jpg`]),
+      ),
+    ).toEqual([{ "?column?": 1 }]);
+  });
+
+  it("el kit y las fotos llevan rutas de su canal", async () => {
+    const owner = await createUser();
+    const viewer = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await addMember(ws, viewer.id, "viewer");
+    const ch = await createChannel(ws);
+    const other = await createChannel(ws, "Otro", "OT");
+
+    await as(owner.id, (q) =>
+      q("insert into public.brand_kits (channel_id, logo_path, style) values ($1, $2, $3)", [
+        ch,
+        `${ch}/brand/logo.png`,
+        { grid: { columns: 12 } },
+      ]),
+    );
+    await expect(
+      sql("update public.brand_kits set logo_path = $2 where channel_id = $1", [
+        ch,
+        `${other}/brand/logo.png`,
+      ]),
+    ).rejects.toThrow(/brand_kits_logo_path/);
+    await expect(
+      as(viewer.id, (q) => q("insert into public.brand_kits (channel_id) values ($1)", [other])),
+    ).rejects.toThrow(/row-level security/);
+
+    const [photo] = await as(owner.id, (q) =>
+      q(
+        "insert into public.presenter_photos (channel_id, path, label) values ($1, $2, 'Frente') returning workspace_id, created_by",
+        [ch, `${ch}/presenter/1.jpg`],
+      ),
+    );
+    expect(photo).toEqual({ workspace_id: ws, created_by: owner.id });
+    await expect(
+      sql("insert into public.presenter_photos (channel_id, path) values ($1, $2)", [
+        ch,
+        `${other}/presenter/1.jpg`,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      sql("insert into public.presenter_photos (channel_id, path) values ($1, $2)", [
+        ch,
+        `${ch}/brand/1.jpg`,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      as(viewer.id, (q) =>
+        q("insert into public.presenter_photos (channel_id, path) values ($1, $2)", [
+          ch,
+          `${ch}/presenter/2.jpg`,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(viewer.id, (q) =>
+        q("select label from public.presenter_photos where channel_id = $1", [ch]),
+      ),
+    ).toEqual([{ label: "Frente" }]);
+    expect(
+      await as(viewer.id, (q) =>
+        q("delete from public.presenter_photos where channel_id = $1 returning 1", [ch]),
+      ),
+    ).toEqual([]);
+  });
+});

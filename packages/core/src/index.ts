@@ -1,3 +1,4 @@
+export * from "./brand";
 export * from "./checklist";
 export * from "./episodes";
 export * from "./guide";
