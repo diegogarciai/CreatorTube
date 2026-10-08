@@ -310,6 +310,16 @@ export function validateSchemeSet(schemes: readonly SchemeId[]): string[] {
   return out;
 }
 
+/** Intentos de imagen por miniatura hasta que la cara sea la del presentador. */
+export const IDENTITY_ATTEMPTS = 3;
+/** Avisos de identidad: se conservan al cambiar el texto (misma imagen). */
+export const IDENTITY_WARNINGS = {
+  face: `No se logró el parecido de la cara tras ${IDENTITY_ATTEMPTS} intentos.`,
+  person: `Apareció una persona en un esquema sin cara tras ${IDENTITY_ATTEMPTS} intentos.`,
+} as const;
+export const isIdentityWarning = (w: string) =>
+  (Object.values(IDENTITY_WARNINGS) as string[]).includes(w);
+
 /** Medidas de la composición a 1280 × 720. */
 export const THUMB_W = 1280;
 export const THUMB_H = 720;

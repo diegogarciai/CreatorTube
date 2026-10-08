@@ -117,7 +117,8 @@ A y C admiten **espejo** (texto del otro lado). Shorts 1080 × 1920 quedan pendi
   - letra Inter Black, tracking −4 %, interlineado 0,92 y alto de cuerpo de 120 a 150 px (la cifra de B hasta 300);
   - blanco con una palabra #FF7A29 y sombra negra suave en las letras, sin mancha detrás;
   - margen de 64 px y la esquina de la duración (220 × 90) vacía;
-  - con la cara ubicada por Claude (`thumbnail_layout`, solo en esquemas con cara), el texto se achica dentro del rango hasta dejar 40 px.
+  - con la cara y el producto ubicados por Claude (`thumbnail_layout`), el texto se achica dentro del rango hasta no tapar el producto y dejar 40 px a la cara;
+  - si no cabe todo, **el producto manda sobre la persona**: primero el producto queda libre y después se busca la separación de la cara.
 
   Lo que no se puede cumplir queda como **aviso** en la versión (`layout_warnings`).
 
@@ -143,12 +144,20 @@ La separación y la esquina las mide la app y van como dato.
 - Diego marca 3 y genera: van a las tarjetas A, B y C en el orden en que los marcó (`thumbnail_ideas.slot`). Cada versión guarda el texto (`idea_id`), el esquema, el escenario y el espejo.
 - «Proponer otros 30» reemplaza la lista y conserva los que están en uso. Las tarjetas solo generan desde un texto elegido; las versiones de antes de la guía se siguen viendo.
 
-Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
+Cada miniatura pasa por cinco pasos dentro de la tarea `thumbnails` (Trigger.dev):
 
 1. **Brief (Claude).** Una llamada para todas: lo propio de cada una dentro de su esquema y escenario (el producto, el detalle de E, el gesto de C según el veredicto) y si va en espejo. La nota de Diego al regenerar entra aquí.
 2. **Imagen (Gemini).** `generateContent` con las referencias etiquetadas que pide el esquema, 16:9 en 2K con Pro y **sin texto**. La instrucción (`schemeImagePrompt`) es el PROMPT BASE de la guía más la composición del esquema y la escena. Lo único adaptado: Gemini deja libre la zona del texto en vez de pintarlo.
-3. **Composición (la app).** El texto en la zona del esquema, con las medidas de la guía, y JPG de menos de 2 MB.
-4. **Calificación (Claude con visión).** La miniatura, la misma a 168 × 94 y una foto del presentador (si hay cara). Nota de 0 a 10 con los criterios de la guía (esquema, texto, título, cara, producto, separación, esquina, prohibidos, móvil y veredicto) y qué mejorar.
+   - En los esquemas con cara, la **identidad** va al principio y se repite al final: idéntico a las fotos (cara, barba, pelo, piel y ropa), con la cara grande y sin nada encima.
+   - Si no cabe todo, el producto queda entero y se recorta el cuerpo del presentador, nunca el producto.
+   - B y E prohíben cualquier persona.
+   - El brief nunca describe el físico del presentador (solo «the presenter from the reference photos»), y la app quita de la escena de B y E las frases con personas.
+3. **Verificar la cara (Claude con visión).** Antes de componer, `checkIdentity` compara la imagen con 2 fotos del presentador; en B y E revisa que no aparezca nadie (`thumbnail_identity`).
+   - Si falla, se pide otra imagen con la corrección de lo que salió mal («the beard is shorter…»), hasta 3 intentos (`IDENTITY_ATTEMPTS`).
+   - Se queda la primera que pasa o, si ninguna pasa, la de más parecido, con un aviso en la versión.
+   - Cada intento se cobra (`thumbnail_image` con `attempt`).
+4. **Composición (la app).** El texto en la zona del esquema, con las medidas de la guía, y JPG de menos de 2 MB.
+5. **Calificación (Claude con visión).** La miniatura, la misma a 168 × 94 y una foto del presentador (si hay cara). Nota de 0 a 10 con los criterios de la guía (esquema, texto, título, cara, producto, separación, esquina, prohibidos, móvil y veredicto) y qué mejorar.
 
 Además:
 
@@ -156,7 +165,7 @@ Además:
 - **Versiones:** cada generación es una fila de `episode_assets` y se conservan todas. Una sola miniatura queda **elegida** por episodio, y cada versión lista se **descarga** con el código del episodio y la letra (A, B o C).
 - **Fotos del producto:** hasta 3 por episodio (`episode_refs`, carpeta `{canal}/episodes/{episodio}/refs/`). La primera es el producto 1 y la segunda el producto 2 del duelo.
 - **Modelo:** `GEMINI_IMAGE_MODEL` en Trigger.dev, por defecto `gemini-3-pro-image` (Nano Banana Pro): con Nano Banana 2 la cara salía como otra persona. El modelo de Claude para el brief y la calificación es la etapa «Miniaturas» de Administración.
-- **Costo:** unos US$0,134 por imagen (Pro, 2K) más el brief y la calificación, cerca de US$0,17 por miniatura. Se registra como `thumbnail_ideas`, `thumbnail_brief`, `thumbnail_image` (con `image_usd`), `thumbnail_layout` y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
+- **Costo:** unos US$0,134 por imagen (Pro, 2K) más el brief y la calificación, cerca de US$0,17 por miniatura. Si la cara no pasa la verificación, cada intento extra suma unos US$0,14. Se registra como `thumbnail_ideas`, `thumbnail_brief`, `thumbnail_image` (con `image_usd` y `attempt`), `thumbnail_identity`, `thumbnail_layout` y `thumbnail_score`. El panel de consumo tiene la tarjeta «Imágenes (Gemini)» con su presupuesto.
 - **Tablas:**
   - `episode_assets`: `id`, `episode_id`, `channel_id`, `kind`, `design_idx`, `status`, `source_id`, `idea_id`, `scheme`, `scenario`, `mirror`, `layout_warnings`, `base_path`, `path`, `text`, `prompt`, `note`, `score`, `chosen`, `model`, `credits`, `error` y `task_id`. `text_side` y `text_v` quedan de antes de la guía. Solo la escribe el servidor.
   - `thumbnail_ideas`: los 30 textos con `scheme`, `angle`, `text`, `accent`, `scene`, `emotion` y `slot`.

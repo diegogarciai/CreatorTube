@@ -3,6 +3,8 @@ import sharp from "sharp";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import {
+  checkIdentity,
+  identityCorrection,
   geminiConfigFromEnv,
   generateImage,
   imageCostUsd,
@@ -23,6 +25,9 @@ import {
   assignScenarios,
   hasFace,
   hasVerdict,
+  IDENTITY_ATTEMPTS,
+  IDENTITY_WARNINGS,
+  isIdentityWarning,
   isSchemeId,
   parseBrandKit,
   SCENARIOS,
@@ -75,6 +80,7 @@ type AssetRow = {
   scheme: string | null;
   scenario: string | null;
   mirror: boolean;
+  layout_warnings: string[];
   prompt: string | null;
   note: string | null;
   score: Json | null;
@@ -109,7 +115,7 @@ export async function runThumbnails(
           db
             .from("episode_assets")
             .select(
-              "id, design_idx, status, base_path, path, text, idea_id, scheme, scenario, mirror, prompt, note, score, credits",
+              "id, design_idx, status, base_path, path, text, idea_id, scheme, scenario, mirror, layout_warnings, prompt, note, score, credits",
             )
             .eq("task_id", taskId)
             .order("design_idx"),
@@ -389,29 +395,89 @@ export async function runThumbnails(
             await report.progress(step(0), `${label}: generando la imagen`);
             await update(row.id, { status: "generating" });
             const refs = refsFor(scheme);
-            const image = await generateImage(
-              gemini,
-              { prompt: row.prompt ?? "", references: [...refs.presenter, ...refs.product] },
-              fetchImpl,
-            );
-            base = image.bytes;
-            const ext = image.mime === "image/jpeg" ? "jpg" : "png";
+            // Hasta que la persona sea el presentador (o, sin cara, que no haya
+            // nadie): cada intento fallido vuelve a Gemini con lo que salió mal.
+            type Attempt = { bytes: Buffer; mime: string; ok: boolean; likeness: number };
+            let best: Attempt | null = null;
+            let notes = "";
+            for (let attempt = 1; attempt <= IDENTITY_ATTEMPTS; attempt++) {
+              if (attempt > 1)
+                await report.progress(step(0), `${label}: otra imagen (intento ${attempt})`);
+              const prompt =
+                attempt === 1
+                  ? (row.prompt ?? "")
+                  : `${row.prompt ?? ""}\n${identityCorrection(scheme, notes)}`;
+              let image: Awaited<ReturnType<typeof generateImage>>;
+              try {
+                image = await generateImage(
+                  gemini,
+                  { prompt, references: [...refs.presenter, ...refs.product] },
+                  fetchImpl,
+                );
+              } catch (err) {
+                // Si falla un reintento, se queda la mejor imagen que ya se pagó.
+                if (best) break;
+                throw err;
+              }
+              const usd = imageCostUsd(gemini, image.usage);
+              row.credits += await charge("thumbnail_image", usd, {
+                model: gemini.model,
+                images: image.usage.images,
+                input_tokens: image.usage.inputTokens,
+                image_usd: usd,
+                attempt,
+              });
+              let check = { ok: true, likeness: 10, notes: "" };
+              try {
+                const preview = await sharp(image.bytes)
+                  .resize(1024, 576, { fit: "cover" })
+                  .jpeg({ quality: 85 })
+                  .toBuffer();
+                const out = await checkIdentity(anthropic, claude, {
+                  image: preview,
+                  mime: "image/jpeg",
+                  scheme,
+                  references: refs.presenter.slice(0, 2),
+                });
+                check = out.check;
+                const checkUsd = ai.costUsd(out.usage, out.model);
+                row.credits += await charge("thumbnail_identity", checkUsd, {
+                  model: out.model,
+                  ...out.usage,
+                  ai_usd: checkUsd,
+                  attempt,
+                  ok: check.ok,
+                  likeness: check.likeness,
+                });
+              } catch {
+                // Si la verificación falla, la imagen sigue: la calificación revisa la cara.
+              }
+              const current = { bytes: image.bytes, mime: image.mime, ...check };
+              if (!best || current.likeness > best.likeness) best = current;
+              if (check.ok) {
+                best = current;
+                break;
+              }
+              notes = check.notes;
+            }
+            const chosen = best!;
+            base = chosen.bytes;
+            if (!chosen.ok) {
+              row.layout_warnings = [
+                hasFace(scheme) ? IDENTITY_WARNINGS.face : IDENTITY_WARNINGS.person,
+              ];
+            }
+            const ext = chosen.mime === "image/jpeg" ? "jpg" : "png";
             const basePath = `${channelId}/episodes/${episodeId}/thumbnails/${row.id}-base.${ext}`;
             const { error: upError } = await db.storage
               .from(BUCKET)
-              .upload(basePath, base, { contentType: image.mime, upsert: true });
+              .upload(basePath, base, { contentType: chosen.mime, upsert: true });
             if (upError) throw upError;
-            const usd = imageCostUsd(gemini, image.usage);
-            row.credits += await charge("thumbnail_image", usd, {
-              model: gemini.model,
-              images: image.usage.images,
-              input_tokens: image.usage.inputTokens,
-              image_usd: usd,
-            });
             row.base_path = basePath;
             await update(row.id, {
               base_path: basePath,
               model: gemini.model,
+              layout_warnings: row.layout_warnings,
               credits: row.credits,
             });
           }
@@ -427,9 +493,10 @@ export async function runThumbnails(
               if (dlError || !data) throw new Error("No se pudo leer la imagen base");
               base = Buffer.from(await data.arrayBuffer());
             }
-            // Con cara, Claude la ubica para dejarle 40 px al texto.
+            // Claude ubica la cara y el producto: el texto no tapa el producto y
+            // deja 40 px a la cara (si no cabe todo, manda el producto).
             let avoid: SubjectBox[] = [];
-            if (hasFace(scheme)) {
+            {
               const preview = await sharp(base)
                 .resize(1024, 576, { fit: "cover" })
                 .jpeg({ quality: 80 })
@@ -459,7 +526,8 @@ export async function runThumbnails(
               colors: { text: kit.colors.text, accent: kit.colors.accent },
             });
             jpg = composed.jpg;
-            warnings = composed.warnings;
+            // Los avisos de identidad de la imagen se quedan con la versión.
+            warnings = [...row.layout_warnings.filter(isIdentityWarning), ...composed.warnings];
             const path = `${channelId}/episodes/${episodeId}/thumbnails/${row.id}.jpg`;
             const { error: upError } = await db.storage
               .from(BUCKET)
