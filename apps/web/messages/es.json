@@ -513,7 +513,9 @@
     "guide_no_sections": "No encontramos secciones numeradas en el texto (por ejemplo «0. PRIORIDADES»).",
     "guide_missing_sections": "Faltan secciones que usan las etapas del guion.",
     "jobs_not_configured": "El motor de tareas no está configurado: falta TRIGGER_SECRET_KEY en Vercel.",
-    "jobs_no_workspace": "Necesitas un espacio propio para probar el motor."
+    "jobs_no_workspace": "Necesitas un espacio propio para probar el motor.",
+    "direction_no_guide": "El canal no tiene guía del guionista. Pégala en Ajustes del canal.",
+    "no_credits": "No te alcanzan los créditos de IA de este mes."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -565,7 +567,8 @@
   "tasks": {
     "title": "Tareas en curso",
     "kind": {
-      "ping": "Prueba del motor de tareas"
+      "ping": "Prueba del motor de tareas",
+      "direction": "Preguntas de dirección"
     },
     "status": {
       "queued": "En cola",
@@ -574,5 +577,32 @@
       "failed": "Falló",
       "canceled": "Cancelada"
     }
+  },
+  "direction": {
+    "title": "Dirección del episodio",
+    "subtitle": "Antes de escribir, la IA lee el tema y te hace de 6 a 9 preguntas. El guion sale de tus respuestas; lo que dejes en blanco lo decide el guionista con las reglas.",
+    "noGuide": "Primero pega tu guía del guionista: las preguntas usan la sección del canal, el presentador y la audiencia.",
+    "goToGuide": "Ir a la guía",
+    "prepare": "Preparar preguntas",
+    "retry": "Reintentar",
+    "estimate": "Cuesta como máximo {cost} de tus créditos.",
+    "generating": "Preparando las preguntas… tarda unos segundos; también lo ves en la barra lateral.",
+    "failed": "No se pudieron preparar las preguntas.",
+    "reading": "Cómo leí el tema:",
+    "multiple": "puedes marcar varias",
+    "ownAnswer": "O escribe tu respuesta",
+    "ownAnswerFor": "Tu respuesta a la pregunta {n}",
+    "extra": "¿Algo más que el guionista deba saber?",
+    "extraPlaceholder": "Datos que tienes, enlaces, una anécdota real o algo que no quieres que se diga.",
+    "generate": "Generar guion con mis respuestas",
+    "generateSoon": "Generar el guion en 5 etapas llega en la próxima actualización. Tus respuestas quedan guardadas para entonces.",
+    "save": "Guardar respuestas",
+    "skip": "Saltar: que decida el guionista",
+    "regenerate": "Volver a preparar",
+    "answered": "Respondida",
+    "skipped": "Saltada",
+    "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
+    "savedToast": "Respuestas guardadas.",
+    "skippedToast": "Listo: decide el guionista."
   }
 }

@@ -15,6 +15,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChecklistPanel } from "@/components/episodes/checklist-panel";
+import { DirectionPanel, type DirectionState } from "@/components/episodes/direction-panel";
 import { ArchiveButton, VideoLink } from "@/components/episodes/episode-actions";
 import { EpisodeForm } from "@/components/episodes/episode-form";
 import { NextStepPanel } from "@/components/episodes/next-step-panel";
@@ -61,7 +62,7 @@ export default async function EpisodePage({
     .maybeSingle();
   if (!row) notFound();
 
-  const [steps, pillars, doneRows, activity, video, idea] = await Promise.all([
+  const [steps, pillars, doneRows, activity, video, idea, direction, guide] = await Promise.all([
     getChecklistSteps(channelId),
     getPillars(channelId),
     supabase.from("episode_checklist_items").select("step_id").eq("episode_id", episodeId),
@@ -82,7 +83,32 @@ export default async function EpisodePage({
     row.idea_id
       ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    tab === "script"
+      ? supabase
+          .from("episode_direction")
+          .select("status, reading, questions, answers, extra, task:tasks(status, error)")
+          .eq("episode_id", episodeId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    tab === "script"
+      ? supabase
+          .from("writer_guides")
+          .select("current_version_id")
+          .eq("channel_id", channelId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const directionState: DirectionState | null = direction.data
+    ? {
+        status: direction.data.status,
+        reading: direction.data.reading,
+        questions: direction.data.questions as unknown as DirectionState["questions"],
+        answers: direction.data.answers as unknown as DirectionState["answers"],
+        extra: direction.data.extra,
+        taskStatus: direction.data.task?.status ?? null,
+        taskError: direction.data.task?.error ?? null,
+      }
+    : null;
 
   const tz = ctx.channel.timezone;
   const episode = toPlannedEpisode(row, tz);
@@ -161,7 +187,12 @@ export default async function EpisodePage({
 
       <div className="mt-6 space-y-4">
         <StageBar stage={row.stage} />
-        <NextStepPanel episodeId={row.id} step={step} canAct={canAct} canSkip={canManage} />
+        <NextStepPanel
+          episodeId={row.id}
+          step={step}
+          canAct={canAct || (ctx.can("write_script") && step.stage === "direction")}
+          canSkip={canManage}
+        />
       </div>
 
       <nav
@@ -271,6 +302,14 @@ export default async function EpisodePage({
               </Card>
             </div>
           </div>
+        ) : tab === "script" ? (
+          <DirectionPanel
+            episodeId={row.id}
+            channelId={channelId}
+            direction={directionState}
+            hasGuide={Boolean(guide.data?.current_version_id)}
+            canEdit={ctx.can("write_script")}
+          />
         ) : tab === "publication" ? (
           <Card>
             <CardHeader title={t("episode.linkVideo")} />
