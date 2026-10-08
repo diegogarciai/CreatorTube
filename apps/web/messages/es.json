@@ -696,7 +696,8 @@
     "suggestedPillar": "Pilar: {pillar}",
     "use": "Usar",
     "used": "Listo: se guardó en el episodio.",
-    "directionTab": "Dirección"
+    "directionTab": "Dirección",
+    "decideInTable": "Decidir en la tabla"
   },
   "import": {
     "title": "Importar videos publicados",
@@ -716,5 +717,52 @@
     "doneWithAi": "Se {count, plural, one {creó # episodio} other {crearon # episodios}} Publicados. Claude está proponiendo pilar, keywords y postura: lo ves en Tareas en curso.",
     "goToProduction": "Ver en Producción",
     "notConnected": "Conecta el canal de YouTube para importar sus videos."
+  },
+  "verification": {
+    "title": "TABLA DE VERIFICACIÓN",
+    "copy": "Copiar",
+    "copied": "Copiado.",
+    "filters": "Filtrar filas",
+    "filter": {
+      "all": "Todas",
+      "decide": "Piden decisión",
+      "verified": "Verificado",
+      "nuanced": "Con matiz",
+      "unverifiable": "No verificable",
+      "contradicted": "Contradicho",
+      "dato": "Datos",
+      "opinion": "Opiniones"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "verified": "Verificado",
+      "nuanced": "Con matiz",
+      "unverifiable": "No verificable",
+      "contradicted": "Contradicho"
+    },
+    "nature": {
+      "brand": "Marca",
+      "independent": "Medición independiente",
+      "own": "Medición propia",
+      "press": "Prensa",
+      "estimate": "Estimación"
+    },
+    "opinion": "Opinión",
+    "dato": "___DATO",
+    "value": "Valor",
+    "occurrences": "{count, plural, one {# línea} other {# líneas}}",
+    "decisionLabel": "¿Qué hacemos con esta línea? (regla 10.4)",
+    "decision": {
+      "auto": "Que decida Claude",
+      "rewrite": "Reescribir con lo confirmado",
+      "remove": "Eliminar la línea",
+      "mark": "Dejar DATO POR CONFIRMAR",
+      "value": "Escribir el dato"
+    },
+    "valuePlaceholder": "El dato exacto, p. ej. 1.099 dólares en Estados Unidos",
+    "saveValue": "Guardar dato",
+    "summary": "{decided, plural, =0 {Sin decisiones} one {# decisión} other {# decisiones}} · {undecided, plural, =0 {nada por decidir} one {queda # por decidir (la decide Claude)} other {quedan # por decidir (las decide Claude)}}",
+    "redo": "Rehacer el guion verificado con tus decisiones",
+    "redoHint": "Vuelve a correr desde «Guion verificado»: motion graphics, B-rolls y Publicación incluidos. Cuesta cerca de {cost}."
   }
 }

@@ -1484,6 +1484,10 @@ export type Database = {
           value: string | null;
           note: string;
           updated_at: string;
+          decision: string | null;
+          decision_value: string | null;
+          decided_by: string | null;
+          decided_at: string | null;
         };
         Insert: {
           id?: string;
@@ -1504,6 +1508,10 @@ export type Database = {
           value?: string | null;
           note?: string;
           updated_at?: string;
+          decision?: string | null;
+          decision_value?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
         };
         Update: {
           id?: string;
@@ -1524,6 +1532,10 @@ export type Database = {
           value?: string | null;
           note?: string;
           updated_at?: string;
+          decision?: string | null;
+          decision_value?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
         };
         Relationships: [
           {
@@ -1531,6 +1543,13 @@ export type Database = {
             columns: ["channel_id"];
             isOneToOne: false;
             referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_items_decided_by_fkey";
+            columns: ["decided_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
           {

@@ -45,3 +45,6 @@ export const PODCAST_ESTIMATE_CREDITS = 30;
 
 /** Lo que cuesta, más o menos, que Claude clasifique un video importado de YouTube. */
 export const IMPORT_CREDITS_PER_VIDEO = 0.3;
+
+/** Lo que cuesta, más o menos, rehacer desde el guion verificado (y lo que sigue). */
+export const FIX_REDO_ESTIMATE_CREDITS = 100;

@@ -379,3 +379,9 @@ Pendientes:
   - acciones `findImportableVideos` e `importYouTubeVideos` y la tarjeta **Importar videos publicados** en la configuración del canal;
   - el código de un episodio importado lleva su fecha de publicación (el trigger solo respeta un código con el prefijo y el formato del canal);
   - tabla `youtube_import_items` y tarea `youtube_import`: Claude propone pilar, keywords y postura por lotes de 20; se cobra por lote y, si falla, sigue con los pendientes.
+
+- **Tabla de verificación con decisiones (10.4):**
+  - el paso «Verificar» muestra la tabla con filtros (Piden decisión, Verificado, Con matiz, No verificable, Contradicho, Datos y Opiniones), fuente enlazada, cita y fecha;
+  - en cada fila No verificable o Contradicha, o dato sin confirmar, el presentador elige: que decida Claude, reescribir con lo confirmado, eliminar la línea, dejar **_DATO POR CONFIRMAR_** o escribir el dato;
+  - las decisiones se guardan en `verification_items` y la tabla que recibe «Guion verificado» las lleva al final («Decisiones del presentador», que mandan sobre la 10.4);
+  - **Rehacer el guion verificado con tus decisiones** vuelve a correr desde ese paso; el aviso de pausa lleva a la tabla con **Decidir en la tabla**.

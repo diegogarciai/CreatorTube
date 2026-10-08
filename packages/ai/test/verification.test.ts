@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { APIError } from "@anthropic-ai/sdk";
 import {
   blockingClaims,
+  needsDecision,
   checkEvidence,
   extractClaims,
   normalizeUrl,
@@ -348,5 +349,35 @@ describe("tabla", () => {
     expect(table).toContain("| 3 | Precio en EE. UU. | US$1.299 | Verificado |");
     expect(table).toContain("- Vale la pena — «Línea 4»");
     expect(blockingClaims(claims).map((c) => c.idx)).toEqual([2, 5]);
+  });
+
+  it("las decisiones del presentador van al final y solo en filas que las piden", () => {
+    expect(needsDecision({ kind: "fact", status: "contradicted" })).toBe(true);
+    expect(needsDecision({ kind: "fact", status: "nuanced" })).toBe(false);
+    expect(needsDecision({ kind: "dato", status: "unverifiable" })).toBe(true);
+    expect(needsDecision({ kind: "dato", status: "verified" })).toBe(false);
+    expect(needsDecision({ kind: "opinion", status: "pending" })).toBe(false);
+    const table = verificationTable([
+      claim(1, { status: "verified", decision: "remove" }),
+      claim(2, { status: "contradicted", decision: "remove" }),
+      claim(3, { status: "unverifiable", decision: "rewrite" }),
+      claim(4, {
+        kind: "dato",
+        claim: "Precio",
+        status: "unverifiable",
+        decision: "value",
+        decisionValue: "1.099 dólares",
+      }),
+      claim(5, { status: "unverifiable", decision: "mark" }),
+      claim(6, { status: "unverifiable" }),
+    ]);
+    const section = table.slice(table.indexOf("**Decisiones del presentador"));
+    expect(section.split("\n").filter((l) => l.startsWith("- "))).toEqual([
+      "- #2 (Afirmación 2): eliminar la línea",
+      "- #3 (Afirmación 3): reescribir la línea con lo confirmado",
+      "- #4 (Precio): usar el valor «1.099 dólares», que da el presentador",
+      "- #5 (Afirmación 5): dejar ___DATO POR CONFIRMAR___",
+    ]);
+    expect(verificationTable([claim(1, { status: "unverifiable" })])).not.toContain("Decisiones");
   });
 });

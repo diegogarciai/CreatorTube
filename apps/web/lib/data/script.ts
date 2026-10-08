@@ -5,6 +5,7 @@ import {
   findBlock,
   IMPLEMENTED_STAGES,
   IMPLEMENTED_STEPS,
+  needsDecision,
   parseAssets,
   pendingDatoLines,
   SCRIPT_STAGES,
@@ -54,12 +55,39 @@ export type ScriptRunView = {
   credits: number;
 };
 
+/** Una fila de la verificación vigente, para la tabla del panel. */
+export type VerificationRow = {
+  idx: number;
+  kind: "fact" | "opinion" | "dato";
+  claim: string;
+  line: string;
+  occurrences: number;
+  status: "pending" | "verified" | "nuanced" | "unverifiable" | "contradicted";
+  nature: string | null;
+  url: string | null;
+  sourceTitle: string | null;
+  quote: string | null;
+  date: string | null;
+  value: string | null;
+  note: string;
+  decision: "rewrite" | "remove" | "mark" | "value" | null;
+  decisionValue: string | null;
+  /** Pide una salida de la regla 10.4. */
+  needsDecision: boolean;
+};
+
 export type ScriptView = {
   run: ScriptRunView | null;
   stages: ScriptStageView[];
   history: ScriptRunView[];
   /** Si el guion ya pasó la verificación y qué ___DATO quedaron por confirmar. */
-  verification: { done: boolean; pending: string[] };
+  verification: {
+    done: boolean;
+    pending: string[];
+    items: VerificationRow[];
+    /** Filas que piden decisión y todavía no la tienen. */
+    undecided: number;
+  };
   /** El Podcast se puede generar: la Verificación está lista. */
   podcastReady: boolean;
   /** Keywords y pilar de los assets que no coinciden con los del episodio. */
@@ -82,29 +110,39 @@ export async function loadScriptView(
   tags: EpisodeTags,
 ): Promise<ScriptView> {
   const supabase = await getSupabase();
-  const [{ data: runs }, { data: stageRows }, { data: stepRows }, pillars] = await Promise.all([
-    supabase
-      .from("script_runs")
-      .select(
-        "id, status, from_stage, from_step, model, created_at, task:tasks(status, error), stages:script_stage_runs(credits)",
-      )
-      .eq("episode_id", episodeId)
-      .order("created_at", { ascending: false })
-      .limit(10),
-    currentRunId
-      ? supabase
-          .from("script_stage_runs")
-          .select("stage, status, blocks, error")
-          .eq("run_id", currentRunId)
-      : Promise.resolve({ data: [] }),
-    currentRunId
-      ? supabase
-          .from("script_step_runs")
-          .select("stage, step, status, body, error, progress_message, preview")
-          .eq("run_id", currentRunId)
-      : Promise.resolve({ data: [] }),
-    getPillars(tags.channelId),
-  ]);
+  const [{ data: runs }, { data: stageRows }, { data: stepRows }, pillars, { data: itemRows }] =
+    await Promise.all([
+      supabase
+        .from("script_runs")
+        .select(
+          "id, status, from_stage, from_step, model, created_at, task:tasks(status, error), stages:script_stage_runs(credits)",
+        )
+        .eq("episode_id", episodeId)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      currentRunId
+        ? supabase
+            .from("script_stage_runs")
+            .select("stage, status, blocks, error")
+            .eq("run_id", currentRunId)
+        : Promise.resolve({ data: [] }),
+      currentRunId
+        ? supabase
+            .from("script_step_runs")
+            .select("stage, step, status, body, error, progress_message, preview")
+            .eq("run_id", currentRunId)
+        : Promise.resolve({ data: [] }),
+      getPillars(tags.channelId),
+      currentRunId
+        ? supabase
+            .from("verification_items")
+            .select(
+              "idx, kind, claim, line, occurrences, status, nature, url, source_title, quote, data_date, value, note, decision, decision_value",
+            )
+            .eq("run_id", currentRunId)
+            .order("idx")
+        : Promise.resolve({ data: [] }),
+    ]);
 
   const history: ScriptRunView[] = (runs ?? []).map((r) => {
     // Si la tarea murió (tiempo agotado, cancelada), la corrida no sigue en curso.
@@ -199,9 +237,33 @@ export async function loadScriptView(
 
   // El guion verificado: lo que queda por confirmar decide si se puede grabar.
   const fix = stages.flatMap((s) => s.steps).find((s) => s.key === "fix");
-  const verification = fix?.body
-    ? { done: true, pending: pendingDatoLines(fix.body) }
-    : { done: false, pending: [] };
+  const items: VerificationRow[] = (run ? (itemRows ?? []) : []).map((r) => {
+    const row = {
+      idx: r.idx,
+      kind: r.kind as VerificationRow["kind"],
+      claim: r.claim,
+      line: r.line,
+      occurrences: r.occurrences,
+      status: r.status as VerificationRow["status"],
+      nature: r.nature,
+      url: r.url,
+      sourceTitle: r.source_title,
+      quote: r.quote,
+      date: r.data_date,
+      value: r.value,
+      note: r.note,
+      decision: r.decision as VerificationRow["decision"],
+      decisionValue: r.decision_value,
+    };
+    return { ...row, needsDecision: needsDecision(row) };
+  });
+  const verification = {
+    ...(fix?.body
+      ? { done: true, pending: pendingDatoLines(fix.body) }
+      : { done: false, pending: [] }),
+    items,
+    undecided: items.filter((i) => i.needsDecision && !i.decision).length,
+  };
 
   const podcastReady = canRestart(IMPLEMENTED_STEPS.findIndex((s) => s.key === "podcast_script"));
 
