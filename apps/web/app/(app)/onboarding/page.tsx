@@ -6,9 +6,9 @@ import { can } from "@planificador/core";
 import { Page, PageHeader } from "@/components/page-header";
 import { buttonClass } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
-import { EmptyState } from "@/components/ui/empty-state";
 import { SubmitButton } from "@/components/submit-button";
 import { Step } from "@/components/onboarding-step";
+import { NoWorkspace } from "@/components/workspace/no-workspace";
 import { getMyMemberships } from "@/lib/auth";
 import { YOUTUBE_CONFIGURED } from "@/lib/env";
 import { createManualChannel } from "@/lib/actions/channels";
@@ -26,11 +26,7 @@ export default async function OnboardingPage({
   if (workspaces.length === 0) {
     return (
       <Page>
-        <EmptyState
-          title={t("onboarding.title")}
-          description={t("onboarding.noWorkspace")}
-          className="mt-16"
-        />
+        <NoWorkspace from="/onboarding" error={error} />
       </Page>
     );
   }

@@ -124,6 +124,88 @@ describe("invitaciones", () => {
     );
     expect(m.role).toBe("video_editor");
   });
+
+  it("invitaciones pendientes: solo las propias y vigentes, y se aceptan sin el enlace", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id, "Agencia");
+    const guest = await createUser("pending");
+    const other = await createUser();
+    await sql(
+      `insert into public.invitations (kind, workspace_id, email, role, token_hash, expires_at, accepted_at) values
+        ('platform', null, $1, 'owner', public.hash_invitation_token('tok-p1'), now() + interval '1 day', null),
+        ('workspace', $2, $1, 'writer', public.hash_invitation_token('tok-p2'), now() + interval '1 day', null),
+        ('platform', null, $1, 'owner', public.hash_invitation_token('tok-p3'), now() - interval '1 day', null),
+        ('platform', null, $1, 'owner', public.hash_invitation_token('tok-p4'), now() + interval '1 day', now()),
+        ('platform', null, $3, 'owner', public.hash_invitation_token('tok-p5'), now() + interval '1 day', null)`,
+      [guest.email, ws, other.email],
+    );
+    const pending = await as(guest.id, (q) => q("select * from public.my_pending_invitations()"));
+    expect(pending.map((p) => [p.kind, p.workspace_name, p.role])).toEqual([
+      ["platform", null, "owner"],
+      ["workspace", "Agencia", "writer"],
+    ]);
+    await expect(
+      as(null, (q) => q("select * from public.my_pending_invitations()")),
+    ).rejects.toThrow(/permission denied/);
+
+    const [platformInv, workspaceInv] = pending;
+    await expect(
+      as(other.id, (q) => q("select public.accept_invitation_by_id($1)", [platformInv.id])),
+    ).rejects.toThrow(/otro correo/);
+    const created = await as(
+      guest.id,
+      async (q) =>
+        (await q("select public.accept_invitation_by_id($1, 'Mío') as ws", [platformInv.id]))[0].ws,
+    );
+    const joined = await as(
+      guest.id,
+      async (q) =>
+        (await q("select public.accept_invitation_by_id($1) as ws", [workspaceInv.id]))[0].ws,
+    );
+    expect(joined).toBe(ws);
+    const roles = await sql(
+      "select w.name, m.role from public.memberships m join public.workspaces w on w.id = m.workspace_id where m.user_id = $1 order by w.name",
+      [guest.id],
+    );
+    expect(roles).toEqual([
+      { name: "Agencia", role: "writer" },
+      { name: "Mío", role: "owner" },
+    ]);
+    expect(created).not.toBe(ws);
+    await expect(
+      as(guest.id, (q) => q("select public.accept_invitation_by_id($1)", [platformInv.id])),
+    ).rejects.toThrow(/ya fue usada/);
+    const [expired] = await sql(
+      "select id from public.invitations where token_hash = public.hash_invitation_token('tok-p3')",
+    );
+    await expect(
+      as(guest.id, (q) => q("select public.accept_invitation_by_id($1)", [expired.id])),
+    ).rejects.toThrow(/venció/);
+    await expect(
+      as(guest.id, (q) => q("select public.accept_invitation_row($1, null)", [expired.id])),
+    ).rejects.toThrow(/permission denied/);
+    expect(await as(guest.id, (q) => q("select * from public.my_pending_invitations()"))).toEqual(
+      [],
+    );
+  });
+
+  it("solo un administrador de la plataforma crea espacios sin invitación", async () => {
+    const admin = await createUser("boss");
+    await sql("insert into public.platform_admins (email) values ($1)", [admin.email]);
+    const nobody = await createUser();
+    const ws = await as(
+      admin.id,
+      async (q) => (await q("select public.create_workspace('Gartechs') as ws"))[0].ws,
+    );
+    const [m] = await sql(
+      "select role from public.memberships where workspace_id = $1 and user_id = $2",
+      [ws, admin.id],
+    );
+    expect(m.role).toBe("owner");
+    await expect(
+      as(nobody.id, (q) => q("select public.create_workspace('Ajeno')")),
+    ).rejects.toThrow(/Solo con invitación/);
+  });
 });
 
 describe("aislamiento entre espacios", () => {

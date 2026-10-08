@@ -4,13 +4,19 @@ import { getTranslations } from "next-intl/server";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { InviteForm } from "@/components/workspace/invite-form";
+import { CreateOwnWorkspaceCard } from "@/components/workspace/no-workspace";
 import { RevokeInvitationButton } from "@/components/workspace/member-row";
 import { isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "Administración" };
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   if (!(await isPlatformAdmin())) notFound();
   const t = await getTranslations("admin");
   const tw = await getTranslations("workspace");
@@ -33,12 +39,18 @@ export default async function AdminPage() {
     <Page>
       <PageHeader title={t("title")} description={t("subtitle")} />
       <div className="space-y-6">
+        {error ? (
+          <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">
+            {error}
+          </p>
+        ) : null}
         <Card>
           <CardHeader title={t("inviteCreator")} description={t("inviteCreatorDesc")} />
           <CardBody>
             <InviteForm />
           </CardBody>
         </Card>
+        <CreateOwnWorkspaceCard from="/admin" />
         <Card>
           <CardHeader title={t("invitations")} />
           <ul className="divide-y divide-border">

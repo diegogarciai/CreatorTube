@@ -23,6 +23,42 @@ export async function acceptInvitation(token: string, formData: FormData) {
   redirect(preview?.[0]?.kind === "platform" ? `/onboarding?workspace=${workspaceId}` : "/app");
 }
 
+/** Páginas desde las que se acepta o se crea un espacio; ahí vuelve el error. */
+const RETURN_PATHS = ["/app", "/onboarding", "/admin"] as const;
+function returnPath(formData: FormData) {
+  const from = String(formData.get("from") ?? "");
+  return (RETURN_PATHS as readonly string[]).includes(from) ? from : "/app";
+}
+
+/** Acepta una invitación pendiente del propio correo, sin el enlace. */
+export async function acceptPendingInvitation(invitationId: string, formData: FormData) {
+  await requireUser();
+  const supabase = await getSupabase();
+  const workspaceName = String(formData.get("workspaceName") ?? "").trim() || undefined;
+  const { data: pending } = await supabase.rpc("my_pending_invitations");
+  const kind = pending?.find((p) => p.id === invitationId)?.kind;
+  const { data: workspaceId, error } = await supabase.rpc("accept_invitation_by_id", {
+    invitation: invitationId,
+    workspace_name: workspaceName,
+  });
+  if (error) redirect(`${returnPath(formData)}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/", "layout");
+  redirect(kind === "platform" ? `/onboarding?workspace=${workspaceId}` : "/app");
+}
+
+/** Un administrador de la plataforma crea su propio espacio sin invitación. */
+export async function createOwnWorkspace(formData: FormData) {
+  await requireUser();
+  const supabase = await getSupabase();
+  const name = String(formData.get("workspaceName") ?? "").trim();
+  const { data: workspaceId, error } = await supabase.rpc("create_workspace", {
+    workspace_name: name,
+  });
+  if (error) redirect(`${returnPath(formData)}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath("/", "layout");
+  redirect(`/onboarding?workspace=${workspaceId}`);
+}
+
 /** Invitación a un espacio existente (rol distinto de propietario). */
 export async function inviteMember(
   workspaceId: string,
