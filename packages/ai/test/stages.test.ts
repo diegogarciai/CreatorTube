@@ -10,6 +10,8 @@ import {
   parseBlocks,
   previewTail,
   runStep,
+  pendingDatoLines,
+  pendingDatos,
   qualityVerdict,
   skipsStep,
   STAGE_STEPS,
@@ -40,7 +42,7 @@ const ctx: StageContext = {
 };
 
 describe("pasos", () => {
-  it("Estudio en 2 pasos y Guion en 8, con control de calidad y corrección tras el teleprompter", () => {
+  it("Estudio 2, Guion 4 y Verificación 6; reels, motion y B-rolls después de verificar", () => {
     expect(STAGE_STEPS.study!.map((s) => s.title)).toEqual([
       "DOSSIER DE ESTUDIO",
       "TARJETAS DE ESTUDIO",
@@ -50,8 +52,12 @@ describe("pasos", () => {
       "GUION — TELEPROMPTER",
       "CONTROL DE CALIDAD",
       "GUION — TELEPROMPTER CORREGIDO",
+    ]);
+    expect(STAGE_STEPS.verification!.map((s) => s.title)).toEqual([
+      "AFIRMACIONES A VERIFICAR",
+      "TABLA DE VERIFICACIÓN",
+      "GUION — TELEPROMPTER VERIFICADO",
       "GUION CON REELS MARCADOS",
-      "VERIFICACIÓN DE DATOS",
       "MOTION GRAPHICS",
       "PLAN DE B-ROLLS",
     ]);
@@ -62,10 +68,25 @@ describe("pasos", () => {
       "teleprompter",
       "quality",
       "revision",
+      "claims",
+      "verify",
+      "fix",
       "reels",
-      "fact_check",
       "motion",
       "broll",
+    ]);
+    // Cada paso recibe las secciones de su parte de la tabla de la guía.
+    expect(STAGE_STEPS.verification!.map((s) => s.guide)).toEqual([
+      "verification_extract",
+      "verification_extract",
+      "verification_fix",
+      "verification_mark",
+      "verification_mark",
+      "script",
+    ]);
+    expect(STAGE_STEPS.verification!.filter((s) => s.special).map((s) => s.key)).toEqual([
+      "claims",
+      "verify",
     ]);
   });
 });
@@ -126,16 +147,14 @@ describe("prompts de los pasos", () => {
     expect(outline.shared).toContain(
       "MATERIAL DE LA ETAPA ESTUDIO:\n### BLOQUE: DOSSIER DE ESTUDIO\nLo esencial…",
     );
-    expect(outline.shared).toContain("«GUION SIN VERIFICAR — NO GRABAR»");
+    expect(outline.shared).toContain("la verificación con búsqueda llega en la etapa siguiente");
     expect(outline.shared).toContain("POSTURA: ninguna anotada");
     expect(outline.shared).toContain("Diego saltó la entrevista de dirección");
-    expect(outline.task).toContain("PASO 1 de 8");
+    expect(outline.task).toContain("PASO 1 de 4");
     expect(outline.task).toContain("Sin la tabla 8.8");
     expect(quality.done).toEqual(done);
-    expect(quality.task).toContain(
-      "Arriba están los bloques de esta etapa que ya quedaron listos.",
-    );
-    expect(quality.task).toContain("PASO 3 de 8");
+    expect(quality.task).toContain("Arriba está el material que ya quedó listo.");
+    expect(quality.task).toContain("PASO 3 de 4");
     expect(quality.task).toContain("### BLOQUE: CONTROL DE CALIDAD — la tabla 8.8");
   });
 });
@@ -157,42 +176,69 @@ describe("control de calidad y corrección", () => {
     teleprompter: "Original",
     quality: "| Ritmo | No cumple |\nVEREDICTO: CORREGIR",
     revision: "Corregido",
-    reels: "Reels",
+    verify: "| 1 | … | Verificado |",
+    fix: "Verificado y corregido",
   };
 
-  it("la Corrección ve la tabla; desde Reels, solo el teleprompter final", () => {
+  it("la Corrección ve la tabla; la Verificación trabaja con el teleprompter final", () => {
     expect(stepInputs("revision", bodies).map((b) => b.title)).toEqual([
       "ESCALETA",
       "GUION — TELEPROMPTER",
       "CONTROL DE CALIDAD",
     ]);
-    expect(stepInputs("reels", bodies)).toEqual([
-      { title: "ESCALETA", body: "Escaleta" },
+    expect(stepInputs("claims", bodies)).toEqual([
       { title: "GUION — TELEPROMPTER", body: "Corregido" },
     ]);
+    expect(stepInputs("fix", bodies)).toEqual([
+      { title: "GUION — TELEPROMPTER", body: "Corregido" },
+      { title: "TABLA DE VERIFICACIÓN", body: bodies.verify },
+    ]);
+    // Después de corregir, solo el guion verificado (y la tabla para los motion).
+    expect(stepInputs("reels", bodies)).toEqual([
+      { title: "GUION — TELEPROMPTER VERIFICADO", body: "Verificado y corregido" },
+    ]);
     expect(stepInputs("motion", bodies).map((b) => b.title)).toEqual([
-      "ESCALETA",
-      "GUION — TELEPROMPTER",
-      "GUION CON REELS MARCADOS",
+      "TABLA DE VERIFICACIÓN",
+      "GUION — TELEPROMPTER VERIFICADO",
+    ]);
+    expect(stepInputs("broll", bodies).map((b) => b.title)).toEqual([
+      "GUION — TELEPROMPTER VERIFICADO",
     ]);
     // Corrección saltada: va el original.
     const skipped = { ...bodies, quality: "VEREDICTO: CUMPLE", revision: "" };
-    expect(stepInputs("reels", skipped)[1]).toEqual({
-      title: "GUION — TELEPROMPTER",
-      body: "Original",
-    });
+    expect(stepInputs("claims", skipped)).toEqual([
+      { title: "GUION — TELEPROMPTER", body: "Original" },
+    ]);
     expect(stepInputs("cards", { dossier: "D" })).toEqual([
       { title: "DOSSIER DE ESTUDIO", body: "D" },
     ]);
   });
 
-  it("la etapa entrega el teleprompter final y no la corrección aparte", () => {
+  it("las etapas entregan el teleprompter final y no la corrección aparte", () => {
     expect(stageBlocks("script", bodies)).toEqual([
       { title: "ESCALETA", body: "Escaleta" },
       { title: "GUION — TELEPROMPTER", body: "Corregido" },
       { title: "CONTROL DE CALIDAD", body: bodies.quality },
-      { title: "GUION CON REELS MARCADOS", body: "Reels" },
     ]);
+    expect(
+      stageBlocks("verification", { ...bodies, claims: "x", reels: "R" }).map((b) => b.title),
+    ).toEqual([
+      "TABLA DE VERIFICACIÓN",
+      "GUION — TELEPROMPTER VERIFICADO",
+      "GUION CON REELS MARCADOS",
+    ]);
+  });
+
+  it("encuentra las marcas ___DATO que quedan", () => {
+    expect(
+      pendingDatos("Cuesta ___DATO POR CONFIRMAR___ y pesa ___DATO: peso en gramos___. Listo."),
+    ).toEqual(["___DATO POR CONFIRMAR___", "___DATO: peso en gramos___"]);
+    expect(pendingDatos("Sin pendientes.")).toEqual([]);
+    expect(
+      pendingDatoLines(
+        "Cuesta 1.099 dólares. Llega a Colombia el ___DATO POR CONFIRMAR___. Es delgado.\nPesa ___DATO: peso___",
+      ),
+    ).toEqual(["Llega a Colombia el ___DATO POR CONFIRMAR___.", "Pesa ___DATO: peso___"]);
   });
 });
 
@@ -326,7 +372,7 @@ describe("llamada en streaming", () => {
     expect(content[0]!.cache_control).toEqual({ type: "ephemeral" });
     expect(content[1]).toEqual({ type: "text", text: "### BLOQUE: ESCALETA\n1. Gancho" });
     expect(content[2]!.cache_control).toEqual({ type: "ephemeral" });
-    expect(content[3]!.text).toContain("PASO 3 de 8");
+    expect(content[3]!.text).toContain("PASO 3 de 4");
     expect(content[3]!.cache_control).toBeUndefined();
   });
 

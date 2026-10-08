@@ -1464,6 +1464,91 @@ export type Database = {
           },
         ];
       };
+      verification_items: {
+        Row: {
+          id: string;
+          run_id: string;
+          workspace_id: string;
+          channel_id: string;
+          idx: number;
+          kind: string;
+          claim: string;
+          line: string;
+          occurrences: number;
+          status: string;
+          nature: string | null;
+          url: string | null;
+          source_title: string | null;
+          quote: string | null;
+          data_date: string | null;
+          value: string | null;
+          note: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          workspace_id?: string;
+          channel_id: string;
+          idx: number;
+          kind: string;
+          claim: string;
+          line?: string;
+          occurrences?: number;
+          status?: string;
+          nature?: string | null;
+          url?: string | null;
+          source_title?: string | null;
+          quote?: string | null;
+          data_date?: string | null;
+          value?: string | null;
+          note?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          run_id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          idx?: number;
+          kind?: string;
+          claim?: string;
+          line?: string;
+          occurrences?: number;
+          status?: string;
+          nature?: string | null;
+          url?: string | null;
+          source_title?: string | null;
+          quote?: string | null;
+          data_date?: string | null;
+          value?: string | null;
+          note?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_items_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_items_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "script_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_items_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       workspaces: {
         Row: {
           id: string;
@@ -1870,7 +1955,14 @@ export type Database = {
       invitation_kind: "platform" | "workspace";
       script_stage: "study" | "script" | "verification" | "publication" | "podcast";
       sponsorship: "none" | "sponsor" | "affiliate";
-      stage_run_status: "queued" | "running" | "succeeded" | "failed" | "incomplete" | "skipped";
+      stage_run_status:
+        | "queued"
+        | "running"
+        | "succeeded"
+        | "failed"
+        | "incomplete"
+        | "skipped"
+        | "paused";
       task_status: "queued" | "running" | "succeeded" | "failed" | "canceled";
       workspace_role: "owner" | "admin" | "producer" | "writer" | "video_editor" | "viewer";
     };

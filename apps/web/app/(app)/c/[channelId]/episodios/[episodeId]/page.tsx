@@ -196,7 +196,10 @@ export default async function EpisodePage({
           step={step}
           canAct={
             canAct ||
-            (ctx.can("write_script") && (step.stage === "direction" || step.stage === "script"))
+            (ctx.can("write_script") &&
+              (step.stage === "direction" ||
+                step.stage === "script" ||
+                step.stage === "verification"))
           }
           canSkip={canManage}
         />

@@ -349,3 +349,13 @@ Pendientes:
   - con CORREGIR, el paso Corrección reescribe el teleprompter aplicando solo esos cambios; con CUMPLE queda «Sin cambios», sin llamada ni costo;
   - desde Reels, los pasos reciben un solo teleprompter (el final) y ya no la tabla de calidad;
   - una sola corrección, sin volver a pasar el control, para que el costo tenga tope.
+
+- **Paso 5 (Verificación con Parallel):**
+  - Guion queda en 4 pasos (escaleta, teleprompter, control de calidad y corrección); los reels, los motion graphics y los B-rolls pasan a después de verificar, para no pagarlos dos veces;
+  - Verificación en 6 pasos: afirmaciones (salida estructurada, 10.1) → verificar → guion verificado (10.4 y 10.7) → reels marcados → motion graphics (solo cifras Verificado o Con matiz) → B-rolls;
+  - verificar: de 4 en 4 (los \_\_\_DATO de uno en uno); Claude busca con la herramienta `buscar`, que el servidor ejecuta contra Parallel, y entrega con `registrar_resultados`;
+  - el servidor rechaza toda URL que no salió de esas búsquedas y toda cita de más de 15 palabras o que no aparece textualmente en el extracto: queda No verificable;
+  - tabla `verification_items`, una fila por afirmación, guardada grupo a grupo: si Parallel falla 3 veces seguidas, la tarea se detiene y **Regenerar desde Verificar** sigue con las pendientes;
+  - si el guion verificado queda con **_DATO POR CONFIRMAR_**, la corrida se pausa antes de los reels («En pausa») y espera **Seguir con los pendientes marcados**;
+  - sin pendientes, el episodio pasa a Preparación y Por grabar; con pendientes, queda en Verificación con «Decidir puntos pendientes»;
+  - consumo por grupo: tokens más búsquedas (`PARALLEL_PRICE_USD`).
