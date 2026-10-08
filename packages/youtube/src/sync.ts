@@ -62,6 +62,30 @@ export interface SyncOptions {
 
 const REFRESH_MARGIN_MS = 2 * 60_000;
 
+/** El token de acceso vigente: si vence en menos de 2 minutos, lo refresca y lo guarda. */
+export async function freshAccessToken(
+  conn: StoredConnection,
+  oauth: SyncOptions["oauth"],
+  store: Pick<SyncStore, "saveTokens">,
+  fetchImpl: typeof fetch,
+  now: Date,
+): Promise<string> {
+  if (
+    conn.accessToken &&
+    conn.tokenExpiresAt &&
+    conn.tokenExpiresAt.getTime() - now.getTime() >= REFRESH_MARGIN_MS
+  ) {
+    return conn.accessToken;
+  }
+  if (!conn.refreshToken) throw new OAuthError("Sin refresh token", "invalid_grant", 400);
+  const tokens = await refreshAccessToken(oauth, conn.refreshToken, fetchImpl, now.getTime());
+  await store.saveTokens(conn.channelId, {
+    ...tokens,
+    refreshToken: tokens.refreshToken ?? conn.refreshToken,
+  });
+  return tokens.accessToken;
+}
+
 export async function syncChannel(conn: StoredConnection, opts: SyncOptions): Promise<SyncResult> {
   const now = opts.now ?? new Date();
   const fetchImpl = opts.fetchImpl ?? fetch;
@@ -77,26 +101,7 @@ export async function syncChannel(conn: StoredConnection, opts: SyncOptions): Pr
 
   let client: YouTubeClient | null = null;
   try {
-    let accessToken = conn.accessToken;
-    if (
-      !accessToken ||
-      !conn.tokenExpiresAt ||
-      conn.tokenExpiresAt.getTime() - now.getTime() < REFRESH_MARGIN_MS
-    ) {
-      if (!conn.refreshToken) throw new OAuthError("Sin refresh token", "invalid_grant", 400);
-      const tokens = await refreshAccessToken(
-        opts.oauth,
-        conn.refreshToken,
-        fetchImpl,
-        now.getTime(),
-      );
-      await opts.store.saveTokens(conn.channelId, {
-        ...tokens,
-        refreshToken: tokens.refreshToken ?? conn.refreshToken,
-      });
-      accessToken = tokens.accessToken;
-    }
-
+    const accessToken = await freshAccessToken(conn, opts.oauth, opts.store, fetchImpl, now);
     client = new YouTubeClient(accessToken, fetchImpl);
     const channel = await client.getMyChannel();
     if (!channel?.uploadsPlaylistId) throw new Error("El canal no tiene lista de subidas");

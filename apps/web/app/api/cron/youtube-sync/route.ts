@@ -4,6 +4,7 @@ import { shouldSync } from "@planificador/youtube";
 import { isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncChannelById } from "@/lib/youtube";
+import { syncAnalyticsById } from "@/lib/youtube-analytics";
 
 export const maxDuration = 300;
 
@@ -69,5 +70,27 @@ export async function GET(request: NextRequest) {
       });
     }
   }
-  return NextResponse.json({ synced: results.length, quotaUsedToday: usedToday, results });
+  // Analítica (Fase 4): una vez al día por canal; usa la cuota de la Analytics
+  // API, aparte de la de la Data API.
+  const analytics = [];
+  for (const conn of conns ?? []) {
+    if (!conn.channel || conn.channel.disconnected_at) continue;
+    const r = await syncAnalyticsById(admin, conn.channel_id);
+    if (r) {
+      analytics.push({
+        channel: r.channelId,
+        ok: r.ok,
+        days: r.channelDays,
+        videos: r.videos,
+        retention: r.retention,
+        error: r.error,
+      });
+    }
+  }
+  return NextResponse.json({
+    synced: results.length,
+    quotaUsedToday: usedToday,
+    results,
+    analytics,
+  });
 }

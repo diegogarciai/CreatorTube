@@ -1,13 +1,22 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { youTubeWatchUrl } from "@planificador/core";
+import { DailyChart } from "@/components/analytics/daily-chart";
+import { RefreshAnalyticsButton } from "@/components/analytics/refresh-button";
+import { clockLabel, percentLabel, StatTiles } from "@/components/analytics/stat-tiles";
 import { Page, PageHeader } from "@/components/page-header";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getChannelContext, getSupabase } from "@/lib/auth";
+import { loadChannelAnalytics, type PeriodTotals } from "@/lib/data/analytics";
 
 export const metadata: Metadata = { title: "Analítica" };
+
+const int = new Intl.NumberFormat("es-CO");
+const change = (now: number, before: number | undefined) =>
+  before ? (now - before) / Math.abs(before) : null;
 
 export default async function AnalyticsPage({
   params,
@@ -18,28 +27,155 @@ export default async function AnalyticsPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const { data: videos } = await supabase
-    .from("youtube_videos")
-    .select(
-      "video_id, title, thumbnail_url, privacy_status, published_at, publish_at, view_count, fetched_at",
-    )
-    .eq("channel_id", channelId)
-    .order("published_at", { ascending: false, nullsFirst: true })
-    .limit(20);
+  const [analytics, { data: videos }] = await Promise.all([
+    loadChannelAnalytics(channelId),
+    supabase
+      .from("youtube_videos")
+      .select(
+        "video_id, title, thumbnail_url, privacy_status, published_at, publish_at, view_count, fetched_at",
+      )
+      .eq("channel_id", channelId)
+      .order("published_at", { ascending: false, nullsFirst: true })
+      .limit(20),
+  ]);
   const fmt = new Intl.DateTimeFormat("es", {
     dateStyle: "medium",
     timeZone: ctx.channel.timezone,
   });
+  const { current: c, previous: p } = analytics;
+  const tiles = (cur: PeriodTotals, prev: PeriodTotals | null) => [
+    {
+      label: t("analytics.tile.views"),
+      value: int.format(cur.views),
+      delta: change(cur.views, prev?.views),
+    },
+    {
+      label: t("analytics.tile.watchHours"),
+      value: int.format(Math.round(cur.watchMinutes / 60)),
+      delta: change(cur.watchMinutes, prev?.watchMinutes),
+    },
+    {
+      label: t("analytics.tile.subscribers"),
+      value: `${cur.subscribersNet >= 0 ? "+" : ""}${int.format(cur.subscribersNet)}`,
+      delta: change(cur.subscribersNet, prev?.subscribersNet),
+    },
+    {
+      label: t("analytics.tile.avgDuration"),
+      value: clockLabel(cur.averageViewDurationS),
+      delta: change(cur.averageViewDurationS, prev?.averageViewDurationS),
+    },
+    {
+      label: t("analytics.tile.avgPercentage"),
+      value: percentLabel(cur.averageViewPercentage),
+      delta: change(cur.averageViewPercentage, prev?.averageViewPercentage),
+    },
+  ];
 
   return (
     <Page>
-      <PageHeader title={t("analytics.title")} />
+      <PageHeader
+        title={t("analytics.title")}
+        actions={<RefreshAnalyticsButton channelId={channelId} />}
+      />
       <div className="space-y-6">
-        <EmptyState
-          icon={<BarChart3 className="size-8" />}
-          title={t("analytics.emptyTitle")}
-          description={t("analytics.emptyDesc")}
-        />
+        {analytics.connected ? (
+          <>
+            <section className="space-y-2">
+              <StatTiles tiles={tiles(c, p)} />
+              <p className="text-xs text-muted">
+                {t("analytics.source", {
+                  date: analytics.fetchedAt ? fmt.format(new Date(analytics.fetchedAt)) : "—",
+                })}
+                {p ? ` ${t("analytics.vsPrevious")}` : ""}
+              </p>
+            </section>
+            <Card>
+              <CardHeader title={t("analytics.dailyViews")} description={t("analytics.last28")} />
+              <CardBody>
+                <DailyChart points={analytics.daily} label={t("analytics.tile.views")} />
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHeader
+                title={t("analytics.episodesTitle")}
+                description={t("analytics.episodesDesc")}
+              />
+              {analytics.episodes.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-sm" data-testid="episode-analytics">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted">
+                        <th className="px-5 py-2 font-medium">{t("analytics.col.episode")}</th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.week")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.total")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.pct")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.duration")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.likes")}
+                        </th>
+                        <th className="px-5 py-2 text-right font-medium">
+                          {t("analytics.col.comments")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.episodes.map((e) => (
+                        <tr key={e.episodeId} className="border-b border-border last:border-0">
+                          <td className="px-5 py-2">
+                            <Link
+                              href={`/c/${channelId}/episodios/${e.episodeId}?tab=metrics`}
+                              className="font-medium hover:underline"
+                            >
+                              {e.title}
+                            </Link>
+                            <div className="text-xs text-muted">
+                              {e.code} · {fmt.format(new Date(e.publishedAt))}
+                              {e.hasRetention ? ` · ${t("analytics.hasRetention")}` : ""}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {int.format(e.firstWeek.views)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {int.format(e.total.views)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {percentLabel(e.total.averageViewPercentage)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {clockLabel(e.total.averageViewDurationS)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {int.format(e.total.likes)}
+                          </td>
+                          <td className="px-5 py-2 text-right tabular-nums">
+                            {int.format(e.total.comments)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="px-5 py-4 text-sm text-muted">{t("analytics.noEpisodes")}</p>
+              )}
+            </Card>
+          </>
+        ) : (
+          <EmptyState
+            icon={<BarChart3 className="size-8" />}
+            title={t("analytics.emptyTitle")}
+            description={t("analytics.emptyDesc")}
+          />
+        )}
         <Card>
           <CardHeader title={t("analytics.recentVideos")} description="YouTube Data API" />
           {videos && videos.length > 0 ? (

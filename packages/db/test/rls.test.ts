@@ -507,8 +507,27 @@ describe("retención de datos de YouTube", () => {
         ($2, 'ccccccccccc', 'otro', 'desc', now())`,
       [live, gone],
     );
+    await sql(
+      "insert into public.youtube_channel_daily_stats (channel_id, day, views) values ($1, current_date, 10), ($2, current_date, 5)",
+      [live, gone],
+    );
+    await sql(
+      `insert into public.youtube_video_retention (channel_id, video_id, points) values ($1, 'ccccccccccc', '[{"r":0.5,"watch":0.4,"relative":0.5}]')`,
+      [gone],
+    );
     await sql("update public.channels set disconnected_at = now() where id = $1", [gone]);
     const [r] = await sql("select public.purge_youtube_data() as r");
+    expect(
+      await sql(
+        "select channel_id from public.youtube_channel_daily_stats where channel_id = any($1)",
+        [[live, gone]],
+      ),
+    ).toEqual([{ channel_id: live }]);
+    expect(
+      await sql("select video_id from public.youtube_video_retention where channel_id = $1", [
+        gone,
+      ]),
+    ).toEqual([]);
     expect(r.r.disconnected_deleted).toBeGreaterThanOrEqual(1);
     const rows = await sql(
       "select video_id, title from public.youtube_videos where channel_id = any($1) order by video_id",
@@ -518,6 +537,55 @@ describe("retención de datos de YouTube", () => {
       { video_id: "aaaaaaaaaaa", title: null },
       { video_id: "bbbbbbbbbbb", title: "nuevo" },
     ]);
+  });
+});
+
+describe("Fase 4 · analítica", () => {
+  it("se lee con permiso del canal y la escribe solo el servidor", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const [row] = await sql(
+      "insert into public.youtube_channel_daily_stats (channel_id, day, views, average_view_percentage) values ($1, '2026-10-01', 120, 41.5) returning workspace_id",
+      [ch],
+    );
+    expect(row.workspace_id).toBe(ws);
+    await sql(
+      `insert into public.youtube_video_retention (channel_id, video_id, points) values ($1, 'aaaaaaaaaaa', '[{"r":0.01,"watch":1,"relative":0.6}]')`,
+      [ch],
+    );
+    await expect(
+      sql(
+        "insert into public.youtube_video_retention (channel_id, video_id, points) values ($1, 'b', '{}')",
+        [ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, async (q) => ({
+        days: await q(
+          "select views from public.youtube_channel_daily_stats where channel_id = $1",
+          [ch],
+        ),
+        retention: await q(
+          "select video_id from public.youtube_video_retention where channel_id = $1",
+          [ch],
+        ),
+      }));
+    expect(await read(owner.id)).toEqual({
+      days: [{ views: "120" }],
+      retention: [{ video_id: "aaaaaaaaaaa" }],
+    });
+    expect(await read(outsider.id)).toEqual({ days: [], retention: [] });
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.youtube_channel_daily_stats (channel_id, day) values ($1, '2026-10-02')",
+          [ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
   });
 });
 

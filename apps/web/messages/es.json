@@ -323,7 +323,7 @@
       "script": "Preguntas de dirección, guion en 5 etapas y verificación con fuentes. Llega en la Fase 2.",
       "production": "Plan de ayudas visuales, motion graphics y miniaturas. Llega en la Fase 3.",
       "distribution": "Respuestas a comentarios, boletín y redes. Llega en la Fase 4.",
-      "metrics": "Vistas, retención con el párrafo del guion y evaluación a 7 días. Llega en la Fase 4."
+      "metrics": "La evaluación a 7 días llega en el paso 3 de la Fase 4."
     },
     "activityAction": {
       "episode_created": "creó el episodio",
@@ -382,12 +382,38 @@
   },
   "analytics": {
     "title": "Analítica",
-    "emptyTitle": "Canal, episodios, retención y auditoría",
-    "emptyDesc": "Métricas del canal y por episodio, retención con el párrafo del guion, impresiones y CTR desde YouTube Reporting, y la auditoría. Llega en la Fase 4.",
+    "emptyTitle": "Todavía no hay analítica del canal",
+    "emptyDesc": "Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora». Impresiones, CTR y auditoría llegan en los próximos pasos de la Fase 4.",
     "recentVideos": "Videos recientes sincronizados",
     "noVideos": "Aún no hay videos sincronizados. Conecta YouTube en la configuración del canal.",
     "views": "{count, plural, one {# vista} other {# vistas}}",
-    "fetchedAt": "Leído el {date}"
+    "fetchedAt": "Leído el {date}",
+    "refresh": "Actualizar ahora",
+    "refreshed": "Analítica actualizada.",
+    "source": "Cifras de YouTube Analytics, últimos 28 días con datos. Leído el {date}.",
+    "vsPrevious": "Las variaciones comparan con los 28 días anteriores (calculado por la app).",
+    "dailyViews": "Vistas por día",
+    "last28": "Últimos 28 días con datos",
+    "episodesTitle": "Episodios publicados",
+    "episodesDesc": "Cifras de YouTube por video: la primera semana (7 días desde la publicación) y el total.",
+    "noEpisodes": "Todavía no hay episodios publicados con analítica. Vincula el video en la pestaña Publicación del episodio.",
+    "hasRetention": "con retención",
+    "tile": {
+      "views": "Vistas",
+      "watchHours": "Horas vistas",
+      "subscribers": "Suscriptores netos",
+      "avgDuration": "Duración media",
+      "avgPercentage": "% visto promedio"
+    },
+    "col": {
+      "episode": "Episodio",
+      "week": "Vistas 7 días",
+      "total": "Vistas",
+      "pct": "% visto",
+      "duration": "Duración media",
+      "likes": "Me gusta",
+      "comments": "Comentarios"
+    }
   },
   "settings": {
     "title": "Configuración del canal",
@@ -551,7 +577,9 @@
     "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion.",
     "no_approved_aids": "Aprueba al menos una ayuda visual antes de renderizar.",
     "has_dependents": "Hay recursos que dependen de esto. Bórralos primero para poder rehacerlo.",
-    "busy": "Hay un trabajo en curso; espera a que termine."
+    "busy": "Hay un trabajo en curso; espera a que termine.",
+    "analytics_recent": "La analítica se actualizó hace menos de 15 minutos. YouTube la actualiza una vez al día.",
+    "youtube_not_connected": "Conecta el canal de YouTube en Ajustes para ver la analítica."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -1246,5 +1274,25 @@
       "ideas": "los textos de miniaturas",
       "thumbnails": "las miniaturas {detail}"
     }
+  },
+  "metrics": {
+    "title": "Métricas del episodio",
+    "source": "Cifras de YouTube Analytics desde la publicación. Leído el {date}.",
+    "dailyViews": "Vistas por día",
+    "retentionTitle": "Retención con el guion",
+    "retentionDesc": "Qué parte de la audiencia sigue viendo en cada momento, con el párrafo del guion que sonaba.",
+    "retentionAria": "Curva de retención del video con los párrafos del guion",
+    "estimate": "Los tramos de cada párrafo se estiman por su cantidad de palabras ({source}); el ritmo real al hablar puede correrlos un poco.",
+    "sourceFix": "guion verificado",
+    "sourceRevision": "teleprompter corregido",
+    "sourceTeleprompter": "teleprompter",
+    "noScript": "Este episodio no tiene guion en la app: se muestra solo la curva.",
+    "noRetention": "YouTube todavía no tiene la curva de retención de este video (necesita suficientes vistas y unos días). Se trae a diario hasta 60 días después de publicar.",
+    "noData": "Todavía no hay analítica de este video. Se trae una vez al día; también puedes pulsar «Actualizar ahora» en Analítica.",
+    "dropsTitle": "Dónde se fue la gente",
+    "stillWatching": "{pct} sigue viendo",
+    "paragraphN": "Párrafo {n}",
+    "allParagraphs": "Ver los {count} párrafos",
+    "drop": "−{points} puntos: de {from} a {to}"
   }
 }
