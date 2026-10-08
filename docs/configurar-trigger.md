@@ -2,16 +2,16 @@
 
 Las tareas largas (preguntas de dirección, etapas del guion, verificación) corren en Trigger.dev, no en Vercel. El código está en `apps/jobs`. Cada corrida actualiza su fila en la tabla `tasks`, y la barra lateral de la app la muestra en vivo con Supabase Realtime.
 
-## 1. Proyecto y despliegue desde GitHub
+## 1. Proyecto y despliegue
 
-1. En https://cloud.trigger.dev, crea el proyecto, por ejemplo `planificador`, y copia su **Project ref** (`proj_…`) desde **Project settings**. No es secreto: va en `apps/jobs/trigger.config.ts`.
-2. En **Project settings → Git**:
-   - **Install GitHub app** y conecta `diegogarciai/CreatorTube`.
-   - **Production branch:** `main`.
-   - **Trigger config file:** `apps/jobs/trigger.config.ts`.
-   - Deja las vistas previas de PR apagadas por ahora.
+1. En https://cloud.trigger.dev, crea el proyecto y copia su **Project ref** (`proj_…`) desde **Project settings**. No es secreto: va en `apps/jobs/trigger.config.ts`. El de producción es `proj_rrnleywnvctyyhakvffy`.
+2. El despliegue lo hace GitHub Actions (`.github/workflows/trigger-deploy.yml`) en cada push a `main` que toque `apps/jobs`, `packages/core`, `packages/db/src` o el lockfile. También se puede correr a mano desde **Actions → Trigger.dev deploy → Run workflow**.
+3. **Clave de despliegue:**
+   1. En Trigger.dev, cambia el selector de entorno (arriba a la izquierda) a **Production**.
+   2. Ve a **API keys → New API key**, con el nombre `github-actions` y acceso **Deploy only**.
+   3. Cópiala en GitHub como secreto del repositorio: **Settings → Secrets and variables → Actions → New repository secret**, con el nombre `TRIGGER_ACCESS_TOKEN`.
 
-   Cada push a `main` despliega las tareas.
+No hace falta la integración de GitHub dentro de Trigger.dev. Si más adelante la conectas desde **Project settings → Git**, apaga este workflow para no desplegar dos veces.
 
 ## 2. Variables de entorno
 
