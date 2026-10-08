@@ -21,7 +21,24 @@ En **Authentication → URL Configuration**:
 
 En **Authentication → Sign In / Providers → Google**: actívalo y pega el ID de cliente y el secreto del cliente OAuth. Ver [`configurar-google.md`](configurar-google.md).
 
-## 5. Plantillas de correo (enlace y código)
+## 5. Correo propio (SMTP con Resend)
+
+Supabase solo deja editar las plantillas si los correos salen por un SMTP propio. Sin uno, su servidor de prueba manda pocos correos por hora.
+
+1. En https://resend.com, **Domains → Add domain** → `gartechs.com`. Agrega los registros DNS que muestra (en Cloudflare, sin proxy) y espera a que quede **Verified**.
+2. **API Keys → Create API key** con permiso **Sending access**, limitado a ese dominio. Pega la clave solo en Supabase, en el paso siguiente: no la guardes en el repositorio ni la compartas por chat.
+3. En Supabase, **Authentication → Emails → SMTP Settings → Enable custom SMTP**:
+   - **Sender email:** `no-responder@gartechs.com` (cualquier dirección del dominio verificado)
+   - **Sender name:** `Planificador`
+   - **Host:** `smtp.resend.com`
+   - **Port:** `465`
+   - **Username:** `resend`
+   - **Password:** la API key
+4. Guarda y pide un código desde la página de entrar para probar. Si no llega, revisa **Resend → Logs**.
+
+Con SMTP propio, Supabase aplica su propio límite de correos por hora (_Authentication → Rate Limits_); súbelo si invitas a muchas personas a la vez.
+
+## 6. Plantillas de correo (enlace y código)
 
 El enlace que trae Supabase por defecto solo funciona en el mismo navegador donde se pidió, y algunos correos lo gastan al revisarlo antes de entregarlo. Las plantillas de abajo traen dos cosas:
 

@@ -69,7 +69,7 @@ Las pruebas de `packages/db` necesitan Postgres: usan `DATABASE_URL` si existe (
 
 ## Despliegue
 
-1. **Supabase:** sigue [`docs/configurar-supabase.md`](docs/configurar-supabase.md): secreto `SUPABASE_DB_URL` y workflow **Supabase migrations**, hook **Before User Created**, URL Configuration, proveedor Google y plantillas de correo con enlace y código.
+1. **Supabase:** sigue [`docs/configurar-supabase.md`](docs/configurar-supabase.md): secreto `SUPABASE_DB_URL` y workflow **Supabase migrations**, hook **Before User Created**, URL Configuration, proveedor Google, SMTP con Resend y plantillas de correo con enlace y código.
 2. **Google Cloud:** crea el cliente OAuth web con la redirección `https://tu-dominio/api/youtube/callback` y habilita YouTube Data API v3 y YouTube Analytics API (paso a paso en [`docs/configurar-google.md`](docs/configurar-google.md)).
 3. **Vercel:** importa el repo con raíz `apps/web`, configura las variables de `.env.example` y despliega. `apps/web/vercel.json` registra los cron jobs; Vercel envía `CRON_SECRET` automáticamente.
 
