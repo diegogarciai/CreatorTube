@@ -741,5 +741,41 @@ describe("Fase 2 · guion en etapas", () => {
         q("select id from public.script_stage_runs where run_id = $1", [run.id]),
       ),
     ).toEqual([]);
+
+    // Pasos: uno por bloque, únicos por corrida, solo lectura para el equipo.
+    const [stepRow] = await sql(
+      "insert into public.script_step_runs (run_id, channel_id, stage, step, status, body) values ($1, $2, 'script', 'outline', 'succeeded', 'Escaleta') returning workspace_id",
+      [run.id, ch],
+    );
+    expect(stepRow.workspace_id).toBe(ws);
+    await expect(
+      sql(
+        "insert into public.script_step_runs (run_id, channel_id, stage, step) values ($1, $2, 'script', 'outline')",
+        [run.id, ch],
+      ),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      as(writer.id, (q) =>
+        q(
+          "insert into public.script_step_runs (run_id, channel_id, stage, step) values ($1, $2, 'script', 'reels')",
+          [run.id, ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    expect(
+      await as(writer.id, (q) =>
+        q("select step, body from public.script_step_runs where run_id = $1", [run.id]),
+      ),
+    ).toEqual([{ step: "outline", body: "Escaleta" }]);
+    expect(
+      await as(writer.id, (q) =>
+        q("update public.script_step_runs set body = 'x' where run_id = $1 returning 1", [run.id]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select id from public.script_step_runs where run_id = $1", [run.id]),
+      ),
+    ).toEqual([]);
   });
 });

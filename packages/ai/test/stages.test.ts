@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildStagePrompt,
-  countWords,
-  findBlock,
-  missingBlocks,
-  parseBlocks,
-  runStage,
-  type StageContext,
-} from "../src/stages";
 import { APIError, BadRequestError } from "@anthropic-ai/sdk";
 import { aiErrorKey } from "../src/errors";
 import { AiRefusalError, aiConfigFromEnv } from "../src/generate";
+import {
+  buildStepPrompt,
+  countWords,
+  findBlock,
+  IMPLEMENTED_STEPS,
+  parseBlocks,
+  previewTail,
+  runStep,
+  STAGE_STEPS,
+  type StageContext,
+  type StageProgress,
+} from "../src/stages";
 
 const ctx: StageContext = {
   guideSections: "0. PRIORIDADES\nVerdad.\n\n4. DOSSIER DE ESTUDIO\nProsa clara.",
@@ -32,24 +35,56 @@ const ctx: StageContext = {
   previous: [],
 };
 
-describe("prompts de las etapas", () => {
-  it("Estudio: secciones en el sistema, Dirección al final y bloques exactos", () => {
-    const { system, user } = buildStagePrompt("study", ctx);
-    expect(system).toContain("<instrucciones>\n0. PRIORIDADES");
-    expect(system).toContain("«### BLOQUE: »");
-    expect(user).toContain("ETAPA: Estudio (1 de 5)");
-    expect(user).toContain("ID del episodio: GT-261008-1530");
-    expect(user).toContain("12 minutos (unas 1.800 palabras de guion)");
-    expect(user).toContain("POSTURA: Depende del perfil (confirmada por Diego)");
-    expect(user).toContain("1. ### BLOQUE: DOSSIER DE ESTUDIO");
-    expect(user).toContain("2. ### BLOQUE: TARJETAS DE ESTUDIO");
-    expect(user).not.toContain("CONTEXTO DEL CANAL");
-    expect(user).toContain("Diego ya respondió la entrevista de dirección que va al final");
-    expect(user.trimEnd().endsWith("¿Qué camino?\nComprarlo")).toBe(true);
+describe("pasos", () => {
+  it("Estudio en 2 pasos y Guion en 7, con el control de calidad después del teleprompter", () => {
+    expect(STAGE_STEPS.study!.map((s) => s.title)).toEqual([
+      "DOSSIER DE ESTUDIO",
+      "TARJETAS DE ESTUDIO",
+    ]);
+    expect(STAGE_STEPS.script!.map((s) => s.title)).toEqual([
+      "ESCALETA",
+      "GUION — TELEPROMPTER",
+      "CONTROL DE CALIDAD",
+      "GUION CON REELS MARCADOS",
+      "VERIFICACIÓN DE DATOS",
+      "MOTION GRAPHICS",
+      "PLAN DE B-ROLLS",
+    ]);
+    expect(IMPLEMENTED_STEPS.map((s) => s.key)).toEqual([
+      "dossier",
+      "cards",
+      "outline",
+      "teleprompter",
+      "quality",
+      "reels",
+      "fact_check",
+      "motion",
+      "broll",
+    ]);
+  });
+});
+
+describe("prompts de los pasos", () => {
+  it("Estudio: secciones en el sistema, contexto común y un solo bloque por paso", () => {
+    const p = buildStepPrompt("dossier", ctx);
+    expect(p.system).toContain("<instrucciones>\n0. PRIORIDADES");
+    expect(p.system).toContain("«### BLOQUE: »");
+    expect(p.shared).toContain("ETAPA: Estudio (1 de 5)");
+    expect(p.shared).toContain("en este orden: DOSSIER DE ESTUDIO, TARJETAS DE ESTUDIO");
+    expect(p.shared).toContain("ID del episodio: GT-261008-1530");
+    expect(p.shared).toContain("12 minutos (unas 1.800 palabras de guion)");
+    expect(p.shared).toContain("POSTURA: Depende del perfil (confirmada por Diego)");
+    expect(p.shared).not.toContain("CONTEXTO DEL CANAL");
+    expect(p.shared).toContain("Diego ya respondió la entrevista de dirección");
+    expect(p.shared.trimEnd().endsWith("¿Qué camino?\nComprarlo")).toBe(true);
+    expect(p.done).toEqual([]);
+    expect(p.task).toBe(
+      "PASO 1 de 2. ENTREGA solo este bloque, con su línea «### BLOQUE: » y el título exacto:\n### BLOQUE: DOSSIER DE ESTUDIO — el dossier de la sección 4.",
+    );
   });
 
-  it("Guion: contexto del canal, material de Estudio y reglas extra", () => {
-    const { user } = buildStagePrompt("script", {
+  it("Guion: el contexto es igual en todos los pasos y cada paso recibe lo ya escrito", () => {
+    const scriptCtx: StageContext = {
       ...ctx,
       directionBlock: null,
       stance: "",
@@ -69,65 +104,102 @@ describe("prompts de las etapas", () => {
       previous: [
         { stage: "study", blocks: [{ title: "DOSSIER DE ESTUDIO", body: "Lo esencial…" }] },
       ],
-    });
-    expect(user).toContain("- Nombre del boletín: El Punto");
-    expect(user).toContain(
+    };
+    const outline = buildStepPrompt("outline", scriptCtx);
+    const done = [
+      { title: "ESCALETA", body: "1. Gancho" },
+      { title: "GUION — TELEPROMPTER", body: "Hola." },
+    ];
+    const quality = buildStepPrompt("quality", scriptCtx, done);
+    expect(quality.shared).toBe(outline.shared);
+    expect(quality.system).toBe(outline.system);
+    expect(outline.shared).toContain("- Nombre del boletín: El Punto");
+    expect(outline.shared).toContain(
       "  - El chip que nadie explica (2026-09-30) · pilar: Hardware · búsquedas: chip m5 · postura: Es marketing",
     );
-    expect(user).toContain(
+    expect(outline.shared).toContain(
       "MATERIAL DE LA ETAPA ESTUDIO:\n### BLOQUE: DOSSIER DE ESTUDIO\nLo esencial…",
     );
-    expect(user).toContain("2. ### BLOQUE: GUION — TELEPROMPTER");
-    expect(user).toContain("6. ### BLOQUE: PLAN DE B-ROLLS");
-    expect(user).toContain("«GUION SIN VERIFICAR — NO GRABAR»");
-    expect(user).toContain("POSTURA: ninguna anotada");
-    expect(user).toContain("Diego saltó la entrevista de dirección");
-    expect(() => buildStagePrompt("podcast", ctx)).toThrow(/todavía no/);
+    expect(outline.shared).toContain("«GUION SIN VERIFICAR — NO GRABAR»");
+    expect(outline.shared).toContain("POSTURA: ninguna anotada");
+    expect(outline.shared).toContain("Diego saltó la entrevista de dirección");
+    expect(outline.task).toContain("PASO 1 de 7");
+    expect(outline.task).toContain("Sin la tabla 8.8");
+    expect(quality.done).toEqual(done);
+    expect(quality.task).toContain(
+      "Arriba están los bloques de esta etapa que ya quedaron listos.",
+    );
+    expect(quality.task).toContain("PASO 3 de 7");
+    expect(quality.task).toContain("### BLOQUE: CONTROL DE CALIDAD — la tabla 8.8");
   });
 });
 
 describe("bloques", () => {
-  const text = [
-    "Algo antes que se ignora",
-    "### BLOQUE: DOSSIER DE ESTUDIO",
-    "4.1 Lo esencial.",
-    "",
-    "## **BLOQUE: Tarjetas de estudio**",
-    "| # | Nivel |",
-  ].join("\n");
-
   it("corta por la línea BLOQUE aunque varíe el formato", () => {
+    const text = [
+      "Algo antes que se ignora",
+      "### BLOQUE: DOSSIER DE ESTUDIO",
+      "4.1 Lo esencial.",
+      "",
+      "## **BLOQUE: Tarjetas de estudio**",
+      "| # | Nivel |",
+    ].join("\n");
     const blocks = parseBlocks(text);
     expect(blocks).toEqual([
       { title: "DOSSIER DE ESTUDIO", body: "4.1 Lo esencial." },
       { title: "Tarjetas de estudio", body: "| # | Nivel |" },
     ]);
-    expect(missingBlocks("study", blocks)).toEqual([]);
     expect(findBlock(blocks, "TARJETAS DE ESTUDIO")?.body).toBe("| # | Nivel |");
-  });
-
-  it("reporta los bloques que faltan o llegan vacíos", () => {
-    const blocks = parseBlocks(
-      "### BLOQUE: GUION - TELEPROMPTER\nHola.\n### BLOQUE: MOTION GRAPHICS\n",
-    );
-    expect(missingBlocks("script", blocks)).toEqual([
-      "ESCALETA Y CONTROL DE CALIDAD",
-      "GUION CON REELS MARCADOS",
-      "VERIFICACIÓN DE DATOS",
-      "MOTION GRAPHICS",
-      "PLAN DE B-ROLLS",
-    ]);
+    expect(
+      findBlock(parseBlocks("### BLOQUE: GUION - TELEPROMPTER\nx"), "GUION — TELEPROMPTER"),
+    ).toBeTruthy();
     expect(countWords("  16 gigas de RAM\n\nY nada más ")).toBe(7);
   });
 });
 
+describe("vista previa", () => {
+  it("muestra el bloque en curso y sus últimas líneas, sin marcas", () => {
+    const text = [
+      "### BLOQUE: ESCALETA",
+      "Promesa.",
+      "### BLOQUE: GUION — TELEPROMPTER",
+      "Línea uno.",
+      "",
+      "Línea dos.",
+      "Línea tres.",
+      "Línea cuatro.",
+      "Línea cin",
+    ].join("\n");
+    expect(previewTail(text)).toBe(
+      "GUION — TELEPROMPTER\nLínea dos.\nLínea tres.\nLínea cuatro.\nLínea cin",
+    );
+    expect(previewTail("Sin bloque todavía")).toBe("Sin bloque todavía");
+  });
+
+  it("recorta las líneas largas por palabra", () => {
+    const long = "### BLOQUE: GUION — TELEPROMPTER\n" + "palabra ".repeat(200);
+    const out = previewTail(long, 4, 100);
+    expect(out.startsWith("GUION — TELEPROMPTER\n…palabra")).toBe(true);
+    expect(out.length).toBeLessThanOrEqual(100 + "GUION — TELEPROMPTER\n…".length);
+  });
+});
+
 describe("llamada en streaming", () => {
-  const fake = (final: Record<string, unknown>, deltas: string[] = []) => {
+  const usage = {
+    input_tokens: 20000,
+    output_tokens: 5000,
+    cache_read_input_tokens: 0,
+    cache_creation_input_tokens: 0,
+  };
+
+  /** Responde con `finals[i]` en el intento i (el último se repite), o lanza si es un Error. */
+  const fake = (finals: (Record<string, unknown> | Error)[], deltas: string[] = []) => {
     const calls: Record<string, unknown>[] = [];
     const client = {
       beta: {
         messages: {
           stream: (params: Record<string, unknown>) => {
+            const final = finals[Math.min(calls.length, finals.length - 1)]!;
             calls.push(params);
             let onText: (d: string) => void = () => {};
             return {
@@ -136,17 +208,8 @@ describe("llamada en streaming", () => {
               },
               finalMessage: async () => {
                 deltas.forEach((d) => onText(d));
-                return {
-                  model: "m",
-                  stop_reason: "end_turn",
-                  usage: {
-                    input_tokens: 20000,
-                    output_tokens: 5000,
-                    cache_read_input_tokens: 0,
-                    cache_creation_input_tokens: 0,
-                  },
-                  ...final,
-                };
+                if (final instanceof Error) throw final;
+                return { model: "m", stop_reason: "end_turn", usage, ...final };
               },
             };
           },
@@ -155,55 +218,84 @@ describe("llamada en streaming", () => {
     };
     return { client: client as never, calls };
   };
-  const studyText =
-    "### BLOQUE: DOSSIER DE ESTUDIO\nTexto.\n### BLOQUE: TARJETAS DE ESTUDIO\n| # |";
+  const text = (t: string) => ({ content: [{ type: "text", text: t }] });
 
-  it("arma la petición con respaldo y devuelve bloques y uso", async () => {
-    const { client, calls } = fake({ content: [{ type: "text", text: studyText }] }, [
-      "uno dos ",
-      "tres",
-    ]);
-    const progress: number[] = [];
-    const res = await runStage(client, aiConfigFromEnv({ AI_MODEL: "m" }), "study", ctx, {
-      onProgress: (w) => {
-        progress.push(w);
+  it("arma la petición con caché por paso y respaldo, y devuelve el bloque", async () => {
+    const { client, calls } = fake(
+      [text("### BLOQUE: CONTROL DE CALIDAD\n| Criterio | Cumple |")],
+      ["uno dos ", "tres"],
+    );
+    const progress: StageProgress[] = [];
+    const done = [
+      { title: "ESCALETA", body: "1. Gancho" },
+      { title: "GUION — TELEPROMPTER", body: "Hola." },
+    ];
+    const res = await runStep(
+      client,
+      aiConfigFromEnv({ AI_MODEL: "m" }),
+      "quality",
+      { ...ctx, channel: { newsletter: null, nextVideo: null, published: [] } },
+      done,
+      {
+        onProgress: (p: StageProgress) => {
+          progress.push(p);
+        },
       },
-    });
+    );
     expect(res.incomplete).toBe(false);
-    expect(res.blocks).toHaveLength(2);
+    expect(res.block).toEqual({ title: "CONTROL DE CALIDAD", body: "| Criterio | Cumple |" });
     expect(res.usage.input_tokens).toBe(20000);
-    expect(progress[0]).toBe(2);
-    const p = calls[0]!;
+    expect(progress[0]).toEqual({ words: 2, preview: "uno dos" });
+    const p = calls[0] as {
+      max_tokens: number;
+      output_config: unknown;
+      betas: string[];
+      fallbacks: string;
+      system: { cache_control?: unknown }[];
+      messages: { content: { text: string; cache_control?: unknown }[] }[];
+    };
     expect(p.max_tokens).toBe(64000);
     expect(p.output_config).toEqual({ effort: "medium" });
     expect(p.betas).toEqual(["server-side-fallback-2026-07-01"]);
     expect(p.fallbacks).toBe("default");
+    expect(p.system[0]!.cache_control).toEqual({ type: "ephemeral" });
+    const content = p.messages[0]!.content;
+    expect(content).toHaveLength(4);
+    expect(content[0]!.cache_control).toEqual({ type: "ephemeral" });
+    expect(content[1]).toEqual({ type: "text", text: "### BLOQUE: ESCALETA\n1. Gancho" });
+    expect(content[2]!.cache_control).toEqual({ type: "ephemeral" });
+    expect(content[3]!.text).toContain("PASO 3 de 7");
+    expect(content[3]!.cache_control).toBeUndefined();
   });
 
-  it("sin respaldo si AI_FALLBACKS=off; incompleta por largo o bloques; negativa", async () => {
-    const off = fake({ content: [{ type: "text", text: studyText }], stop_reason: "max_tokens" });
-    const res = await runStage(
-      off.client,
+  it("sin la línea BLOQUE vale el texto; incompleta si se corta o llega vacía; negativa", async () => {
+    const plain = fake([text("Solo el dossier.")]);
+    const res = await runStep(
+      plain.client,
       aiConfigFromEnv({ AI_MODEL: "m", AI_FALLBACKS: "off" }),
-      "study",
+      "dossier",
       ctx,
+      [],
     );
-    expect(off.calls[0]!.fallbacks).toBeUndefined();
-    expect(res.incomplete).toBe(true);
-    const partial = fake({
-      content: [{ type: "text", text: "### BLOQUE: DOSSIER DE ESTUDIO\nx" }],
-    });
-    expect((await runStage(partial.client, { model: "m" }, "study", ctx)).missing).toEqual([
-      "TARJETAS DE ESTUDIO",
+    expect(plain.calls[0]!.fallbacks).toBeUndefined();
+    expect(plain.calls[0]!.output_config).toEqual({ effort: "medium" });
+    expect(res.block).toEqual({ title: "DOSSIER DE ESTUDIO", body: "Solo el dossier." });
+    expect(res.incomplete).toBe(false);
+
+    const cut = fake([{ ...text("### BLOQUE: ESCALETA\nmedia"), stop_reason: "max_tokens" }]);
+    const outline = await runStep(cut.client, { model: "m" }, "outline", ctx, []);
+    expect(outline.incomplete).toBe(true);
+    expect(cut.calls[0]!.output_config).toEqual({ effort: "high" });
+
+    const empty = fake([text("### BLOQUE: ESCALETA\n")]);
+    expect((await runStep(empty.client, { model: "m" }, "outline", ctx, [])).incomplete).toBe(true);
+
+    const refused = fake([
+      { content: [], stop_reason: "refusal", stop_details: { category: "cyber" } },
     ]);
-    const refused = fake({
-      content: [],
-      stop_reason: "refusal",
-      stop_details: { category: "cyber" },
-    });
-    await expect(runStage(refused.client, { model: "m" }, "script", ctx)).rejects.toBeInstanceOf(
-      AiRefusalError,
-    );
+    await expect(
+      runStep(refused.client, { model: "m" }, "outline", ctx, []),
+    ).rejects.toBeInstanceOf(AiRefusalError);
   });
 
   // Un evento `error` a mitad del stream: el SDK lo lanza sin código HTTP.
@@ -216,70 +308,41 @@ describe("llamada en streaming", () => {
       "overloaded_error",
     );
 
-  /** Falla con `errors[i]` en el intento i y después responde bien. */
-  const flaky = (errors: Error[]) => {
-    let n = 0;
-    const client = {
-      beta: {
-        messages: {
-          stream: () => {
-            const err = errors[n++];
-            let onText: (d: string) => void = () => {};
-            return {
-              on: (_e: string, cb: (d: string) => void) => {
-                onText = cb;
-              },
-              finalMessage: async () => {
-                onText("uno dos ");
-                if (err) throw err;
-                return {
-                  model: "m",
-                  stop_reason: "end_turn",
-                  content: [{ type: "text", text: studyText }],
-                  usage: { input_tokens: 10, output_tokens: 5 },
-                };
-              },
-            };
-          },
-        },
-      },
-    };
-    return { client: client as never, calls: () => n };
-  };
-
   it("si Claude se satura a mitad del stream, espera y reintenta", async () => {
-    const { client, calls } = flaky([overloaded()]);
+    const { client, calls } = fake(
+      [overloaded(), text("### BLOQUE: DOSSIER DE ESTUDIO\nTexto.")],
+      ["uno dos "],
+    );
     const waits: number[] = [];
     const notices: string[] = [];
-    const res = await runStage(client, { model: "m" }, "study", ctx, {
-      sleep: async (ms) => {
+    const res = await runStep(client, { model: "m" }, "dossier", ctx, [], {
+      sleep: async (ms: number) => {
         waits.push(ms);
       },
-      onProgress: (_w, notice) => {
+      onProgress: ({ notice }: StageProgress) => {
         if (notice) notices.push(notice);
       },
     });
-    expect(calls()).toBe(2);
+    expect(calls).toHaveLength(2);
     expect(waits).toEqual([20_000]);
     expect(notices).toEqual(["Claude está saturado; reintento 2 de 4 en 20 s"]);
-    expect(res.text).toBe(studyText);
-    expect(res.incomplete).toBe(false);
+    expect(res.block.body).toBe("Texto.");
   });
 
   it("agotados los reintentos, falla con la saturación; un 400 no se reintenta", async () => {
-    const busy = flaky([overloaded(), overloaded(), overloaded(), overloaded()]);
-    const err = await runStage(busy.client, { model: "m" }, "study", ctx, {
+    const busy = fake([overloaded()]);
+    const err = await runStep(busy.client, { model: "m" }, "dossier", ctx, [], {
       sleep: async () => {},
     }).catch((e: unknown) => e);
-    expect(busy.calls()).toBe(4);
+    expect(busy.calls).toHaveLength(4);
     expect(aiErrorKey(err)).toBe("errors.ai_overloaded");
 
-    const bad = flaky([
+    const bad = fake([
       new BadRequestError(400, { error: { type: "invalid_request_error" } }, "x", new Headers()),
     ]);
     await expect(
-      runStage(bad.client, { model: "m" }, "study", ctx, { sleep: async () => {} }),
+      runStep(bad.client, { model: "m" }, "dossier", ctx, [], { sleep: async () => {} }),
     ).rejects.toBeInstanceOf(BadRequestError);
-    expect(bad.calls()).toBe(1);
+    expect(bad.calls).toHaveLength(1);
   });
 });

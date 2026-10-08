@@ -3,15 +3,18 @@ import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import {
   aiConfigFromEnv,
-  IMPLEMENTED_STAGES,
+  IMPLEMENTED_STEPS,
+  isScriptStep,
   pricesFromEnv,
-  runStage,
+  runStep,
   SCRIPT_STAGES,
+  STAGE_STEPS,
   usageCostUsd,
   usdToCredits,
   type Block,
   type ScriptStage,
   type StageContext,
+  type StepSpec,
   type StreamClient,
 } from "@planificador/ai";
 import {
@@ -32,14 +35,17 @@ const LABEL: Record<ScriptStage, string> = {
   podcast: "Podcast",
 };
 
-/** Guion en etapas: corre, en orden, las etapas de la corrida desde su inicio. */
+/**
+ * Guion en etapas y pasos: corre, en orden, los pasos de la corrida desde su
+ * inicio. Cada paso es un bloque y espera a que termine el anterior.
+ */
 export const scriptTask = schemaTask({
   id: "script",
   schema: z.object({ taskId: z.uuid() }),
-  // Estudio y Guion, más las esperas si Claude está saturado.
+  // Nueve pasos, más las esperas si Claude está saturado.
   maxDuration: 3600,
-  // runStage ya reintenta la saturación; este reintento, más espaciado, es el
-  // respaldo. Las etapas listas no se repiten.
+  // runStep ya reintenta la saturación; este reintento, más espaciado, es el
+  // respaldo. Los pasos listos no se repiten.
   retry: { maxAttempts: 2, minTimeoutInMs: 60_000, maxTimeoutInMs: 120_000 },
   run: async ({ taskId }) =>
     runScript(taskId, serviceClient(), new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })),
@@ -62,67 +68,92 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
         .update({ status: "running", model: config.model })
         .eq("id", run.id);
 
-      const start = SCRIPT_STAGES.indexOf(run.from_stage);
-      const stages = IMPLEMENTED_STAGES.filter((s) => SCRIPT_STAGES.indexOf(s) >= start);
+      // Desde el paso pedido; si no hay, desde el primero de la etapa de inicio.
+      const first = isScriptStep(run.from_step)
+        ? IMPLEMENTED_STEPS.findIndex((s) => s.key === run.from_step)
+        : IMPLEMENTED_STEPS.findIndex((s) => s.stage === run.from_stage);
+      const steps = IMPLEMENTED_STEPS.slice(Math.max(first, 0));
       const base = await loadStageBase(db, run);
 
-      for (const [i, stage] of stages.entries()) {
+      for (const [i, spec] of steps.entries()) {
+        const { stage } = spec;
+        const label = `${LABEL[stage]} · ${spec.title}`;
         const { data: existing } = await db
-          .from("script_stage_runs")
+          .from("script_step_runs")
           .select("status")
           .eq("run_id", run.id)
-          .eq("stage", stage)
+          .eq("step", spec.key)
           .maybeSingle();
         if (existing?.status === "succeeded") continue;
 
         const now = new Date().toISOString();
-        await db.from("script_stage_runs").upsert(
+        await db
+          .from("script_stage_runs")
+          .upsert(
+            { run_id: run.id, channel_id: run.channel_id, stage, status: "running", error: null },
+            { onConflict: "run_id,stage" },
+          );
+        await db
+          .from("script_stage_runs")
+          .update({ started_at: now })
+          .eq("run_id", run.id)
+          .eq("stage", stage)
+          .is("started_at", null);
+        await db.from("script_step_runs").upsert(
           {
             run_id: run.id,
             channel_id: run.channel_id,
             stage,
+            step: spec.key,
             status: "running",
             started_at: now,
+            finished_at: null,
             error: null,
             progress_message: null,
+            preview: null,
           },
-          { onConflict: "run_id,stage" },
+          { onConflict: "run_id,step" },
         );
-        await report.progress(i / stages.length, `${LABEL[stage]}: empezando`);
+        await report.progress(i / steps.length, `${label}: empezando`);
 
-        const previous = await previousBlocks(db, run.id, stage);
         const ctx: StageContext = {
           ...base.ctx,
           guideSections: sectionsText(base.sections, base.stageSections[stage as "study"] ?? []),
           channel: stage === "study" ? null : base.ctx.channel,
-          previous,
+          previous: await previousBlocks(db, run.id, stage),
         };
+        const done = await doneBlocks(db, run.id, spec);
 
         let result;
         try {
-          result = await runStage(client, config, stage, ctx, {
-            onProgress: async (words, notice) => {
-              const message = `${LABEL[stage]}: ${
-                notice ?? `${words.toLocaleString("es-CO")} palabras`
-              }`;
+          result = await runStep(client, config, spec.key, ctx, done, {
+            onProgress: async ({ words, preview, notice }) => {
+              const message = `${label}: ${notice ?? `${words.toLocaleString("es-CO")} palabras`}`;
+              // Solo mientras corre: un aviso tardío no pisa el paso ya terminado.
               await db
-                .from("script_stage_runs")
-                .update({ progress_message: message })
+                .from("script_step_runs")
+                .update({
+                  progress_message: message,
+                  ...(preview !== undefined && { preview }),
+                })
                 .eq("run_id", run.id)
-                .eq("stage", stage);
-              await report.progress((i + 0.5) / stages.length, message);
+                .eq("step", spec.key)
+                .eq("status", "running");
+              await report.progress((i + 0.5) / steps.length, message);
             },
           });
         } catch (err) {
+          const failed = {
+            status: "failed" as const,
+            error: errorText(err),
+            finished_at: new Date().toISOString(),
+          };
           await db
-            .from("script_stage_runs")
-            .update({
-              status: "failed",
-              error: errorText(err),
-              finished_at: new Date().toISOString(),
-            })
+            .from("script_step_runs")
+            .update({ ...failed, preview: null, progress_message: null })
             .eq("run_id", run.id)
-            .eq("stage", stage);
+            .eq("step", spec.key);
+          await db.from("script_stage_runs").update(failed).eq("run_id", run.id).eq("stage", stage);
           await db.from("script_runs").update({ status: "failed" }).eq("id", run.id);
           throw err;
         }
@@ -134,37 +165,64 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
           channel_id: run.channel_id,
           task_id: taskId,
           user_id: run.created_by,
-          kind: `script_${stage}`,
+          kind: `script_${spec.key}`,
           credits,
           cost_usd: usd,
           meta: { model: result.model, ...result.usage },
         });
         await db
-          .from("script_stage_runs")
+          .from("script_step_runs")
           .update({
             status: result.incomplete ? "incomplete" : "succeeded",
-            blocks: result.blocks,
+            body: result.block.body,
             raw: result.text,
             usage: result.usage,
             credits,
             progress_message: null,
-            error: result.incomplete
-              ? result.missing.length
-                ? `Faltan bloques: ${result.missing.join(", ")}`
-                : "La respuesta se cortó por largo"
-              : null,
+            preview: null,
+            error: result.incomplete ? "La respuesta se cortó o llegó vacía" : null,
             finished_at: new Date().toISOString(),
+          })
+          .eq("run_id", run.id)
+          .eq("step", spec.key);
+
+        // La etapa guarda sus bloques listos, en orden: los usa la etapa siguiente.
+        const stageSteps = STAGE_STEPS[stage]!;
+        const last = stageSteps.at(-1)!.key === spec.key;
+        const { data: rows } = await db
+          .from("script_step_runs")
+          .select("step, status, body, credits")
+          .eq("run_id", run.id)
+          .eq("stage", stage);
+        const blocks = stageSteps.flatMap((s) => {
+          const row = rows?.find((r) => r.step === s.key && r.status === "succeeded");
+          return row ? [{ title: s.title, body: row.body }] : [];
+        });
+        await db
+          .from("script_stage_runs")
+          .update({
+            blocks,
+            credits: (rows ?? []).reduce((sum, r) => sum + Number(r.credits), 0),
+            ...(result.incomplete
+              ? {
+                  status: "incomplete" as const,
+                  error: `${spec.title}: la respuesta se cortó o llegó vacía`,
+                  finished_at: new Date().toISOString(),
+                }
+              : last
+                ? { status: "succeeded" as const, finished_at: new Date().toISOString() }
+                : {}),
           })
           .eq("run_id", run.id)
           .eq("stage", stage);
 
-        // Una etapa incompleta no alimenta a las siguientes: se reintenta desde ahí.
+        // Un paso incompleto no alimenta a los siguientes: se regenera desde ahí.
         if (result.incomplete) {
           await db
             .from("script_runs")
             .update({ status: "incomplete", finished_at: new Date().toISOString() })
             .eq("id", run.id);
-          return { stopped: stage };
+          return { stopped: spec.key };
         }
       }
 
@@ -178,10 +236,32 @@ export async function runScript(taskId: string, db: ServiceClient, client: Strea
         .update({ stage: "verification" })
         .eq("id", run.episode_id)
         .in("stage", ["planning", "direction", "script"]);
-      return { stages: stages.length };
+      return { steps: steps.length };
     },
     db,
   );
+}
+
+/** Los bloques de la misma etapa que ya quedaron listos antes de este paso. */
+async function doneBlocks(db: ServiceClient, runId: string, spec: StepSpec): Promise<Block[]> {
+  const before = STAGE_STEPS[spec.stage]!.slice(
+    0,
+    STAGE_STEPS[spec.stage]!.findIndex((s) => s.key === spec.key),
+  );
+  if (before.length === 0) return [];
+  const { data } = await db
+    .from("script_step_runs")
+    .select("step, body")
+    .eq("run_id", runId)
+    .eq("status", "succeeded")
+    .in(
+      "step",
+      before.map((s) => s.key),
+    );
+  return before.flatMap((s) => {
+    const row = data?.find((r) => r.step === s.key);
+    return row ? [{ title: s.title, body: row.body }] : [];
+  });
 }
 
 async function previousBlocks(

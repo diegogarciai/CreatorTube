@@ -1079,6 +1079,7 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           finished_at: string | null;
+          from_step: string | null;
         };
         Insert: {
           id?: string;
@@ -1094,6 +1095,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           finished_at?: string | null;
+          from_step?: string | null;
         };
         Update: {
           id?: string;
@@ -1109,6 +1111,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           finished_at?: string | null;
+          from_step?: string | null;
         };
         Relationships: [
           {
@@ -1221,6 +1224,85 @@ export type Database = {
           },
           {
             foreignKeyName: "script_stage_runs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      script_step_runs: {
+        Row: {
+          id: string;
+          run_id: string;
+          workspace_id: string;
+          channel_id: string;
+          stage: Database["public"]["Enums"]["script_stage"];
+          step: string;
+          status: Database["public"]["Enums"]["stage_run_status"];
+          body: string;
+          raw: string;
+          usage: Json;
+          credits: number;
+          error: string | null;
+          progress_message: string | null;
+          preview: string | null;
+          started_at: string | null;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          run_id: string;
+          workspace_id?: string;
+          channel_id: string;
+          stage: Database["public"]["Enums"]["script_stage"];
+          step: string;
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          body?: string;
+          raw?: string;
+          usage?: Json;
+          credits?: number;
+          error?: string | null;
+          progress_message?: string | null;
+          preview?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          run_id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          stage?: Database["public"]["Enums"]["script_stage"];
+          step?: string;
+          status?: Database["public"]["Enums"]["stage_run_status"];
+          body?: string;
+          raw?: string;
+          usage?: Json;
+          credits?: number;
+          error?: string | null;
+          progress_message?: string | null;
+          preview?: string | null;
+          started_at?: string | null;
+          finished_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "script_step_runs_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_step_runs_run_id_fkey";
+            columns: ["run_id"];
+            isOneToOne: false;
+            referencedRelation: "script_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "script_step_runs_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";

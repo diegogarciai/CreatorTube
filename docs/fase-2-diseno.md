@@ -108,7 +108,20 @@ Cada etapa es una llamada a la API de Claude con:
    - el material de las etapas anteriores;
    - en Guion, Publicación y Podcast, también el contexto del canal: nombre del boletín, próximo video y videos publicados con título, fecha, pilar, búsquedas y postura.
 
-La salida se corta por `### BLOQUE:` y se guarda bloque por bloque. Teleprompter, reels y podcast quedan en texto plano; el resto, en Markdown. Si falta un bloque esperado, la etapa queda **Incompleta** y se puede reintentar.
+**Cada etapa se genera por pasos:** una llamada por bloque, en orden, y cada paso empieza cuando termina el anterior.
+
+- Cada paso recibe lo común de la etapa (sistema, episodio, Dirección y material de las etapas anteriores) y los bloques de la etapa que ya quedaron listos.
+- Lo común y los bloques listos van con caché, así que el paso siguiente reutiliza lo que leyó el anterior.
+- Teleprompter, reels y podcast quedan en texto plano; el resto, en Markdown.
+- Si un paso se corta o llega vacío, queda **Incompleto** y la corrida se detiene ahí.
+- Se puede regenerar desde cualquier paso: los anteriores se copian sin costo.
+
+Pasos de Estudio y Guion:
+
+| Etapa   | Pasos, en orden                                                                                                                                                             |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Estudio | 1. Dossier (sección 4) · 2. Tarjetas (sección 5)                                                                                                                            |
+| Guion   | 1. Escaleta · 2. Teleprompter · 3. Control de calidad (tabla 8.8 sobre el guion terminado) · 4. Reels marcados · 5. Verificación de datos · 6. Motion graphics · 7. B-rolls |
 
 | #   | Etapa        | Bloques que se esperan                                                                                                           | Web           |
 | --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------- |
@@ -323,3 +336,10 @@ Pendientes:
   - tarea `script` en Trigger.dev: corre Estudio y Guion en orden, salta lo que ya quedó listo si reintenta, registra el consumo por etapa y deja el episodio en Verificación;
   - **Generar guion con mis respuestas** en la Dirección y sección **Guion** con pestañas por etapa, copiar, conteo de palabras del teleprompter, aviso «GUION SIN VERIFICAR — NO GRABAR», **Regenerar desde Estudio**, **Regenerar desde Guion** (conserva el Estudio) e historial de corridas;
   - el despliegue de Trigger.dev también se dispara con cambios en `packages/ai`.
+
+- **Guion por pasos:**
+  - cada bloque es un paso con su propia llamada (Estudio en 2 y Guion en 7) y empieza cuando termina el anterior;
+  - el control de calidad (tabla 8.8) se separó de la escaleta y revisa el teleprompter ya escrito;
+  - tabla `script_step_runs` con el texto, el uso, los créditos y la vista previa en vivo de cada paso;
+  - el panel muestra una pestaña por paso con su estado, la vista previa mientras escribe y **Regenerar desde este paso**;
+  - si Claude está saturado, el paso espera y reintenta solo.
