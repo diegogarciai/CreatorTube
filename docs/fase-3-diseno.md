@@ -27,7 +27,7 @@ Fuentes:
 - **Gemini genera la imagen sin texto.** El texto (2 a 4 palabras en dos líneas, una en naranja) lo pone la app con la tipografía y los colores del kit, así nunca se sale del manual.
 - **Motion graphics con piezas de marca.** Claude arma cada escena (regla 12.2) con piezas animadas ya hechas (barras, anillos, línea de tiempo, cifras que cuentan, matriz de puntos…) y sus datos. No se genera código: lo que se renderiza siempre es código revisado.
 - **Render en Trigger.dev, sin AWS.** Remotion corre con sus APIs de servidor (`@remotion/bundler` y `@remotion/renderer`) y la extensión de ffmpeg. La licencia de Remotion es gratis para equipos de hasta 3 personas.
-- **La miniatura se descarga** (1280 × 720 en PNG). Subirla a YouTube queda para cuando se pida el permiso nuevo.
+- **La miniatura se descarga** (1280 × 720 en JPG). Subirla a YouTube queda para cuando se pida el permiso nuevo.
 
 ## 3. Pasos (cada uno en su PR)
 
@@ -37,7 +37,7 @@ Fuentes:
 | 2    | Miniaturas con Gemini: generar, poner el texto, calificar con Claude, elegir y descargar  | Hecho     |
 | 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Hecho     |
 | 4    | Render con Remotion en Trigger.dev                                                        | Hecho     |
-| 5    | Recursos del episodio en Producción                                                       | Pendiente |
+| 5    | Recursos del episodio en Producción                                                       | Hecho     |
 | 6    | Un episodio de Gartechs producido de punta a punta (prueba de salida)                     | Pendiente |
 
 ## 4. Almacenamiento (paso 1)
@@ -234,9 +234,36 @@ Las ayudas **aprobadas** del plan se renderizan con Remotion en Trigger.dev, con
   - El bundle de Remotion se arma antes del despliegue y viaja con `additionalFiles`.
   - La extensión `remotion-chrome` instala en la imagen las librerías de Chrome y Chrome Headless Shell, en la versión que prueba Remotion (`REMOTION_CHROME_PATH`). Si eso falla, la tarea lo descarga al arrancar.
   - Se registra en el consumo como «Render», sin costo de IA.
-- **Editar después del render:** si se edita una ayuda después de renderizarla, su render se marca «Editada después del render» para rehacerlo.
+- **Render desactualizado:** si se edita una ayuda después de renderizarla, o si el render se hizo con una versión anterior de las piezas (`render_version`; la 2 trae los efectos de sonido), se marca «Render desactualizado» para rehacerlo.
 
-## 10. Costos estimados por episodio
+## 10. Recursos del episodio (paso 5)
+
+Arriba de la pestaña Producción, la tarjeta **Recursos del episodio** junta lo que el editor necesita para armar el video. Así no tiene que buscarlo en cada panel.
+
+| Tipo            | Qué entra            | Formato                                                    |
+| --------------- | -------------------- | ---------------------------------------------------------- |
+| Motion graphics | Las M aprobadas      | Horizontal MP4 (y vertical la más fuerte), con sonido      |
+| Ayudas          | Las C y L aprobadas  | Fondo verde MP4, con sonido; transparente WebM, sin sonido |
+| Miniatura       | La miniatura elegida | JPG 1280 × 720                                             |
+
+- **Estado de cada fila:** Listo, Desactualizado, En cola, Renderizando, Falló, Sin render (la ayuda está aprobada pero no se ha renderizado) o Falta elegir (no hay miniatura elegida). Arriba, «n de m listos» o «Todo listo para editar».
+- **Archivos:** cada uno se baja con el código del episodio, el de la ayuda y el formato en español, por ejemplo `GT-261008-1617-C1-verde.mp4`.
+- **«Descargar todo (.zip)»:** el navegador baja cada archivo y arma el zip, así que no pasa por el servidor ni tiene el límite de respuesta de Vercel. Va sin comprimir, porque los videos y el JPG ya vienen comprimidos. Trae carpetas `motion-graphics/`, `ayudas/` y `miniatura/`, más `plan-de-ayudas.txt` (el plan aprobado, con dónde entra cada ayuda).
+- **Audio:** el único audio son los **efectos de sonido** de las ayudas. Van dentro del MP4: en CapCut se oyen al poner el clip, y si hace falta se separan con «Extraer audio». La app los sintetiza por código (`packages/motion/src/sfx.ts`), así que no hay licencias ni archivos de terceros. Son sobrios, como la marca:
+
+  | Sonido   | Cuándo suena                                                              |
+  | -------- | ------------------------------------------------------------------------- |
+  | `whoosh` | Entra la pieza                                                            |
+  | `pop`    | Aparece cada elemento: una barra, un punto de la línea o un ítem de lista |
+  | `tick`   | Mientras una cifra cuenta (como mucho uno cada 3 cuadros)                 |
+  | `settle` | La cifra llega a su valor, o se revela el «después»                       |
+  | `out`    | Sale la pieza                                                             |
+
+  Los tiempos salen de la misma tabla que la animación (`PIECE_TIMING`), así que el sonido no se desfasa. La mezcla queda baja, con picos de unos −15 dBFS, para que no tape la voz. Para cambiar un sonido: se edita `sfx.ts` y se corre `pnpm --filter @planificador/motion sfx`.
+
+- **La lista de verificación** («Ayudas visuales listas», «Miniatura lista») se sigue marcando a mano.
+
+## 11. Costos estimados por episodio
 
 | Qué                                        | Estimado                                          |
 | ------------------------------------------ | ------------------------------------------------- |

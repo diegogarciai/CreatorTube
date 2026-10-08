@@ -1,7 +1,15 @@
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  Html5Audio,
+  interpolate,
+  Sequence,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { aidHasNumbers } from "@planificador/core";
 import { PIECES } from "./pieces";
-import { staggerFrames, type AidProps } from "./spec";
+import { sfxCues, staggerFrames, type AidProps } from "./spec";
 import { alpha, BrandBackground, MONO, Text, useEnter, useExit, useLayout } from "./theme";
 
 const GREEN = "#00FF00";
@@ -9,6 +17,20 @@ const GREEN = "#00FF00";
 /** Fondo de C y L: verde puro para croma o transparente. */
 function OverlayBackground({ background }: { background: AidProps["background"] }) {
   return background === "green" ? <AbsoluteFill style={{ backgroundColor: GREEN }} /> : null;
+}
+
+/** Los efectos de sonido de la ayuda, cada uno en su cuadro (van en el MP4; el WebM sale mudo). */
+function SoundTrack({ aid }: { aid: AidProps["aid"] }) {
+  const { durationInFrames } = useVideoConfig();
+  return (
+    <>
+      {sfxCues(aid, durationInFrames).map((c, i) => (
+        <Sequence key={i} from={c.frame} layout="none" name={`sfx ${c.sound}`}>
+          <Html5Audio src={staticFile(`sfx/${c.sound}.wav`)} volume={c.volume} />
+        </Sequence>
+      ))}
+    </>
+  );
 }
 
 /** M: motion graphic a pantalla completa (ficha 12.5) con su pieza de marca. */
@@ -28,6 +50,7 @@ export function MotionAid({ aid, colors }: AidProps) {
   };
   return (
     <AbsoluteFill style={{ opacity: exit }}>
+      <SoundTrack aid={aid} />
       <BrandBackground colors={colors} data={data} />
       <Text
         style={{
@@ -71,6 +94,7 @@ export function ConceptLabel({ aid, colors, background }: AidProps) {
   const p = enter * exit;
   return (
     <AbsoluteFill>
+      <SoundTrack aid={aid} />
       <OverlayBackground background={background} />
       <div
         style={{
@@ -119,6 +143,7 @@ export function ListAid({ aid, colors, background }: AidProps) {
   const starts = staggerFrames(aid.elements.length, durationInFrames);
   return (
     <AbsoluteFill>
+      <SoundTrack aid={aid} />
       <OverlayBackground background={background} />
       <div
         style={{

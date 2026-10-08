@@ -40,6 +40,7 @@ import {
   setAidStatus,
 } from "@/lib/actions/visual-aids";
 import type { AidRenderView, VisualAidView, VisualAidsView } from "@/lib/data/visual-aids";
+import { toVisualAid } from "@/lib/resources";
 import { createClient } from "@/lib/supabase/browser";
 import { VISUAL_PLAN_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
@@ -47,22 +48,6 @@ import { cn, usd } from "@/lib/utils";
 
 const KIND_TONE: Record<VisualAidView["kind"], Tone> = { M: "accent", C: "ok", L: "warn" };
 const ROW_OK = new Set(["verified", "nuanced"]);
-
-const toAid = (a: VisualAidView): VisualAid => ({
-  kind: a.kind,
-  code: a.code,
-  anchor: a.anchor,
-  idea: a.idea,
-  title: a.title,
-  definition: a.definition,
-  elements: a.elements,
-  rows: a.rows,
-  footer: a.footer,
-  durationS: a.durationS,
-  piece: a.piece,
-  scores: a.scores,
-  vertical: a.vertical,
-});
 
 /**
  * Plan de ayudas visuales (sección 12): motion graphics (M), etiquetas de
@@ -142,7 +127,7 @@ export function VisualAidsPanel({
     });
 
   const copy = async () => {
-    await navigator.clipboard.writeText(planToText(approved.map(toAid)));
+    await navigator.clipboard.writeText(planToText(approved.map(toVisualAid)));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -399,7 +384,6 @@ function RenderBox({ render }: { render: AidRenderView }) {
         <video
           src={render.url}
           controls
-          muted
           loop
           playsInline
           preload="metadata"
@@ -445,7 +429,7 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
     .map((r) => Number(r.replace("#", "")))
     .filter((n) => Number.isInteger(n) && n > 0);
   const draft: VisualAid = {
-    ...toAid(aid),
+    ...toVisualAid(aid),
     title,
     idea: idea || null,
     definition: definition || null,

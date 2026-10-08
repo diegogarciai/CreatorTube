@@ -7,7 +7,7 @@ import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { parseBrandKit, type AidElement, type VisualAid } from "@planificador/core";
 import type { Json } from "@planificador/db";
-import { renderSpec, type AidFormat } from "@planificador/motion";
+import { RENDER_VERSION, renderSpec, type AidFormat } from "@planificador/motion";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
@@ -19,7 +19,8 @@ const MAX_BYTES = 50 * 1024 * 1024;
  * Render de las ayudas visuales aprobadas (Fase 3 · paso 4) con Remotion: M en
  * horizontal (y vertical si es la más fuerte), C y L en verde y transparente.
  * Las filas de `aid_renders` de la tarea dicen qué renderizar; si la tarea se
- * reintenta, no repite lo que ya quedó listo.
+ * reintenta, no repite lo que ya quedó listo. Los MP4 llevan los efectos de
+ * sonido de la pieza (paso 5).
  */
 export const renderAidsTask = schemaTask({
   id: "render_aids",
@@ -144,6 +145,8 @@ export async function runRenderAids(taskId: string, db: ServiceClient) {
                 crf,
                 outputLocation: out,
                 overwrite: true,
+                // Los efectos de sonido van en el MP4; el WebM transparente sale mudo.
+                muted: spec.alpha,
                 ...(spec.alpha
                   ? { imageFormat: "png" as const, pixelFormat: "yuva420p" as const }
                   : {}),
@@ -163,7 +166,14 @@ export async function runRenderAids(taskId: string, db: ServiceClient) {
             seconds += duration;
             await db
               .from("aid_renders")
-              .update({ status: "ready", path, bytes, duration_s: duration, error: null })
+              .update({
+                status: "ready",
+                path,
+                bytes,
+                duration_s: duration,
+                error: null,
+                render_version: RENDER_VERSION,
+              })
               .eq("id", row.id);
             ready++;
           } catch (err) {

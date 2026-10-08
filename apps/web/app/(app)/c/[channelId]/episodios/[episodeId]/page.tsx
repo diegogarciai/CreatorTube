@@ -13,6 +13,7 @@ import {
 import { Page } from "@/components/page-header";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { EpisodeResources } from "@/components/episodes/episode-resources";
 import { ThumbnailsPanel } from "@/components/episodes/thumbnails-panel";
 import { PublicationTitles } from "@/components/episodes/publication-titles";
 import { VisualAidsPanel } from "@/components/episodes/visual-aids-panel";
@@ -394,6 +395,11 @@ export default async function EpisodePage({
           </div>
         ) : tab === "production" && thumbnails ? (
           <div className="space-y-6">
+            <EpisodeResources
+              episodeCode={row.code}
+              aids={visualAids?.aids ?? []}
+              designs={thumbnails.designs}
+            />
             {visualAids ? (
               <VisualAidsPanel
                 episodeId={row.id}

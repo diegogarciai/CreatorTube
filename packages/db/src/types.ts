@@ -114,6 +114,7 @@ export type Database = {
           error: string | null;
           created_at: string;
           updated_at: string;
+          render_version: number;
         };
         Insert: {
           id?: string;
@@ -130,6 +131,7 @@ export type Database = {
           error?: string | null;
           created_at?: string;
           updated_at?: string;
+          render_version?: number;
         };
         Update: {
           id?: string;
@@ -146,6 +148,7 @@ export type Database = {
           error?: string | null;
           created_at?: string;
           updated_at?: string;
+          render_version?: number;
         };
         Relationships: [
           {
