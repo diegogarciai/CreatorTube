@@ -1704,6 +1704,65 @@ export type Database = {
           },
         ];
       };
+      youtube_import_items: {
+        Row: {
+          task_id: string;
+          workspace_id: string;
+          channel_id: string;
+          episode_id: string;
+          video_id: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          task_id: string;
+          workspace_id?: string;
+          channel_id: string;
+          episode_id: string;
+          video_id: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          task_id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          episode_id?: string;
+          video_id?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_import_items_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_import_items_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_import_items_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_import_items_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       youtube_video_daily_stats: {
         Row: {
           channel_id: string;
@@ -1777,6 +1836,7 @@ export type Database = {
           like_count: number | null;
           comment_count: number | null;
           fetched_at: string;
+          tags: string[] | null;
         };
         Insert: {
           channel_id: string;
@@ -1793,6 +1853,7 @@ export type Database = {
           like_count?: number | null;
           comment_count?: number | null;
           fetched_at?: string;
+          tags?: string[] | null;
         };
         Update: {
           channel_id?: string;
@@ -1809,6 +1870,7 @@ export type Database = {
           like_count?: number | null;
           comment_count?: number | null;
           fetched_at?: string;
+          tags?: string[] | null;
         };
         Relationships: [
           {

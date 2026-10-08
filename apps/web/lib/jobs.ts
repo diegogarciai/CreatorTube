@@ -1,6 +1,12 @@
 import "server-only";
 import { tasks } from "@trigger.dev/sdk";
-import type { directionTask, JobKind, pingTask, scriptTask } from "@planificador/jobs";
+import type {
+  directionTask,
+  JobKind,
+  pingTask,
+  scriptTask,
+  youtubeImportTask,
+} from "@planificador/jobs";
 import { createAdminClient } from "./supabase/admin";
 
 /** Sin la clave de Trigger.dev la app funciona, pero no puede lanzar tareas largas. */
@@ -10,6 +16,7 @@ interface JobPayloads {
   ping: typeof pingTask;
   direction: typeof directionTask;
   script: typeof scriptTask;
+  youtube_import: typeof youtubeImportTask;
 }
 
 export interface JobScope {

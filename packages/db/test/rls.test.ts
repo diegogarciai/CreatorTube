@@ -406,6 +406,27 @@ describe("episodios y checklists", () => {
     expect(rows[2].code).toMatch(/^OT-/);
   });
 
+  it("respeta el código de un episodio importado solo con el prefijo y el formato del canal", async () => {
+    const rows = await as(owner.id, async (q) => [
+      ...(await q(
+        "insert into public.episodes (channel_id, title, code) values ($1, 'viejo', 'GT-240115-1830') returning code",
+        [ch],
+      )),
+      ...(await q(
+        "insert into public.episodes (channel_id, title, code) values ($1, 'ajeno', 'OT-240115-1830') returning code",
+        [ch],
+      )),
+      ...(await q(
+        "insert into public.episodes (channel_id, title, code) values ($1, 'raro', 'GT-hola') returning code",
+        [ch],
+      )),
+    ]);
+    expect(rows[0].code).toBe("GT-240115-1830");
+    expect(rows[1].code).not.toBe("OT-240115-1830");
+    expect(rows[1].code).toMatch(/^GT-\d{6}-\d{4}$/);
+    expect(rows[2].code).toMatch(/^GT-\d{6}-\d{4}$/);
+  });
+
   it("el número y el código no se pueden cambiar; el estado registra su fecha y actividad", async () => {
     const ep = await createEpisode(ch, "Inmutable");
     await sql(
@@ -830,6 +851,56 @@ describe("Fase 2 · guion en etapas", () => {
     expect(
       await as(outsider.id, (q) =>
         q("select id from public.verification_items where run_id = $1", [run.id]),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("Fase 2 · importación desde YouTube", () => {
+  it("los items los escribe el servidor y los lee quien ve el canal", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch);
+    const [task] = await sql(
+      "insert into public.tasks (workspace_id, channel_id, kind) values ($1, $2, 'youtube_import') returning id",
+      [ws, ch],
+    );
+    const [item] = await sql(
+      "insert into public.youtube_import_items (task_id, channel_id, episode_id, video_id) values ($1, $2, $3, 'aaaaaaaaaaa') returning workspace_id, status",
+      [task.id, ch, ep],
+    );
+    expect(item).toEqual({ workspace_id: ws, status: "pending" });
+    await expect(
+      sql("update public.youtube_import_items set status = 'inventado' where task_id = $1", [
+        task.id,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.youtube_import_items (task_id, channel_id, episode_id, video_id) values ($1, $2, $3, 'bbbbbbbbbbb')",
+          [task.id, ch, ep],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security|duplicate key/);
+    expect(
+      await as(owner.id, (q) =>
+        q("select video_id from public.youtube_import_items where task_id = $1", [task.id]),
+      ),
+    ).toEqual([{ video_id: "aaaaaaaaaaa" }]);
+    expect(
+      await as(owner.id, (q) =>
+        q("update public.youtube_import_items set status = 'done' where task_id = $1 returning 1", [
+          task.id,
+        ]),
+      ),
+    ).toEqual([]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select video_id from public.youtube_import_items where task_id = $1", [task.id]),
       ),
     ).toEqual([]);
   });

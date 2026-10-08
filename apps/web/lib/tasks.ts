@@ -42,3 +42,6 @@ export const SCRIPT_ESTIMATE_CREDITS = 200;
 
 /** Lo que cuesta, más o menos, generar el Podcast desde el guion verificado. */
 export const PODCAST_ESTIMATE_CREDITS = 30;
+
+/** Lo que cuesta, más o menos, que Claude clasifique un video importado de YouTube. */
+export const IMPORT_CREDITS_PER_VIDEO = 0.3;

@@ -46,6 +46,8 @@ export interface VideoInfo {
   viewCount: number | null;
   likeCount: number | null;
   commentCount: number | null;
+  /** Etiquetas del video (solo las ve el dueño del canal). */
+  tags: string[];
 }
 
 /** Duración ISO 8601 (PT1H2M3S) a segundos. */
@@ -103,14 +105,24 @@ export class YouTubeClient {
     };
   }
 
-  /** IDs de las subidas más recientes (incluye privadas y programadas para el dueño). */
+  /**
+   * IDs de las subidas más recientes (incluye privadas y programadas para el
+   * dueño), hasta `max`. Cada página de 50 cuesta 1 unidad de cuota.
+   */
   async listRecentUploadIds(uploadsPlaylistId: string, max = 50): Promise<string[]> {
-    const json = await this.get("playlistItems", {
-      part: "contentDetails",
-      playlistId: uploadsPlaylistId,
-      maxResults: String(Math.min(50, max)),
-    });
-    return (json.items ?? []).map((i: Json) => i.contentDetails?.videoId).filter(Boolean);
+    const ids: string[] = [];
+    let pageToken: string | undefined;
+    do {
+      const json = await this.get("playlistItems", {
+        part: "contentDetails",
+        playlistId: uploadsPlaylistId,
+        maxResults: String(Math.min(50, max - ids.length)),
+        ...(pageToken && { pageToken }),
+      });
+      ids.push(...(json.items ?? []).map((i: Json) => i.contentDetails?.videoId).filter(Boolean));
+      pageToken = json.nextPageToken;
+    } while (pageToken && ids.length < max);
+    return ids.slice(0, max);
   }
 
   async getVideos(ids: readonly string[]): Promise<VideoInfo[]> {
@@ -140,6 +152,7 @@ export class YouTubeClient {
           viewCount: num(v.statistics?.viewCount),
           likeCount: num(v.statistics?.likeCount),
           commentCount: num(v.statistics?.commentCount),
+          tags: Array.isArray(v.snippet?.tags) ? v.snippet.tags : [],
         });
       }
     }
