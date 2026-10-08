@@ -13,3 +13,4 @@ export * from "./thumbnail-schemes";
 export * from "./time";
 export * from "./youtube-url";
 export * from "./visual-aids";
+export * from "./retention";

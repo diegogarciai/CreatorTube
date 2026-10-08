@@ -2393,6 +2393,69 @@ export type Database = {
           },
         ];
       };
+      youtube_channel_daily_stats: {
+        Row: {
+          channel_id: string;
+          day: string;
+          workspace_id: string;
+          views: number;
+          watch_minutes: number;
+          average_view_duration_seconds: number;
+          average_view_percentage: number;
+          subscribers_gained: number;
+          subscribers_lost: number;
+          likes: number;
+          comments: number;
+          shares: number;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          day: string;
+          workspace_id?: string;
+          views?: number;
+          watch_minutes?: number;
+          average_view_duration_seconds?: number;
+          average_view_percentage?: number;
+          subscribers_gained?: number;
+          subscribers_lost?: number;
+          likes?: number;
+          comments?: number;
+          shares?: number;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          day?: string;
+          workspace_id?: string;
+          views?: number;
+          watch_minutes?: number;
+          average_view_duration_seconds?: number;
+          average_view_percentage?: number;
+          subscribers_gained?: number;
+          subscribers_lost?: number;
+          likes?: number;
+          comments?: number;
+          shares?: number;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_channel_daily_stats_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_channel_daily_stats_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       youtube_import_items: {
         Row: {
           task_id: string;
@@ -2465,6 +2528,9 @@ export type Database = {
           comments: number | null;
           subscribers_gained: number | null;
           fetched_at: string;
+          average_view_percentage: number | null;
+          subscribers_lost: number | null;
+          shares: number | null;
         };
         Insert: {
           channel_id: string;
@@ -2478,6 +2544,9 @@ export type Database = {
           comments?: number | null;
           subscribers_gained?: number | null;
           fetched_at?: string;
+          average_view_percentage?: number | null;
+          subscribers_lost?: number | null;
+          shares?: number | null;
         };
         Update: {
           channel_id?: string;
@@ -2491,6 +2560,9 @@ export type Database = {
           comments?: number | null;
           subscribers_gained?: number | null;
           fetched_at?: string;
+          average_view_percentage?: number | null;
+          subscribers_lost?: number | null;
+          shares?: number | null;
         };
         Relationships: [
           {
@@ -2502,6 +2574,45 @@ export type Database = {
           },
           {
             foreignKeyName: "youtube_video_daily_stats_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      youtube_video_retention: {
+        Row: {
+          channel_id: string;
+          video_id: string;
+          workspace_id: string;
+          points: Json;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          video_id: string;
+          workspace_id?: string;
+          points?: Json;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          video_id?: string;
+          workspace_id?: string;
+          points?: Json;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_retention_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_video_retention_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";

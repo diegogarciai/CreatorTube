@@ -6,7 +6,7 @@ Fuentes:
 - las _Reglas del guionista v4.1_ (secciones 12 a 14);
 - el manual de identidad Gartechs v3.0 (septiembre de 2026): colores, tipografía, movimiento, imagen y zonas seguras.
 
-**Criterio de salida (especificación):** un episodio producido de punta a punta en la app.
+**Criterio de salida (especificación):** un episodio producido de punta a punta en la app. Diego decidió pasar a la Fase 4 y hacer esta prueba con el primer episodio real.
 
 ## 1. Alcance
 
@@ -38,7 +38,7 @@ Fuentes:
 | 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Hecho     |
 | 4    | Render con Remotion en Trigger.dev                                                        | Hecho     |
 | 5    | Recursos del episodio en Producción                                                       | Hecho     |
-| 6    | Un episodio de Gartechs producido de punta a punta (prueba de salida)                     | Pendiente |
+| 6    | Un episodio de Gartechs producido de punta a punta (prueba de salida)                     | Pospuesto |
 
 ## 4. Almacenamiento (paso 1)
 

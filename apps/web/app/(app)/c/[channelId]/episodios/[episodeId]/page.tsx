@@ -33,6 +33,8 @@ import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { loadTitleOptions } from "@/lib/data/titles";
 import { loadVisualAidsView } from "@/lib/data/visual-aids";
+import { loadEpisodeMetrics } from "@/lib/data/analytics";
+import { EpisodeMetricsPanel } from "@/components/analytics/episode-metrics";
 import { episodeDependents } from "@/lib/data/dependents";
 import { NO_DEPENDENTS } from "@/lib/dependencies";
 import {
@@ -93,6 +95,8 @@ export default async function EpisodePage({
     thumbnails,
     titles,
     visualAids,
+    metrics,
+    retentionCount,
   ] = await Promise.all([
     getChecklistSteps(channelId),
     getPillars(channelId),
@@ -153,6 +157,20 @@ export default async function EpisodePage({
           currentScriptRunId: row.current_script_run_id,
         })
       : null,
+    tab === "metrics" && row.youtube_video_id
+      ? loadEpisodeMetrics({
+          channelId,
+          videoId: row.youtube_video_id,
+          currentScriptRunId: row.current_script_run_id,
+        })
+      : null,
+    row.youtube_video_id
+      ? supabase
+          .from("youtube_video_retention")
+          .select("video_id", { count: "exact", head: true })
+          .eq("channel_id", channelId)
+          .eq("video_id", row.youtube_video_id)
+      : Promise.resolve({ count: 0 }),
   ]);
   // Lo generado del episodio: qué bloquea cada «Rehacer» y «Borrar».
   const deps =
@@ -186,7 +204,8 @@ export default async function EpisodePage({
     production: stageIndex(row.stage) > stageIndex("preparation") ? "ready" : "missing",
     publication: row.youtube_video_id ? "ready" : "missing",
     distribution: !published ? "notApplicable" : afterProgress.ratio >= 1 ? "ready" : "missing",
-    metrics: !published ? "notApplicable" : video.data ? "ready" : "missing",
+    // Listo cuando YouTube ya tiene la curva de retención del video.
+    metrics: !published ? "notApplicable" : retentionCount.count ? "ready" : "missing",
   };
   // Subpestañas de Producción: por defecto, la primera fase sin terminar.
   const productionState =
@@ -530,25 +549,12 @@ export default async function EpisodePage({
               description={t("episode.tabPlaceholder.distribution")}
             />
           </div>
-        ) : tab === "metrics" && video.data ? (
-          <div className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {(["view_count", "like_count", "comment_count"] as const).map((k) => (
-                <Card key={k}>
-                  <CardBody>
-                    <p className="text-sm text-muted">{t(`episode.metric.${k}`)}</p>
-                    <p className="mt-1 text-2xl font-semibold">
-                      {video.data?.[k]?.toLocaleString("es") ?? "—"}
-                    </p>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-            <EmptyState
-              title={t("episode.tabs.metrics")}
-              description={t("episode.tabPlaceholder.metrics")}
-            />
-          </div>
+        ) : tab === "metrics" && video.data && metrics ? (
+          <EpisodeMetricsPanel
+            metrics={metrics}
+            durationS={video.data.duration_seconds}
+            timezone={tz}
+          />
         ) : (
           <EmptyState
             title={t(`episode.tabs.${tab}`)}

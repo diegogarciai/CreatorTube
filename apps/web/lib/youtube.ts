@@ -72,7 +72,7 @@ export async function seedChannelDefaults(admin: Admin, channelId: string) {
   await admin.from("checklist_steps").insert(rows);
 }
 
-function supabaseStore(admin: Admin, timezone: string): SyncStore {
+export function supabaseStore(admin: Admin, timezone: string): SyncStore {
   return {
     async saveTokens(channelId, tokens) {
       await saveConnection(admin, channelId, tokens);
