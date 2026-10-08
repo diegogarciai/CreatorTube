@@ -320,15 +320,30 @@ export default async function EpisodePage({
           </div>
         ) : tab === "script" ? (
           <div className="space-y-6">
-            <DirectionPanel
-              episodeId={row.id}
-              channelId={channelId}
-              direction={directionState}
-              hasGuide={Boolean(guide.data?.current_version_id)}
-              canEdit={ctx.can("write_script")}
-            />
+            {/* Antes del guion, la Dirección va arriba; con guion, es su primera pestaña. */}
+            {script?.run ? null : (
+              <DirectionPanel
+                episodeId={row.id}
+                channelId={channelId}
+                direction={directionState}
+                hasGuide={Boolean(guide.data?.current_version_id)}
+                canEdit={ctx.can("write_script")}
+              />
+            )}
             {script ? (
               <ScriptPanel
+                direction={
+                  script.run ? (
+                    <DirectionPanel
+                      embedded
+                      episodeId={row.id}
+                      channelId={channelId}
+                      direction={directionState}
+                      hasGuide={Boolean(guide.data?.current_version_id)}
+                      canEdit={ctx.can("write_script")}
+                    />
+                  ) : undefined
+                }
                 episodeId={row.id}
                 view={script}
                 canEdit={ctx.can("write_script")}

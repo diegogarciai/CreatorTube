@@ -62,7 +62,7 @@ const LABEL: Record<ScriptStage, string> = {
 export const scriptTask = schemaTask({
   id: "script",
   schema: z.object({ taskId: z.uuid() }),
-  // Hasta dieciséis pasos con verificación y publicación, más las esperas si
+  // Hasta quince pasos con verificación y publicación, más las esperas si
   // Claude está saturado.
   maxDuration: 3600,
   // runStep ya reintenta la saturación; este reintento, más espaciado, es el
@@ -292,7 +292,7 @@ export async function runScript(
         }
 
         // Regla de bloqueo (10.4): si el guion verificado quedó con datos por
-        // confirmar, la corrida se pausa antes de los reels y espera la
+        // confirmar, la corrida se pausa antes de los motion graphics y espera la
         // decisión del presentador. Así no se paga material que puede cambiar.
         if (spec.key === "fix" && pendingDatos(result.body).length) {
           await db

@@ -67,7 +67,6 @@ describe("pasos de Publicación y Podcast", () => {
       quality: "cal",
       verify: "tabla",
       fix: "verificado",
-      reels: "marcado",
       motion: "mg",
       broll: "br",
       reels_final: "r1",
@@ -77,9 +76,9 @@ describe("pasos de Publicación y Podcast", () => {
     };
     const titles = (key: Parameters<typeof stepInputs>[0]) =>
       stepInputs(key, bodies).map((b) => b.body);
-    expect(titles("reels_final")).toEqual(["marcado", "mg"]);
+    expect(titles("reels_final")).toEqual(["verificado", "mg"]);
     expect(titles("assets")).toEqual(["esc", "tabla", "verificado"]);
-    expect(titles("sheet")).toEqual(["esc", "cal", "tabla", "verificado", "marcado", "r1", "mg"]);
+    expect(titles("sheet")).toEqual(["esc", "cal", "tabla", "verificado", "r1", "mg"]);
     expect(titles("assets_json")).toEqual(["as", "fi"]);
     expect(titles("podcast_script")).toEqual(["tabla", "verificado"]);
     expect(titles("podcast_desc")).toEqual(["tabla", "pod"]);
@@ -95,7 +94,7 @@ describe("pasos de Publicación y Podcast", () => {
     expect(keys(stepPrerequisites("podcast_desc")).at(-1)).toBe("podcast_script");
     expect(keys(stepPrerequisites("sheet")).slice(-3)).toEqual(["broll", "reels_final", "assets"]);
     expect(keys(runSteps("dossier")).at(-1)).toBe("assets_json");
-    expect(keys(runSteps("reels"))).not.toContain("podcast_script");
+    expect(keys(runSteps("motion"))).not.toContain("podcast_script");
     expect(keys(runSteps("podcast_script"))).toEqual(["podcast_script", "podcast_desc"]);
   });
 

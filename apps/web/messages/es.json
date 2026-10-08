@@ -615,7 +615,7 @@
   },
   "script": {
     "title": "Guion",
-    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada paso empieza cuando termina el anterior. La Verificación busca en la web con Parallel; los reels, motion graphics, B-rolls y la Publicación se hacen sobre el guion ya verificado. El Podcast se genera aparte, con su botón.",
+    "subtitle": "Se genera con tu guía del guionista, por etapas y por pasos: cada paso empieza cuando termina el anterior. La Verificación busca en la web con Parallel; los motion graphics, los B-rolls y la Publicación (con los reels) se hacen sobre el guion ya verificado. El Podcast se genera aparte, con su botón.",
     "needsDirection": "Responde o salta la dirección de arriba para generar el guion.",
     "generate": "Generar guion",
     "estimate": "Cuesta cerca de {cost} de tus créditos.",
@@ -667,7 +667,6 @@
       "claims": "Afirmaciones",
       "verify": "Verificar",
       "fix": "Guion verificado",
-      "reels": "Reels marcados",
       "motion": "Motion graphics",
       "broll": "B-rolls",
       "reels_final": "Reels R1–R3",
@@ -683,8 +682,8 @@
     "verifiedHint": "El guion pasó la verificación con búsqueda en la web y no quedan datos por confirmar. Revisa la tabla para ver qué se corrigió o se eliminó.",
     "pendingTitle": "DATOS POR CONFIRMAR — NO GRABAR",
     "pendingHint": "El guion verificado tiene {count, plural, one {# dato} other {# datos}} marcado como ___DATO POR CONFIRMAR___ (regla 10.4).",
-    "pausedTitle": "La corrida se pausó antes de los reels: {count, plural, one {queda # dato} other {quedan # datos}} por confirmar",
-    "pausedHint": "Para no pagar reels, motion graphics y B-rolls que pueden cambiar, la corrida espera tu decisión. Puedes seguir con los datos marcados en el texto o regenerar desde «Verificar» o «Guion verificado».",
+    "pausedTitle": "La corrida se pausó antes de los motion graphics: {count, plural, one {queda # dato} other {quedan # datos}} por confirmar",
+    "pausedHint": "Para no pagar motion graphics, B-rolls y Publicación que pueden cambiar, la corrida espera tu decisión. Puedes seguir con los datos marcados en el texto o regenerar desde «Verificar» o «Guion verificado».",
     "continueWithPending": "Seguir con los pendientes marcados",
     "podcast": "El podcast se genera aparte, desde el guion verificado: no espera a Publicación.",
     "podcastNeedsVerification": "Se puede generar cuando la Verificación esté lista.",
@@ -695,6 +694,7 @@
     "suggestedKeywords": "Keywords: {keywords}",
     "suggestedPillar": "Pilar: {pillar}",
     "use": "Usar",
-    "used": "Listo: se guardó en el episodio."
+    "used": "Listo: se guardó en el episodio.",
+    "directionTab": "Dirección"
   }
 }

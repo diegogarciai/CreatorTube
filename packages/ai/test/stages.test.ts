@@ -42,7 +42,7 @@ const ctx: StageContext = {
 };
 
 describe("pasos", () => {
-  it("Estudio 2, Guion 4 y Verificación 6; reels, motion y B-rolls después de verificar", () => {
+  it("Estudio 2, Guion 4 y Verificación 5; motion y B-rolls después de verificar", () => {
     expect(STAGE_STEPS.study!.map((s) => s.title)).toEqual([
       "DOSSIER DE ESTUDIO",
       "TARJETAS DE ESTUDIO",
@@ -57,7 +57,6 @@ describe("pasos", () => {
       "AFIRMACIONES A VERIFICAR",
       "TABLA DE VERIFICACIÓN",
       "GUION — TELEPROMPTER VERIFICADO",
-      "GUION CON REELS MARCADOS",
       "MOTION GRAPHICS",
       "PLAN DE B-ROLLS",
     ]);
@@ -71,7 +70,6 @@ describe("pasos", () => {
       "claims",
       "verify",
       "fix",
-      "reels",
       "motion",
       "broll",
       "reels_final",
@@ -86,7 +84,6 @@ describe("pasos", () => {
       "verification_extract",
       "verification_extract",
       "verification_fix",
-      "verification_mark",
       "verification_mark",
       "script",
     ]);
@@ -174,7 +171,7 @@ describe("control de calidad y corrección", () => {
     expect(qualityVerdict("| Gancho | Cumple |")).toBe("pass");
     expect(skipsStep("revision", { quality: "VEREDICTO: CUMPLE" })).toBe(true);
     expect(skipsStep("revision", { quality: "VEREDICTO: CORREGIR" })).toBe(false);
-    expect(skipsStep("reels", { quality: "VEREDICTO: CUMPLE" })).toBe(false);
+    expect(skipsStep("motion", { quality: "VEREDICTO: CUMPLE" })).toBe(false);
   });
 
   const bodies = {
@@ -200,9 +197,6 @@ describe("control de calidad y corrección", () => {
       { title: "TABLA DE VERIFICACIÓN", body: bodies.verify },
     ]);
     // Después de corregir, solo el guion verificado (y la tabla para los motion).
-    expect(stepInputs("reels", bodies)).toEqual([
-      { title: "GUION — TELEPROMPTER VERIFICADO", body: "Verificado y corregido" },
-    ]);
     expect(stepInputs("motion", bodies).map((b) => b.title)).toEqual([
       "TABLA DE VERIFICACIÓN",
       "GUION — TELEPROMPTER VERIFICADO",
@@ -227,12 +221,8 @@ describe("control de calidad y corrección", () => {
       { title: "CONTROL DE CALIDAD", body: bodies.quality },
     ]);
     expect(
-      stageBlocks("verification", { ...bodies, claims: "x", reels: "R" }).map((b) => b.title),
-    ).toEqual([
-      "TABLA DE VERIFICACIÓN",
-      "GUION — TELEPROMPTER VERIFICADO",
-      "GUION CON REELS MARCADOS",
-    ]);
+      stageBlocks("verification", { ...bodies, claims: "x", motion: "M" }).map((b) => b.title),
+    ).toEqual(["TABLA DE VERIFICACIÓN", "GUION — TELEPROMPTER VERIFICADO", "MOTION GRAPHICS"]);
   });
 
   it("encuentra las marcas ___DATO que quedan", () => {

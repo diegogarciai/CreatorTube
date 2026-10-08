@@ -368,3 +368,8 @@ Pendientes:
   - Podcast en 2 pasos (guion para audio de la sección 22 y descripción de la 22.9), solo con el botón **Generar podcast** de su pestaña: sale del guion verificado y no espera a Publicación; lo anterior se copia sin costo;
   - estimado: unos US$2,00 la corrida completa y unos US$0,30 el podcast;
   - la generación de las miniaturas en Artlist queda para la Fase 3: aquí queda su diseño en texto.
+
+- **Ajustes tras el paso 6:**
+  - se quitó el paso «Guion con reels marcados» de Verificación (queda en 5 pasos): el paso «Reels R1–R3» de Publicación elige los fragmentos en el guion verificado (13.1 y 13.2) y entrega cada reel con su ubicación (13.4). Se ahorra una llamada por corrida;
+  - si la verificación deja datos por confirmar, la pausa queda antes de los motion graphics;
+  - la Dirección del episodio va arriba solo antes del primer guion; después es la primera pestaña del guion («Dirección», antes de Estudio) y ya no aparece encima de cada paso.
