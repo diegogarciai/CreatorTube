@@ -476,6 +476,21 @@
     "unknown": "Algo salió mal. Intenta de nuevo.",
     "stage_locked": "Esta etapa no se completa a mano.",
     "notFoundTitle": "No encontramos esta página",
-    "notFoundDesc": "Puede que no exista o que no tengas acceso."
+    "notFoundDesc": "Puede que no exista o que no tengas acceso.",
+    "youtube_denied": "Cancelaste el permiso en Google. Conecta de nuevo y acepta para continuar.",
+    "youtube_state": "La conexión venció o se abrió en otro navegador. Vuelve a pulsar Conectar con YouTube.",
+    "youtube_no_channel": "Esa cuenta de Google no tiene canal de YouTube. Conecta de nuevo y elige la cuenta (o cuenta de marca) dueña del canal.",
+    "youtube_taken": "Ese canal ya está conectado en otro espacio.",
+    "youtube_config": "Falta configurar la conexión con YouTube en el servidor (variables de entorno en Vercel).",
+    "youtube_client": "Google rechazó el ID o el secreto del cliente OAuth. Revisa GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en Vercel y vuelve a desplegar.",
+    "youtube_redirect": "La dirección de regreso no coincide con la registrada en Google. Revisa APP_URL en Vercel y las URIs de redirección del cliente OAuth.",
+    "youtube_code": "El permiso de Google venció o ya se usó. Vuelve a pulsar Conectar con YouTube.",
+    "youtube_oauth": "Google no completó la autorización.",
+    "youtube_scope": "Falta el permiso para ver tu cuenta de YouTube. Conecta de nuevo y, en la pantalla de Google, marca todas las casillas.",
+    "youtube_api_disabled": "La YouTube Data API v3 no está habilitada en el proyecto de Google Cloud. Habilítala en APIs y servicios → Biblioteca y vuelve a intentar en unos minutos.",
+    "youtube_quota": "Se agotó la cuota diaria de YouTube. Se reinicia a medianoche, hora del Pacífico.",
+    "youtube_api": "YouTube respondió con un error al leer el canal.",
+    "youtube_db": "No pudimos guardar el canal.",
+    "youtube_error": "Algo salió mal al conectar el canal. Intenta de nuevo."
   }
 }

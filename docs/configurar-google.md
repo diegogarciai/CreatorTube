@@ -134,4 +134,8 @@ No hace falta la auditoría de seguridad CASA, porque esos permisos son sensible
 | Error `youtube_state`                                  | La cookie de inicio venció (10 min) o se abrió en otro navegador                                                                             |
 | El canal pasa a "Hay que reconectar"                   | El acceso se revocó o venció (los 7 días del modo de prueba)                                                                                 |
 | `quotaExceeded` en "Última sincronización"             | Se agotó la cuota diaria; se reinicia a medianoche, hora del Pacífico                                                                        |
+| Error `youtube_api_disabled` al volver de Google       | Falta habilitar **YouTube Data API v3** en el proyecto (APIs y servicios → Biblioteca); tarda unos minutos en activarse                      |
+| Error `youtube_scope`                                  | En la pantalla de Google quedó sin marcar la casilla de YouTube; conecta de nuevo y marca todas                                              |
+| Error `youtube_client`                                 | `GOOGLE_CLIENT_ID` o `GOOGLE_CLIENT_SECRET` en Vercel no corresponden al cliente OAuth; corrígelos y vuelve a desplegar                      |
+| Error `youtube_db` o `youtube_error`                   | Busca la línea `YouTube callback` en Vercel → Logs: trae el motivo exacto                                                                    |
 | "Se produjo un error…" al crear el cliente OAuth       | Alguna URI tiene un marcador sin reemplazar (`TU-PROJECT-ID`, `<…>`), espacios, o usa `http` en un dominio que no es `localhost`/`127.0.0.1` |
