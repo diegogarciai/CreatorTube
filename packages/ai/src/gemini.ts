@@ -3,7 +3,14 @@
  * viven solo en el motor de tareas; GEMINI_API_URL permite apuntar a un mock.
  */
 
-export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
+/** Nano Banana Pro: el que mejor mantiene la cara de las fotos de referencia. */
+export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-3-pro-image";
+
+/** Los modelos Pro aceptan 5 personas de referencia y 2K al precio de 1K. */
+export const isProImageModel = (model: string) => /-pro-image/.test(model);
+
+/** Cuántas fotos del presentador usa el modelo para mantener la cara. */
+export const maxPresenterRefs = (model: string) => (isProImageModel(model) ? 5 : 4);
 
 export interface GeminiConfig {
   apiKey: string;
@@ -28,7 +35,8 @@ export function geminiConfigFromEnv(env: Record<string, string | undefined>): Ge
   };
 }
 
-export type ImageInput = { mime: string; data: Buffer };
+/** Una imagen de referencia con su etiqueta, que va en texto justo antes. */
+export type ImageInput = { mime: string; data: Buffer; label: string };
 
 export type ImageUsage = { inputTokens: number; outputTokens: number; images: number };
 
@@ -49,8 +57,8 @@ type GeminiResponse = {
 };
 
 /**
- * Una imagen 16:9 a partir del texto y las imágenes de referencia (primero las
- * referencias, después la instrucción).
+ * Una imagen 16:9 a partir del texto y las imágenes de referencia: cada
+ * referencia va precedida de su etiqueta y la instrucción va al final.
  */
 export async function generateImage(
   config: GeminiConfig,
@@ -67,16 +75,20 @@ export async function generateImage(
           {
             role: "user",
             parts: [
-              ...input.references.map((r) => ({
-                inlineData: { mimeType: r.mime, data: r.data.toString("base64") },
-              })),
+              ...input.references.flatMap((r) => [
+                { text: r.label },
+                { inlineData: { mimeType: r.mime, data: r.data.toString("base64") } },
+              ]),
               { text: input.prompt },
             ],
           },
         ],
         generationConfig: {
           responseModalities: ["IMAGE"],
-          imageConfig: { aspectRatio: "16:9", imageSize: "1K" },
+          imageConfig: {
+            aspectRatio: "16:9",
+            imageSize: isProImageModel(config.model) ? "2K" : "1K",
+          },
         },
       }),
     },
@@ -101,14 +113,14 @@ export async function generateImage(
   };
 }
 
-/** Precios de lista (US$): entrada por millón de tokens y salida por imagen 1K. */
+/** Precios de lista (US$): entrada por millón de tokens y salida por imagen (1K, o 2K en Pro). */
 const IMAGE_PRICES: Record<string, { inputPerMTok: number; perImage: number }> = {
   "gemini-3.1-flash-image": { inputPerMTok: 0.5, perImage: 0.067 },
   "gemini-3-pro-image": { inputPerMTok: 2, perImage: 0.134 },
   "gemini-3.1-flash-lite-image": { inputPerMTok: 0.25, perImage: 0.034 },
 };
 
-/** Lo que costó una imagen; un modelo desconocido se cobra como Nano Banana 2. */
+/** Lo que costó una imagen; un modelo desconocido se cobra como el por defecto. */
 export function imageCostUsd(
   config: Pick<GeminiConfig, "model" | "imagePriceUsd">,
   usage: ImageUsage,

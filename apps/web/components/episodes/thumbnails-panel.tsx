@@ -546,7 +546,8 @@ function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: ()
   const [line1, setLine1] = useState(version.text?.lines[0] ?? "");
   const [line2, setLine2] = useState(version.text?.lines[1] ?? "");
   const [accent, setAccent] = useState(version.text?.accent ?? "");
-  const [side, setSide] = useState(version.side);
+  const [side, setSide] = useState<string>(version.side ?? "auto");
+  const [vertical, setVertical] = useState<string>(version.vertical ?? "auto");
   const words = [line1, line2].flatMap((l) => l.split(/\s+/)).filter(Boolean);
   const accentValue = words.includes(accent) ? accent : (words.at(-1) ?? "");
 
@@ -556,6 +557,7 @@ function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: ()
         lines: [line1, line2].map((l) => l.trim()).filter(Boolean),
         accent: accentValue,
         side,
+        vertical,
       });
       if (res.ok) {
         onDone();
@@ -598,16 +600,27 @@ function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: ()
         </label>
         <label className="flex items-center gap-1">
           {t("side")}
-          <Select
-            value={side}
-            onChange={(e) => setSide(e.target.value as "left" | "right")}
-            className="h-8 w-auto"
-          >
+          <Select value={side} onChange={(e) => setSide(e.target.value)} className="h-8 w-auto">
+            <option value="auto">{t("auto")}</option>
             <option value="left">{t("sideLeft")}</option>
             <option value="right">{t("sideRight")}</option>
           </Select>
         </label>
+        <label className="flex items-center gap-1">
+          {t("vertical")}
+          <Select
+            value={vertical}
+            onChange={(e) => setVertical(e.target.value)}
+            className="h-8 w-auto"
+          >
+            <option value="auto">{t("auto")}</option>
+            <option value="top">{t("top")}</option>
+            <option value="middle">{t("middle")}</option>
+            <option value="bottom">{t("bottom")}</option>
+          </Select>
+        </label>
       </div>
+      <p className="text-xs text-muted">{t("autoHint")}</p>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={save} disabled={pending || !words.length}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}

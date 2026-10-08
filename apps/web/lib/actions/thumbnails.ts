@@ -96,7 +96,9 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
 const textSchema = z.object({
   lines: z.array(z.string().trim().max(40)).min(1).max(2),
   accent: z.string().trim().min(1).max(40),
-  side: z.enum(["left", "right"]),
+  // «auto»: la app busca la zona con menos detalle (se guarda como null).
+  side: z.enum(["auto", "left", "right"]),
+  vertical: z.enum(["auto", "top", "middle", "bottom"]),
 });
 
 /** Otra versión con el mismo fondo y otro texto: no vuelve a llamar a Gemini. */
@@ -134,7 +136,8 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
           base_path: source.base_path,
           prompt: source.prompt,
           text: { lines, accent: text.accent },
-          text_side: text.side,
+          text_side: text.side === "auto" ? null : text.side,
+          text_v: text.vertical === "auto" ? null : text.vertical,
           task_id: taskId,
           created_by: user.id,
         });

@@ -17,21 +17,21 @@ No hace falta la integración de GitHub dentro de Trigger.dev. Si más adelante 
 
 **En Trigger.dev**, en **Environment variables**, entorno **Production**:
 
-| Variable                    | Valor                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SUPABASE_URL`              | La URL del proyecto de Supabase (`https://TU-PROJECT-ID.supabase.co`)                                                                            |
-| `SUPABASE_SERVICE_ROLE_KEY` | La misma service role key que está en Vercel                                                                                                     |
-| `ANTHROPIC_API_KEY`         | Clave de la API de Anthropic (se usa desde el paso 3)                                                                                            |
-| `PARALLEL_API_KEY`          | Clave de Parallel (se usa en la verificación)                                                                                                    |
-| `AI_MODEL`                  | Modelo de respaldo: el que se usa si en **Administración → Modelos de IA** el espacio no tiene uno elegido. Cambiarlo no requiere desplegar      |
-| `AI_PRICE_INPUT_USD`        | Opcional. Precio por millón de tokens de entrada para los modelos sin precio en Administración. Por defecto 2                                    |
-| `AI_PRICE_OUTPUT_USD`       | Opcional. Precio por millón de tokens de salida para los modelos sin precio en Administración. Por defecto 10                                    |
-| `AI_FALLBACKS`              | Opcional. `off` apaga el respaldo automático cuando el modelo se niega a responder. Por defecto está encendido                                   |
-| `PARALLEL_SEARCH_MODE`      | Opcional. Modo de búsqueda de Parallel en la verificación: `turbo`, `fast`, `basic` o `advanced`. Por defecto `basic`                            |
-| `PARALLEL_PRICE_USD`        | Opcional. Precio de cada búsqueda en dólares, para los créditos. Por defecto 0.005 (modo `basic`; `fast` y `turbo` cuestan 0.001)                |
-| `GEMINI_API_KEY`            | Clave de la API de Gemini (Google AI Studio). Se usa en las miniaturas                                                                           |
-| `GEMINI_IMAGE_MODEL`        | Opcional. Modelo de imágenes de Gemini. Por defecto `gemini-3.1-flash-image` (Nano Banana 2); `gemini-3-pro-image` da más calidad a mayor precio |
-| `GEMINI_IMAGE_PRICE_USD`    | Opcional. Precio por imagen en dólares, para los créditos, si no es el de lista del modelo                                                       |
+| Variable                    | Valor                                                                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`              | La URL del proyecto de Supabase (`https://TU-PROJECT-ID.supabase.co`)                                                                                                               |
+| `SUPABASE_SERVICE_ROLE_KEY` | La misma service role key que está en Vercel                                                                                                                                        |
+| `ANTHROPIC_API_KEY`         | Clave de la API de Anthropic (se usa desde el paso 3)                                                                                                                               |
+| `PARALLEL_API_KEY`          | Clave de Parallel (se usa en la verificación)                                                                                                                                       |
+| `AI_MODEL`                  | Modelo de respaldo: el que se usa si en **Administración → Modelos de IA** el espacio no tiene uno elegido. Cambiarlo no requiere desplegar                                         |
+| `AI_PRICE_INPUT_USD`        | Opcional. Precio por millón de tokens de entrada para los modelos sin precio en Administración. Por defecto 2                                                                       |
+| `AI_PRICE_OUTPUT_USD`       | Opcional. Precio por millón de tokens de salida para los modelos sin precio en Administración. Por defecto 10                                                                       |
+| `AI_FALLBACKS`              | Opcional. `off` apaga el respaldo automático cuando el modelo se niega a responder. Por defecto está encendido                                                                      |
+| `PARALLEL_SEARCH_MODE`      | Opcional. Modo de búsqueda de Parallel en la verificación: `turbo`, `fast`, `basic` o `advanced`. Por defecto `basic`                                                               |
+| `PARALLEL_PRICE_USD`        | Opcional. Precio de cada búsqueda en dólares, para los créditos. Por defecto 0.005 (modo `basic`; `fast` y `turbo` cuestan 0.001)                                                   |
+| `GEMINI_API_KEY`            | Clave de la API de Gemini (Google AI Studio). Se usa en las miniaturas                                                                                                              |
+| `GEMINI_IMAGE_MODEL`        | Opcional. Modelo de imágenes de Gemini. Por defecto `gemini-3-pro-image` (Nano Banana Pro), el que mejor mantiene la cara; `gemini-3.1-flash-image` (Nano Banana 2) cuesta la mitad |
+| `GEMINI_IMAGE_PRICE_USD`    | Opcional. Precio por imagen en dólares, para los créditos, si no es el de lista del modelo                                                                                          |
 
 **En Vercel** (Settings → Environment Variables, Production):
 

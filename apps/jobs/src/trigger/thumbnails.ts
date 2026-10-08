@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import sharp from "sharp";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import {
@@ -6,6 +7,8 @@ import {
   generateImage,
   imageCostUsd,
   imagePrompt,
+  locateSubjects,
+  maxPresenterRefs,
   parseAssets,
   scoreThumbnail,
   thumbnailBriefs,
@@ -13,18 +16,18 @@ import {
   type GeminiConfig,
   type ImageInput,
   type StreamClient,
+  type SubjectBox,
   type TextSide,
   type ThumbnailText,
 } from "@planificador/ai";
 import { parseBrandKit } from "@planificador/core";
 import type { Database, Json } from "@planificador/db";
 import { loadAiSettings } from "../lib/ai-settings";
-import { composeThumbnail, prepareReference } from "../lib/compose-thumbnail";
+import { composeThumbnail, prepareReference, type TextVertical } from "../lib/compose-thumbnail";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
 const BUCKET = "channel-media";
-const MAX_PRESENTER_REFS = 4;
 const MAX_PRODUCT_REFS = 3;
 
 /**
@@ -58,6 +61,7 @@ type AssetRow = {
   path: string | null;
   text: Json | null;
   text_side: string | null;
+  text_v: string | null;
   prompt: string | null;
   note: string | null;
   score: Json | null;
@@ -89,7 +93,7 @@ export async function runThumbnails(
           db
             .from("episode_assets")
             .select(
-              "id, design_idx, status, base_path, path, text, text_side, prompt, note, score, credits",
+              "id, design_idx, status, base_path, path, text, text_side, text_v, prompt, note, score, credits",
             )
             .eq("task_id", taskId)
             .order("design_idx"),
@@ -159,7 +163,7 @@ export async function runThumbnails(
       // Referencias: fotos del presentador y del producto, reducidas.
       let presenterRefs: ImageInput[] = [];
       let productRefs: ImageInput[] = [];
-      if (toGenerate.length) {
+      {
         await report.progress(0.05, "Preparando las fotos de referencia");
         const [{ data: photos }, { data: refs }] = await Promise.all([
           db
@@ -167,26 +171,36 @@ export async function runThumbnails(
             .select("path")
             .eq("channel_id", channelId)
             .order("created_at")
-            .limit(MAX_PRESENTER_REFS),
-          db
-            .from("episode_refs")
-            .select("path")
-            .eq("episode_id", episodeId)
-            .order("created_at")
-            .limit(MAX_PRODUCT_REFS),
+            .limit(maxPresenterRefs(gemini.model)),
+          toGenerate.length
+            ? db
+                .from("episode_refs")
+                .select("path")
+                .eq("episode_id", episodeId)
+                .order("created_at")
+                .limit(MAX_PRODUCT_REFS)
+            : Promise.resolve({ data: [] as { path: string }[] }),
         ]);
-        const load = async (paths: string[]) =>
+        // Cada referencia lleva su etiqueta: así Gemini sabe que todas las
+        // fotos del presentador son la misma persona.
+        const load = async (paths: string[], label: (n: number) => string) =>
           Promise.all(
-            paths.map(async (p) => {
+            paths.map(async (p, i) => {
               const { data, error: dlError } = await db.storage.from(BUCKET).download(p);
               if (dlError || !data) throw new Error(`No se pudo leer ${p}`);
               const jpg = await prepareReference(Buffer.from(await data.arrayBuffer()));
-              return { mime: "image/jpeg", data: jpg };
+              return { mime: "image/jpeg", data: jpg, label: label(i + 1) };
             }),
           );
-        presenterRefs = await load((photos ?? []).map((p) => p.path));
-        productRefs = await load((refs ?? []).map((p) => p.path));
-        if (!presenterRefs.length) {
+        presenterRefs = await load(
+          (photos ?? []).map((p) => p.path),
+          (n) => `Reference photo of the presenter ${n} (the same real person in every photo):`,
+        );
+        productRefs = await load(
+          (refs ?? []).map((p) => p.path),
+          (n) => `Product photo ${n}:`,
+        );
+        if (!presenterRefs.length && toGenerate.length) {
           await fail(
             toGenerate.map((r) => r.id),
             "errors.no_presenter_photos",
@@ -232,15 +246,11 @@ export async function runThumbnails(
             productRefs: productRefs.length,
             kit: kit.colors,
           });
+          // El lado del brief solo le dice a Gemini dónde dejar espacio; el
+          // texto va donde la imagen quede más libre (text_side y text_v en null).
           row.text = { lines: b.lines, accent: b.accent };
-          row.text_side = b.textSide;
           row.credits += credits / needBrief.length;
-          await update(row.id, {
-            prompt: row.prompt,
-            text: row.text,
-            text_side: row.text_side,
-            credits: row.credits,
-          });
+          await update(row.id, { prompt: row.prompt, text: row.text, credits: row.credits });
         }
       }
 
@@ -250,7 +260,8 @@ export async function runThumbnails(
         const label = `Miniatura ${i + 1} de ${work.length}`;
         try {
           const text = row.text as ThumbnailText;
-          const side = (row.text_side ?? "left") as TextSide;
+          const side = row.text_side as TextSide | null;
+          const vertical = row.text_v as TextVertical | null;
           const design = assets.miniaturas[row.design_idx] ?? assets.miniaturas[0]!;
           let base: Buffer | null = null;
 
@@ -295,12 +306,37 @@ export async function runThumbnails(
               if (dlError || !data) throw new Error("No se pudo leer la imagen base");
               base = Buffer.from(await data.arrayBuffer());
             }
-            jpg = await composeThumbnail(base, {
+            // En automático, Claude ubica la cara y el producto para no taparlos.
+            let avoid: SubjectBox[] = [];
+            if (!side || !vertical) {
+              const preview = await sharp(base)
+                .resize(1024, 576, { fit: "cover" })
+                .jpeg({ quality: 80 })
+                .toBuffer();
+              try {
+                const located = await locateSubjects(anthropic, claude, {
+                  image: preview,
+                  mime: "image/jpeg",
+                });
+                avoid = located.boxes;
+                const usd = ai.costUsd(located.usage, located.model);
+                row.credits += await charge("thumbnail_layout", usd, {
+                  model: located.model,
+                  ...located.usage,
+                  ai_usd: usd,
+                });
+              } catch {
+                // Sin ubicación, el texto va donde la imagen tenga menos detalle.
+              }
+            }
+            ({ jpg } = await composeThumbnail(base, {
+              avoid,
               lines: text.lines,
               accent: text.accent,
               side,
+              vertical,
               colors: { text: kit.colors.text, accent: kit.colors.accent },
-            });
+            }));
             const path = `${channelId}/episodes/${episodeId}/thumbnails/${row.id}.jpg`;
             const { error: upError } = await db.storage
               .from(BUCKET)
@@ -325,6 +361,7 @@ export async function runThumbnails(
               text,
               topic: episode.title,
               verdict: assets.postura,
+              reference: presenterRefs[0] ?? null,
             });
             const usd = ai.costUsd(out.usage, out.model);
             row.credits += await charge("thumbnail_score", usd, {
