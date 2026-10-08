@@ -359,3 +359,12 @@ Pendientes:
   - si el guion verificado queda con **_DATO POR CONFIRMAR_**, la corrida se pausa antes de los reels («En pausa») y espera **Seguir con los pendientes marcados**;
   - sin pendientes, el episodio pasa a Preparación y Por grabar; con pendientes, queda en Verificación con «Decidir puntos pendientes»;
   - consumo por grupo: tokens más búsquedas (`PARALLEL_PRICE_USD`).
+
+- **Paso 6 (Publicación y Podcast; keywords y pilar):**
+  - Publicación corre sola después de verificar, en 4 pasos: reels R1, R2 y R3 (13.4, con el guion de cada reel tomado palabra por palabra de los fragmentos marcados) → assets (sección 14, con las 3 miniaturas diseñadas en texto) → ficha del episodio (16) → assets en JSON (salida estructurada);
+  - cada paso recibe solo lo que usa (escaleta, tabla de verificación, guion verificado, reels, motion graphics), nunca el teleprompter sin verificar;
+  - Publicación y Podcast reciben también los pilares del canal, el nombre del podcast y las redes de la configuración de distribución;
+  - del JSON salen 6 a 8 keywords y el pilar: se guardan en el episodio solo si están vacíos; si ya tenía, el paso «Assets en JSON» los muestra como sugerencia con **Usar**;
+  - Podcast en 2 pasos (guion para audio de la sección 22 y descripción de la 22.9), solo con el botón **Generar podcast** de su pestaña: sale del guion verificado y no espera a Publicación; lo anterior se copia sin costo;
+  - estimado: unos US$2,00 la corrida completa y unos US$0,30 el podcast;
+  - la generación de las miniaturas en Artlist queda para la Fase 3: aquí queda su diseño en texto.

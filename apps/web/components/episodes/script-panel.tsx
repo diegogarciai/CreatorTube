@@ -6,14 +6,15 @@ import { useTranslations } from "next-intl";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Copy, Loader2, Minus, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, Copy, Loader2, Mic, Minus, RotateCcw } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { updateEpisode } from "@/lib/actions/episodes";
 import { startScript } from "@/lib/actions/script";
 import type { ScriptStageView, ScriptStepView, ScriptView } from "@/lib/data/script";
 import { createClient } from "@/lib/supabase/browser";
-import { SCRIPT_ESTIMATE_CREDITS } from "@/lib/tasks";
+import { PODCAST_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
 import { cn, usd } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ export function ScriptPanel({
   episodeId,
   view,
   canEdit,
+  canTag,
   directionDone,
   targetMinutes,
   timezone,
@@ -50,6 +52,8 @@ export function ScriptPanel({
   episodeId: string;
   view: ScriptView;
   canEdit: boolean;
+  /** Puede cambiar las keywords y el pilar del episodio. */
+  canTag: boolean;
   directionDone: boolean;
   targetMinutes: number;
   timezone: string;
@@ -58,8 +62,10 @@ export function ScriptPanel({
   const errorText = useActionError();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const { run, stages, history, verification } = view;
+  const { run, stages, history, verification, podcastReady, suggestion } = view;
   const active = run?.status === "queued" || run?.status === "running";
+  // Una corrida que no empieza en el Podcast termina al cerrar Publicación.
+  const podcastInRun = run?.fromStage === "podcast";
 
   const stepLabel = (s: Pick<ScriptStepView, "key" | "title">) =>
     s.key.startsWith("extra-") ? s.title : t(`step.${s.key}`);
@@ -148,6 +154,17 @@ export function ScriptPanel({
     return found ? stepLabel(found) : t(`stage.${stage as "study"}`);
   };
   const index = currentStage.steps.findIndex((s) => s.key === currentStep?.key);
+  const isPodcast = currentStage.stage === "podcast";
+  const podcastDone = isPodcast && currentStage.steps.some((s) => s.body);
+  const stepActive = active && (!isPodcast || podcastInRun);
+
+  const applySuggestion = (input: { keywords: string[] } | { pillarId: string }) =>
+    start(async () => {
+      const res = await updateEpisode(episodeId, input);
+      if (res.ok) toast.success(t("used"));
+      else toast.error(errorText(res.error));
+      router.refresh();
+    });
 
   return (
     <Card id="guion">
@@ -259,9 +276,34 @@ export function ScriptPanel({
               ))}
             </div>
 
-            {!currentStage.implemented ? (
-              <p className="text-sm text-muted">{t("comingSoon")}</p>
-            ) : (
+            {isPodcast && !podcastDone && !(active && podcastInRun) ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm">
+                <p className="w-full text-muted">
+                  {podcastReady ? t("podcast") : t("podcastNeedsVerification")}
+                </p>
+                {canEdit && podcastReady ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => generate("podcast_script")}
+                      disabled={pending || active}
+                    >
+                      {pending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Mic className="size-4" />
+                      )}
+                      {t("generatePodcast")}
+                    </Button>
+                    <span className="text-xs text-muted">
+                      {t("podcastEstimate", { cost: usd(PODCAST_ESTIMATE_CREDITS) })}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+
+            {currentStage.implemented ? (
               <>
                 <div role="tablist" aria-label={t("steps")} className="flex flex-wrap gap-1.5">
                   {currentStage.steps.map((s, i) => (
@@ -284,6 +326,47 @@ export function ScriptPanel({
                     </button>
                   ))}
                 </div>
+                {currentStep?.key === "assets_json" && suggestion ? (
+                  <div
+                    role="note"
+                    className="space-y-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-3 text-sm"
+                  >
+                    <p className="font-semibold">{t("suggestionTitle")}</p>
+                    <p className="text-muted">{t("suggestionHint")}</p>
+                    {suggestion.keywords ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>
+                          {t("suggestedKeywords", { keywords: suggestion.keywords.join(", ") })}
+                        </span>
+                        {canTag ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={pending}
+                            onClick={() => applySuggestion({ keywords: suggestion.keywords! })}
+                          >
+                            {t("use")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {suggestion.pillar ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{t("suggestedPillar", { pillar: suggestion.pillar.name })}</span>
+                        {canTag ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={pending}
+                            onClick={() => applySuggestion({ pillarId: suggestion.pillar!.id })}
+                          >
+                            {t("use")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {currentStep ? (
                   <StepPane
                     step={currentStep}
@@ -293,7 +376,7 @@ export function ScriptPanel({
                       Boolean(currentStage.steps.find((s) => s.key === "revision")?.body)
                     }
                     live={live[currentStep.key]}
-                    runActive={active}
+                    runActive={stepActive}
                     runFailed={run.status === "failed"}
                     targetMinutes={targetMinutes}
                     onRestart={
@@ -305,7 +388,7 @@ export function ScriptPanel({
                   />
                 ) : null}
               </>
-            )}
+            ) : null}
           </>
         ) : null}
 
@@ -514,7 +597,12 @@ function BlockView({ step, targetMinutes }: { step: ScriptStepView; targetMinute
         </div>
       </div>
       {step.plain ? (
-        <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-muted p-4 font-sans text-sm leading-relaxed">
+        <pre
+          className={cn(
+            "max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-surface-muted p-4 text-sm leading-relaxed",
+            step.key === "assets_json" ? "font-mono text-xs" : "font-sans",
+          )}
+        >
           {body}
         </pre>
       ) : (
