@@ -33,7 +33,7 @@ Episodio → Crear guion ───┘                                   │
 
 Los cuatro puntos de entrada de la tabla "Cuándo aparecen" se respetan tal cual:
 
-- **Guiones → tema → Generar guion:** crea el episodio y abre las preguntas.
+- **Guiones → tema → Generar guion:** crea el episodio y abre las preguntas (pospuesto junto con la página Guiones).
 - **Nuevo episodio** con estado Idea, Guion o Por grabar: al guardar, abre **Dirección**.
 - **Ideas → Arrancar episodio:** el episodio pasa a Guion y las preguntas se preparan en segundo plano.
 - **Episodio → Crear guion:** si ya hay respuestas, arranca directo; si no, pregunta primero.
@@ -150,7 +150,7 @@ Es la única etapa con búsqueda. Corre como un ciclo controlado por el servidor
 5. **Corregir y marcar.** Con la tabla completa, una llamada corrige el guion y otra vuelve a marcar reels e invitaciones.
 6. **Motion graphics.** Solo con cifras de filas Verificado o Con matiz. El servidor revisa que cada cifra tenga su fila.
 
-**Pegar un resultado de chat.** Se puede pegar una verificación hecha en un chat del proyecto: la app la lee al mismo formato de tabla y sigue con los pasos 5 y 6.
+**Pegar un resultado de chat:** descartado (8 de octubre de 2026). La verificación con Parallel lo reemplaza.
 
 **Bloqueo (10.4).** Si al terminar **Verificar** hay filas No verificable o Contradicho, o datos sin confirmar, la corrida se pausa antes del guion verificado y pide decidir en la tabla qué hacer con cada una: reescribir con lo confirmado, eliminar la línea, dejar `___DATO POR CONFIRMAR___` o escribir el dato. Lo que no se decida lo resuelve Claude. Así el guion verificado se escribe una sola vez. Si después quedan `___DATO` que nadie dejó así a propósito, se vuelve a pausar antes de los motion graphics. Mientras queden datos por confirmar, el episodio no pasa a **Por grabar**.
 
@@ -260,7 +260,7 @@ El contexto del canal sale de lo que ya existe:
     - el resto de bloques en Markdown;
     - la tabla de verificación con filtros y las tres salidas por fila;
     - historial de corridas.
-- **Guiones**: lista de corridas del canal y **Nuevo guion desde un tema**.
+- **Guiones**: lista de corridas del canal y **Nuevo guion desde un tema** (pospuesta).
 - **Ajustes del canal → Guía del guionista**: versiones, diferencias, secciones detectadas y qué etapa recibe cada una.
 - **Bandeja de tareas**: en la barra lateral, lo que está corriendo en el espacio.
 
@@ -389,3 +389,8 @@ Pendientes:
 - **Decisiones antes del guion verificado:**
   - la corrida se pausa al terminar **Verificar** si alguna fila pide decisión y no la tiene; **Seguir con mis decisiones** escribe el guion verificado una sola vez, con lo decidido (lo demás lo resuelve Claude);
   - después del guion verificado solo se pausa si quedaron `___DATO` que el presentador no dejó así a propósito.
+
+- **Atajos a la Dirección:**
+  - **Nuevo episodio** abre el episodio en su Dirección (pestaña Guion) al guardarlo;
+  - en **Ideas**, **Arrancar episodio** crea el episodio, lo pasa a Guion y prepara las preguntas de dirección en segundo plano (cerca de US$0,05); si no se puede (sin guía o sin créditos), avisa y abre la Dirección igual;
+  - la página **Guiones** queda pospuesta y **Pegar un resultado de chat**, descartado.

@@ -240,7 +240,7 @@
     "origin": "Origen",
     "signals": "Señales",
     "score": "Puntaje",
-    "toEpisode": "Convertir en episodio",
+    "toEpisode": "Arrancar episodio",
     "discard": "Descartar",
     "filterNew": "Banco",
     "filterInProgress": "En marcha",
@@ -352,7 +352,9 @@
     "minutes": "{count} minutos",
     "sponsorship": "Patrocinio o afiliados",
     "ownMeasurements": "Mediciones propias",
-    "ownMeasurementsPlaceholder": "Qué mediste, con qué equipo, cómo y cuándo. Vacío = no hay medición propia."
+    "ownMeasurementsPlaceholder": "Qué mediste, con qué equipo, cómo y cuándo. Vacío = no hay medición propia.",
+    "fromIdeaDirection": "Al crearlo pasa a Guion y se preparan las preguntas de dirección (cerca de {cost}).",
+    "directionNotPrepared": "El episodio se creó, pero las preguntas de dirección no se prepararon: {reason}"
   },
   "calendar": {
     "title": "Calendario",
