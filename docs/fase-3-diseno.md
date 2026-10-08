@@ -4,7 +4,7 @@ Fuentes:
 
 - la especificación _Planificador de Episodios: de artefacto a aplicación web multi-canal_ (Fase 3);
 - las _Reglas del guionista v4.1_ (secciones 12 a 14);
-- el manual de identidad Gartechs v3.0, que Diego comparte para ajustar los valores exactos.
+- el manual de identidad Gartechs v3.0 (septiembre de 2026): colores, tipografía, movimiento, imagen y zonas seguras.
 
 **Criterio de salida (especificación):** un episodio producido de punta a punta en la app.
 
@@ -22,6 +22,7 @@ Fuentes:
 ## 2. Decisiones
 
 - **Miniaturas solo con Gemini (Nano Banana) por ahora.** Artlist solo ofrece un MCP para personas, no una API para servidores. Cuando la tenga, se agrega como otro proveedor.
+- **Miniaturas generadas a partir de las fotos de referencia (reglas v4.1).** El manual v3.0 (sección 05) dice «nunca imágenes generadas»; Diego decidió que para las miniaturas mandan las reglas v4.1 y actualiza su manual. En todo lo demás la miniatura sigue el manual: sistema A/B/C (pregunta, dato, veredicto), fondo oscuro con luz cálida y halo naranja, expresión natural, sin flechas, emojis, marcos ni logos inventados.
 - **Gemini genera la imagen sin texto.** El texto (2 a 4 palabras en dos líneas, una en naranja) lo pone la app con la tipografía y los colores del kit, así nunca se sale del manual.
 - **Motion graphics con piezas de marca.** Claude arma cada escena (regla 12.2) con piezas animadas ya hechas (barras, anillos, línea de tiempo, cifras que cuentan, matriz de puntos…) y sus datos. No se genera código: lo que se renderiza siempre es código revisado.
 - **Render en Trigger.dev, sin AWS.** Remotion corre con sus APIs de servidor (`@remotion/bundler` y `@remotion/renderer`) y la extensión de ffmpeg. La licencia de Remotion es gratis para equipos de hasta 3 personas.
@@ -55,18 +56,25 @@ Un bucket privado de Supabase Storage, `channel-media` (imágenes PNG, JPG, WebP
 
 ## 5. Kit de marca (paso 1)
 
-Vive en `brand_kits` (`colors`, `fonts`, `style`, `thumbnail_style`, `logo_path`) y se valida con `brandKitSchema` de `@planificador/core`. Lo que falta o no es válido vuelve, por partes, a los valores por defecto.
+Vive en `brand_kits` (`colors`, `fonts`, `style`, `thumbnail_style`, `logo_path`) y se valida con `brandKitSchema` de `@planificador/core`. Lo que falta o no es válido vuelve, por partes, a los valores por defecto, que son los del manual v3.0.
 
-| Parte       | Valores por defecto (reglas v4.1)                                                                 | A confirmar con el manual        |
-| ----------- | ------------------------------------------------------------------------------------------------- | -------------------------------- |
-| Colores     | Naranja `#FF7A29`, ámbar profundo `#C65014`, texto blanco                                         | Fondo lienzo, crema y ámbar      |
-| Tipografías | Inter (textos), Inter Display Black (titulares y miniaturas), JetBrains Mono (cifras y etiquetas) |                                  |
-| Reparto     | 70 % negro, 22 % blanco y crema, 8 % naranja                                                      |                                  |
-| Retícula    | Baja al 6 % con datos en pantalla                                                                 | Tamaño y opacidad normal         |
-| Halo        | Se apaga con datos en pantalla                                                                    |                                  |
-| Movimiento  | Sin rebotes, giros, brillos ni glitch                                                             | La curva exacta (`cubic-bezier`) |
-| Texto       | Blanco sobre naranja solo desde 64 px                                                             |                                  |
-| Vertical    | Zona segura de 1080 × 1920: 250 px arriba, 340 abajo, 120 a la derecha                            |                                  |
+| Parte       | Valores por defecto (manual v3.0)                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colores     | Fondo lienzo `#111213`, Negro página `#0E0F10`, Blanco titular `#FFFFFF`, Crema cálido `#FFD9BD`, Naranja marca `#FF7A29`, Naranja resplandor `#E87026`, Ámbar profundo `#C65014`, Naranja retícula `#E2661F` |
+| Tipografías | Inter (lectura), Inter Display (titulares), Inter Display Black (miniaturas), JetBrains Mono (cifras y etiquetas)                                                                                             |
+| Reparto     | 70 % negro, 22 % blanco y crema, 8 % naranja                                                                                                                                                                  |
+| Retícula    | Celda de 80 px al 10 %; al 6 % con datos en pantalla (rango del manual: 6–22 %)                                                                                                                               |
+| Halo        | Resplandor al 55 % en el centro, Ámbar profundo al 28 % en la caída, hasta 0; nunca detrás de datos                                                                                                           |
+| Movimiento  | `cubic-bezier(0.2, 0, 0, 1)`; nunca rebotes, giros, brillos ni glitch                                                                                                                                         |
+| Texto       | Blanco sobre naranja solo desde 64 px; texto sobre el halo desde 48 px                                                                                                                                        |
+| Vertical    | Zona segura de 1080 × 1920: 250 px arriba, 340 abajo, 120 a la derecha                                                                                                                                        |
+| Logo        | Versión blanca para fondo oscuro (letras blancas y el punto en Naranja marca); mínimo 120 px de ancho                                                                                                         |
+
+Para el paso 4 (piezas animadas) también cuentan, del manual:
+
+- **Escala tipográfica.** En pantalla: 64 / 40 / 24 / 17 (display, título, subtítulo, lectura) y etiqueta mono de 13. En vertical 1080: 96 / 72 / 48 / 40, etiqueta mono de 28 y subtítulo de video de 56. Tipo oración, máximo dos pesos por pieza.
+- **Gráficos.** Lienzo 1920 × 1080 (el más fuerte también en 1080 × 1350), con margen de 96 × 72 px y retícula al 6 %. Serie principal en Naranja marca y referencia en Crema al 35 %. Título en Inter Display 600 de 56 px y valores en JetBrains Mono de 32 px o más. Barras desde cero, y fuente y fecha al pie.
+- **Tokens.** Superficie crema al 6 %, filete al 20 %, referencia al 35 % y velo de Negro página al 80 % para las cajas de subtítulo.
 
 ## 6. Fotos del presentador (paso 1)
 

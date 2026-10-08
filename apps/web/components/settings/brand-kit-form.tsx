@@ -195,7 +195,24 @@ export function BrandKitForm({
                 {t("haloOffWithData")}
               </label>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <NumberRow
+              label={t("haloOpacity")}
+              fields={[
+                [
+                  "halo-center",
+                  t("haloCenter"),
+                  style.halo.center,
+                  (v) => setStyle("halo", { ...style.halo, center: num(v) }),
+                ],
+                [
+                  "halo-edge",
+                  t("haloEdge"),
+                  style.halo.edge,
+                  (v) => setStyle("halo", { ...style.halo, edge: num(v) }),
+                ],
+              ]}
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
               <Field label={t("easing")} htmlFor="brand-easing">
                 <Input
                   id="brand-easing"
@@ -213,6 +230,16 @@ export function BrandKitForm({
                   max={400}
                   value={style.minWhiteOnAccentPx}
                   onChange={(e) => setStyle("minWhiteOnAccentPx", num(e.target.value))}
+                />
+              </Field>
+              <Field label={t("minTextOnHalo")} htmlFor="brand-min-halo">
+                <Input
+                  id="brand-min-halo"
+                  type="number"
+                  min={8}
+                  max={400}
+                  value={style.minTextOnHaloPx}
+                  onChange={(e) => setStyle("minTextOnHaloPx", num(e.target.value))}
                 />
               </Field>
             </div>
@@ -280,40 +307,51 @@ function NumberRow({
   );
 }
 
-/** Una miniatura de muestra con el fondo, la retícula, el halo y el texto de la marca. */
+/**
+ * Una miniatura de muestra como la del manual: lienzo, halo radial (resplandor
+ * al centro y ámbar profundo en la caída), retícula, viñeteado y el texto.
+ */
 function BrandPreview({ kit, logoUrl }: { kit: Kit; logoUrl: string | null }) {
   const t = useTranslations("brand");
   const { colors, fonts, style } = kit;
-  const line = `color-mix(in srgb, ${colors.text} ${style.grid.opacity}%, transparent)`;
-  // La retícula se dibuja a escala: la muestra mide un cuarto de 1280 px.
-  const cell = Math.max(4, style.grid.size / 4);
+  const mix = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
+  const line = mix(colors.grid, style.grid.opacity);
+  // La retícula se dibuja a escala: la muestra mide un tercio de 1280 px.
+  const cell = Math.max(4, style.grid.size / 3);
+  const layers: [image: string, size: string][] = [
+    [`radial-gradient(ellipse at center, transparent 55%, ${mix(colors.page, 90)})`, "100% 100%"],
+    ...(style.halo.enabled
+      ? ([
+          [
+            `radial-gradient(circle at 68% 45%, ${mix(colors.glow, style.halo.center)}, ${mix(colors.amberDeep, style.halo.edge)} 35%, transparent 65%)`,
+            "100% 100%",
+          ],
+        ] as [string, string][])
+      : []),
+    [`linear-gradient(${line} 1px, transparent 1px)`, `${cell}px ${cell}px`],
+    [`linear-gradient(90deg, ${line} 1px, transparent 1px)`, `${cell}px ${cell}px`],
+  ];
   return (
     <div
       data-testid="brand-preview"
       className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border border-border"
       style={{
         backgroundColor: colors.canvas,
-        backgroundImage: [
-          style.halo.enabled
-            ? `radial-gradient(circle at 70% 40%, color-mix(in srgb, ${colors.accent} 35%, transparent), transparent 60%)`
-            : null,
-          `linear-gradient(${line} 1px, transparent 1px)`,
-          `linear-gradient(90deg, ${line} 1px, transparent 1px)`,
-        ]
-          .filter(Boolean)
-          .join(", "),
-        backgroundSize: style.halo.enabled
-          ? `100% 100%, ${cell}px ${cell}px, ${cell}px ${cell}px`
-          : `${cell}px ${cell}px, ${cell}px ${cell}px`,
+        backgroundImage: layers.map(([image]) => image).join(", "),
+        backgroundSize: layers.map(([, size]) => size).join(", "),
       }}
     >
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Storage
-        <img src={logoUrl} alt="" className="absolute top-3 left-3 h-6 w-auto" />
+        <img src={logoUrl} alt="" className="absolute top-3 left-3 h-5 w-auto" />
       ) : null}
       <div
-        className="absolute bottom-4 left-4 text-2xl leading-tight uppercase"
-        style={{ fontFamily: `"${fonts.display}", "${fonts.body}", sans-serif`, fontWeight: 900 }}
+        className="absolute bottom-4 left-4 max-w-[55%] text-2xl leading-tight"
+        style={{
+          fontFamily: `"${fonts.thumbnail}", "${fonts.display}", "${fonts.body}", sans-serif`,
+          fontWeight: 900,
+          textShadow: "0 2px 12px rgb(0 0 0 / 0.5)",
+        }}
       >
         <span style={{ color: colors.text }}>{t("previewTitle")}</span>
         <br />

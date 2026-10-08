@@ -8,7 +8,14 @@ describe("kit de marca", () => {
     const { logoPath, ...input } = DEFAULT_BRAND_KIT;
     expect(logoPath).toBeNull();
     expect(brandKitSchema.parse(input)).toEqual(input);
-    expect(DEFAULT_BRAND_KIT.colors.accent).toBe("#FF7A29");
+    expect(DEFAULT_BRAND_KIT.colors).toMatchObject({
+      canvas: "#111213",
+      cream: "#FFD9BD",
+      accent: "#FF7A29",
+      glow: "#E87026",
+      amberDeep: "#C65014",
+    });
+    expect(DEFAULT_BRAND_KIT.style.easing).toBe("cubic-bezier(0.2, 0, 0, 1)");
     expect(DEFAULT_BRAND_KIT.style.safeZone).toEqual({
       top: 250,
       bottom: 340,
@@ -30,7 +37,7 @@ describe("kit de marca", () => {
   it("lo guardado se completa con los valores por defecto, por partes", () => {
     expect(parseBrandKit(null)).toBe(DEFAULT_BRAND_KIT);
     const kit = parseBrandKit({
-      colors: { cream: "#EEE5D0" },
+      colors: { cream: "#EEE5D0", amber: "#F5A524" },
       fonts: { body: 42 },
       style: null,
       thumbnail_style: null,

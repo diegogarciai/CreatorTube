@@ -2,22 +2,23 @@ import { z } from "zod";
 
 /**
  * Kit de marca del canal: lo usan las miniaturas (Fase 3 · paso 2) y las
- * piezas animadas (paso 4). Los valores por defecto salen de las reglas del
- * guionista v4.1 (manual de identidad Gartechs v3.0); los que las reglas no
- * dicen con exactitud se ajustan con el manual desde Ajustes.
+ * piezas animadas (paso 4). Los valores por defecto son los del manual de
+ * identidad Gartechs v3.0; cada canal los ajusta desde Ajustes.
  */
 
 export const BRAND_COLOR_ROLES = [
   "canvas",
+  "page",
   "text",
   "cream",
   "accent",
-  "amber",
+  "glow",
   "amberDeep",
+  "grid",
 ] as const;
 export type BrandColorRole = (typeof BRAND_COLOR_ROLES)[number];
 
-export const BRAND_FONT_ROLES = ["body", "display", "mono"] as const;
+export const BRAND_FONT_ROLES = ["body", "display", "thumbnail", "mono"] as const;
 export type BrandFontRole = (typeof BRAND_FONT_ROLES)[number];
 
 const hex = z
@@ -28,28 +29,35 @@ const hex = z
 const font = z.string().trim().min(1).max(60);
 const percent = z.coerce.number().min(0).max(100);
 const px = z.coerce.number().int().min(0).max(1920);
+const textPx = z.coerce.number().int().min(8).max(400);
 
 export const brandColorsSchema = z.object({
-  /** Fondo lienzo (negro de la marca). */
+  /** Fondo lienzo: base de toda la comunicación. */
   canvas: hex,
-  /** Texto principal. */
+  /** Negro página: viñeteado y bordes. */
+  page: hex,
+  /** Blanco titular: máximo contraste. */
   text: hex,
-  /** Texto secundario y definiciones. */
+  /** Crema cálido: antetítulos, filetes y datos secundarios. */
   cream: hex,
-  /** Naranja: lo que importa y la conclusión. */
+  /** Naranja marca: el punto, titulares clave, CTA y la conclusión. */
   accent: hex,
-  /** Ámbar: el bloque protagonista. */
-  amber: hex,
-  /** Ámbar profundo: botones y enlaces del boletín. */
+  /** Naranja resplandor: centro del halo. */
+  glow: hex,
+  /** Ámbar profundo: caída del halo, secciones y botones. */
   amberDeep: hex,
+  /** Naranja retícula: la cuadrícula del fondo. */
+  grid: hex,
 });
 
 export const brandFontsSchema = z.object({
-  /** Textos. */
+  /** Texto de lectura. */
   body: font,
-  /** Titulares y texto de las miniaturas. */
+  /** Titulares. */
   display: font,
-  /** Cifras y etiquetas. */
+  /** Texto de las miniaturas. */
+  thumbnail: font,
+  /** Cifras, especificaciones y etiquetas. */
   mono: font,
 });
 
@@ -58,14 +66,19 @@ export const brandStyleSchema = z.object({
   mix: z
     .object({ dark: percent, light: percent, accent: percent })
     .refine((m) => Math.round(m.dark + m.light + m.accent) === 100, "errors.brand_mix"),
-  /** Retícula del fondo: opacidad normal y con datos en pantalla. */
+  /** Retícula del fondo: celda, opacidad normal y con datos en pantalla. */
   grid: z.object({
     size: z.coerce.number().int().min(8).max(400),
     opacity: percent,
     dataOpacity: percent,
   }),
-  /** Halo del fondo; se apaga cuando hay datos en pantalla. */
-  halo: z.object({ enabled: z.boolean(), offWithData: z.boolean() }),
+  /** Halo radial: resplandor al centro y ámbar profundo en la caída (opacidades). */
+  halo: z.object({
+    enabled: z.boolean(),
+    offWithData: z.boolean(),
+    center: percent,
+    edge: percent,
+  }),
   /** Curva de movimiento de la marca (CSS `cubic-bezier`). */
   easing: z
     .string()
@@ -75,7 +88,9 @@ export const brandStyleSchema = z.object({
       "errors.invalid_easing",
     ),
   /** Texto blanco sobre naranja solo desde este tamaño (px). */
-  minWhiteOnAccentPx: z.coerce.number().int().min(8).max(400),
+  minWhiteOnAccentPx: textPx,
+  /** Texto sobre el halo solo desde este tamaño (px). */
+  minTextOnHaloPx: textPx,
   /** Zona segura del vertical 1080 × 1920 (px libres en cada borde). */
   safeZone: z.object({ top: px, bottom: px, left: px, right: px }),
 });
@@ -96,26 +111,37 @@ export type BrandKit = BrandKitInput & { logoPath: string | null };
 
 export const DEFAULT_BRAND_KIT: BrandKit = {
   colors: {
-    canvas: "#0A0A0A",
+    canvas: "#111213",
+    page: "#0E0F10",
     text: "#FFFFFF",
-    cream: "#F2E8D5",
+    cream: "#FFD9BD",
     accent: "#FF7A29",
-    amber: "#F5A524",
+    glow: "#E87026",
     amberDeep: "#C65014",
+    grid: "#E2661F",
   },
-  fonts: { body: "Inter", display: "Inter Display Black", mono: "JetBrains Mono" },
+  fonts: {
+    body: "Inter",
+    display: "Inter Display",
+    thumbnail: "Inter Display Black",
+    mono: "JetBrains Mono",
+  },
   style: {
     mix: { dark: 70, light: 22, accent: 8 },
-    grid: { size: 48, opacity: 10, dataOpacity: 6 },
-    halo: { enabled: true, offWithData: true },
-    easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+    grid: { size: 80, opacity: 10, dataOpacity: 6 },
+    halo: { enabled: true, offWithData: true, center: 55, edge: 28 },
+    easing: "cubic-bezier(0.2, 0, 0, 1)",
     minWhiteOnAccentPx: 64,
+    minTextOnHaloPx: 48,
     safeZone: { top: 250, bottom: 340, left: 0, right: 120 },
   },
-  thumbnailStyle:
-    "Texto de 2 a 4 palabras en dos líneas, en blanco con una sola palabra en naranja; nunca amarillo. " +
-    "El presentador de frente o en tres cuartos, bien iluminado y sin nada que le tape la cara; " +
-    "el producto real, grande e idéntico al modelo.",
+  thumbnailStyle: [
+    "Tres miniaturas, una promesa: A la pregunta, B el dato (solo si está verificado), C el veredicto con postura.",
+    "Texto de 2 a 4 palabras en dos líneas, casi la mitad del ancho, en blanco con una sola palabra clave en naranja; nunca amarillo.",
+    "Fondo oscuro y luz cálida con halo naranja. Sin flechas, emojis, marcos ni logos inventados.",
+    "El presentador con expresión natural, nunca cara de asombro; de medio cuerpo al menos en el veredicto.",
+    "Sombra suave y negra solo para que se lea el texto. Baldosa G. como marca de agua. 1280 × 720 y menos de 2 MB.",
+  ].join(" "),
   logoPath: null,
 };
 
