@@ -1870,7 +1870,7 @@ export type Database = {
       invitation_kind: "platform" | "workspace";
       script_stage: "study" | "script" | "verification" | "publication" | "podcast";
       sponsorship: "none" | "sponsor" | "affiliate";
-      stage_run_status: "queued" | "running" | "succeeded" | "failed" | "incomplete";
+      stage_run_status: "queued" | "running" | "succeeded" | "failed" | "incomplete" | "skipped";
       task_status: "queued" | "running" | "succeeded" | "failed" | "canceled";
       workspace_role: "owner" | "admin" | "producer" | "writer" | "video_editor" | "viewer";
     };

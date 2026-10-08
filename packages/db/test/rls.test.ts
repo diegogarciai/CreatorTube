@@ -748,6 +748,11 @@ describe("Fase 2 · guion en etapas", () => {
       [run.id, ch],
     );
     expect(stepRow.workspace_id).toBe(ws);
+    // La corrección sin fallas queda «Sin cambios».
+    await sql(
+      "insert into public.script_step_runs (run_id, channel_id, stage, step, status) values ($1, $2, 'script', 'revision', 'skipped')",
+      [run.id, ch],
+    );
     await expect(
       sql(
         "insert into public.script_step_runs (run_id, channel_id, stage, step) values ($1, $2, 'script', 'outline')",
@@ -764,9 +769,14 @@ describe("Fase 2 · guion en etapas", () => {
     ).rejects.toThrow(/row-level security/);
     expect(
       await as(writer.id, (q) =>
-        q("select step, body from public.script_step_runs where run_id = $1", [run.id]),
+        q("select step, body from public.script_step_runs where run_id = $1 order by step", [
+          run.id,
+        ]),
       ),
-    ).toEqual([{ step: "outline", body: "Escaleta" }]);
+    ).toEqual([
+      { step: "outline", body: "Escaleta" },
+      { step: "revision", body: "" },
+    ]);
     expect(
       await as(writer.id, (q) =>
         q("update public.script_step_runs set body = 'x' where run_id = $1 returning 1", [run.id]),

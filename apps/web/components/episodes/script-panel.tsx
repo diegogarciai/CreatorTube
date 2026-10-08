@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Copy, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, Copy, Loader2, Minus, RotateCcw } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -23,6 +23,7 @@ const STATUS_TONE: Record<string, Tone> = {
   succeeded: "ok",
   failed: "critical",
   incomplete: "warn",
+  skipped: "neutral",
 };
 
 type Live = Record<string, { progress: string | null; preview: string | null }>;
@@ -246,6 +247,10 @@ export function ScriptPanel({
                   <StepPane
                     step={currentStep}
                     previous={index > 0 ? stepLabel(currentStage.steps[index - 1]!) : null}
+                    corrected={
+                      currentStep.key === "teleprompter" &&
+                      Boolean(currentStage.steps.find((s) => s.key === "revision")?.body)
+                    }
                     live={live[currentStep.key]}
                     runActive={active}
                     runFailed={run.status === "failed"}
@@ -319,7 +324,7 @@ function StatusDot({ status, label }: { status: ScriptStageView["status"]; label
         "bg-accent animate-pulse": status === "running",
         "bg-warn": status === "incomplete",
         "bg-critical": status === "failed",
-        "bg-border": status === "queued",
+        "bg-border": status === "queued" || status === "skipped",
       })}
       aria-label={label}
     />
@@ -329,6 +334,7 @@ function StatusDot({ status, label }: { status: ScriptStageView["status"]; label
 function StepIcon({ status }: { status: ScriptStepView["status"] }) {
   if (status === "succeeded") return <Check className="size-3.5 text-ok" />;
   if (status === "running") return <Loader2 className="size-3.5 animate-spin text-accent" />;
+  if (status === "skipped") return <Minus className="size-3.5 text-muted" />;
   if (status === "failed" || status === "incomplete") {
     return <AlertTriangle className="size-3.5 text-warn" />;
   }
@@ -338,6 +344,7 @@ function StepIcon({ status }: { status: ScriptStepView["status"] }) {
 function StepPane({
   step,
   previous,
+  corrected,
   live,
   runActive,
   runFailed,
@@ -347,6 +354,8 @@ function StepPane({
 }: {
   step: ScriptStepView;
   previous: string | null;
+  /** Teleprompter con una versión corregida: los pasos siguientes usan esa. */
+  corrected: boolean;
   live: Live[string] | undefined;
   runActive: boolean;
   runFailed: boolean;
@@ -386,8 +395,19 @@ function StepPane({
     content = (
       <p className="text-sm text-muted">{previous ? t("waiting", { previous }) : t("queued")}</p>
     );
+  } else if (step.status === "skipped") {
+    content = <p className="text-sm text-muted">{t("revisionSkipped")}</p>;
   } else if (step.body) {
-    content = <BlockView step={step} targetMinutes={targetMinutes} />;
+    content = (
+      <div className="space-y-2">
+        {corrected ? (
+          <p className="rounded-lg bg-surface-muted px-3 py-2 text-sm text-muted">
+            {t("revisionNote")}
+          </p>
+        ) : null}
+        <BlockView step={step} targetMinutes={targetMinutes} />
+      </div>
+    );
   } else if (step.status === "failed" || step.status === "incomplete") {
     content = null;
   } else {
