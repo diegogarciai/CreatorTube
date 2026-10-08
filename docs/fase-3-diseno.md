@@ -263,7 +263,22 @@ Arriba de la pestaña Producción, la tarjeta **Recursos del episodio** junta lo
 
 - **La lista de verificación** («Ayudas visuales listas», «Miniatura lista») se sigue marcando a mano.
 
-## 11. Costos estimados por episodio
+## 11. Rehacer y borrar
+
+Cada tarjeta de Guion, Ayudas visuales y Miniaturas tiene su **«Rehacer»**. Si ya hay algo generado que depende de ella, el botón queda **desactivado** y dice qué es, con un enlace para ir a borrarlo. Para desbloquear, se borra lo que depende, de abajo hacia arriba.
+
+| Tarjeta                           | La bloquea                                                 | Se desbloquea con                                                     |
+| --------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------- |
+| Dirección                         | El guion                                                   | «Borrar guion»                                                        |
+| Guion (cada paso, «Rehacer todo») | Plan de ayudas (hasta motion), textos, miniaturas, podcast | «Borrar plan», «Borrar textos», «Borrar miniaturas», «Borrar podcast» |
+| Plan de ayudas visuales           | Los renders                                                | «Borrar renders» (o «Borrar render» por ayuda)                        |
+| Render de una ayuda               | Nada                                                       | —                                                                     |
+| Textos de miniaturas (30)         | Las miniaturas generadas                                   | «Borrar miniaturas»                                                   |
+| Miniatura A, B o C                | Nada                                                       | —                                                                     |
+
+«Borrar» pide confirmación y se bloquea igual. El podcast no bloquea el guion si se rehace el podcast mismo. Las acciones del servidor lo vuelven a comprobar (`errors.has_dependents`) y no borran nada mientras haya una tarea en marcha (`errors.busy`). Las reglas están en `apps/web/lib/dependencies.ts`.
+
+## 12. Costos estimados por episodio
 
 | Qué                                        | Estimado                                          |
 | ------------------------------------------ | ------------------------------------------------- |

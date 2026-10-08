@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Check, Loader2, RotateCcw } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import type { DirectionAnswers, DirectionQuestion } from "@planificador/ai";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/form";
 import { prepareDirection, saveDirection } from "@/lib/actions/direction";
 import { startScript } from "@/lib/actions/script";
+import { BlockedNote, RedoButton } from "@/components/episodes/redo-button";
+import { blockersFor, NO_DEPENDENTS, type EpisodeDependents } from "@/lib/dependencies";
 import { createClient } from "@/lib/supabase/browser";
 import { DIRECTION_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
@@ -35,12 +37,15 @@ export function DirectionPanel({
   hasGuide,
   canEdit,
   embedded = false,
+  deps = NO_DEPENDENTS,
 }: {
   episodeId: string;
   channelId: string;
   direction: DirectionState | null;
   hasGuide: boolean;
   canEdit: boolean;
+  /** Lo generado del episodio: el guion bloquea rehacer la Dirección. */
+  deps?: EpisodeDependents;
   /** Dentro de la pestaña «Dirección» del guion: sin la tarjeta alrededor. */
   embedded?: boolean;
 }) {
@@ -120,6 +125,7 @@ export function DirectionPanel({
           canEdit={canEdit}
           onPrepare={prepare}
           preparing={pending}
+          deps={deps}
         />
       ) : !generating ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -165,13 +171,17 @@ function DirectionForm({
   canEdit,
   onPrepare,
   preparing,
+  deps,
 }: {
   episodeId: string;
   direction: DirectionState;
   canEdit: boolean;
   onPrepare: () => void;
   preparing: boolean;
+  deps: EpisodeDependents;
 }) {
+  // Con un guion hecho, «Generar guion» lo rehace desde el principio.
+  const scriptBlockers = deps.script ? blockersFor({ kind: "step", step: "dossier" }, deps) : [];
   const t = useTranslations("direction");
   const errorText = useActionError();
   const router = useRouter();
@@ -287,7 +297,7 @@ function DirectionForm({
       </div>
       {canEdit ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={generate} disabled={pending}>
+          <Button onClick={generate} disabled={pending || scriptBlockers.length > 0}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null} {t("generate")}
           </Button>
           <Button variant="secondary" onClick={() => save(false)} disabled={pending}>
@@ -296,12 +306,18 @@ function DirectionForm({
           <Button variant="ghost" onClick={() => save(true)} disabled={pending}>
             {t("skip")}
           </Button>
-          <Button variant="ghost" onClick={onPrepare} disabled={pending || preparing}>
-            <RotateCcw className="size-4" /> {t("regenerate")}
-          </Button>
+          <RedoButton
+            label={t("regenerate")}
+            onClick={onPrepare}
+            blockers={blockersFor({ kind: "direction" }, deps)}
+            disabled={pending || preparing}
+            size="md"
+            testId="redo-direction"
+          />
           <p className="w-full text-xs text-muted">
             {t("generateHint", { cost: usd(SCRIPT_ESTIMATE_CREDITS) })}
           </p>
+          <BlockedNote blockers={scriptBlockers} className="w-full" />
         </div>
       ) : null}
     </div>

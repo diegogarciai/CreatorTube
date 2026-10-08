@@ -354,7 +354,13 @@
     "ownMeasurements": "Mediciones propias",
     "ownMeasurementsPlaceholder": "Qué mediste, con qué equipo, cómo y cuándo. Vacío = no hay medición propia.",
     "fromIdeaDirection": "Al crearlo pasa a Guion y se preparan las preguntas de dirección (cerca de {cost}).",
-    "directionNotPrepared": "El episodio se creó, pero las preguntas de dirección no se prepararon: {reason}"
+    "directionNotPrepared": "El episodio se creó, pero las preguntas de dirección no se prepararon: {reason}",
+    "productionTabs": {
+      "label": "Fases de producción",
+      "aids": "Ayudas visuales",
+      "thumbnails": "Miniaturas",
+      "resources": "Recursos"
+    }
   },
   "calendar": {
     "title": "Calendario",
@@ -543,7 +549,9 @@
     "thumbnail_needs_idea": "Elige primero los textos de las miniaturas en la lista.",
     "invalid_scheme_set": "Las 3 miniaturas necesitan esquemas distintos, al menos una con cara y una sin cara.",
     "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion.",
-    "no_approved_aids": "Aprueba al menos una ayuda visual antes de renderizar."
+    "no_approved_aids": "Aprueba al menos una ayuda visual antes de renderizar.",
+    "has_dependents": "Hay recursos que dependen de esto. Bórralos primero para poder rehacerlo.",
+    "busy": "Hay un trabajo en curso; espera a que termine."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -632,7 +640,7 @@
     "generate": "Generar guion con mis respuestas",
     "save": "Guardar respuestas",
     "skip": "Saltar: que decida el guionista",
-    "regenerate": "Volver a preparar",
+    "regenerate": "Rehacer la dirección",
     "answered": "Respondida",
     "skipped": "Saltada",
     "skippedNoQuestions": "Saltaste la dirección: el guionista decide con las reglas de siempre. Si cambias de idea, prepara las preguntas.",
@@ -679,8 +687,8 @@
     "stageFailed": "La etapa falló.",
     "failedAt": "La corrida falló en {step}.",
     "preview": "Vista previa",
-    "regenerateAll": "Regenerar todo",
-    "regenerateHere": "Regenerar desde este paso",
+    "regenerateAll": "Rehacer todo",
+    "regenerateHere": "Rehacer desde este paso",
     "waiting": "En espera: empieza cuando termine «{previous}».",
     "stages": "Etapas del guion",
     "steps": "Pasos de la etapa",
@@ -726,7 +734,11 @@
     "decideInTable": "Decidir en la tabla",
     "pausedVerifyTitle": "La corrida se pausó después de Verificar: {count, plural, one {# fila pide} other {# filas piden}} tu decisión",
     "pausedVerifyHint": "Decide en la tabla qué hacer con cada una (regla 10.4). Lo que no decidas lo resuelve Claude. Así el guion verificado se escribe una sola vez, ya con tus decisiones.",
-    "continueWithDecisions": "Seguir con mis decisiones"
+    "continueWithDecisions": "Seguir con mis decisiones",
+    "deleteScript": "Borrar guion",
+    "deleteScriptConfirm": "Se borra el guion del episodio con todas sus versiones (también el podcast). ¿Continuar?",
+    "deletePodcast": "Borrar podcast",
+    "deletePodcastConfirm": "Se borra el podcast de esta versión del guion. ¿Continuar?"
   },
   "import": {
     "title": "Importar videos publicados",
@@ -1008,7 +1020,7 @@
     "versions": "Versiones",
     "version": "Versión {n}",
     "generate": "Generar",
-    "regenerate": "Regenerar",
+    "regenerate": "Rehacer",
     "regenerateConfirm": "Generar otra versión",
     "editText": "Editar texto",
     "accentWord": "En naranja",
@@ -1053,13 +1065,15 @@
       "noProduct": "Sin producto",
       "hint": "Lo que marques manda sobre la guía."
     },
-    "titleLabel": "Título"
+    "titleLabel": "Título",
+    "deleteAll": "Borrar miniaturas",
+    "deleteAllConfirm": "Se borran todas las miniaturas generadas del episodio (A, B y C, con sus versiones). ¿Continuar?"
   },
   "thumbnailIdeas": {
     "title": "Textos para las miniaturas",
     "description": "30 textos de ángulos distintos alrededor del tema central, cada uno con su esquema de la guía. Marca 3 de esquemas distintos (al menos uno con cara y uno sin cara) y genera sus miniaturas.",
     "propose": "Proponer 30 textos",
-    "repropose": "Proponer otros 30",
+    "repropose": "Rehacer los textos",
     "reproposeConfirm": "Se reemplaza la lista; los textos que están en las tarjetas se conservan. ¿Continuar?",
     "estimate": "Costo estimado: {cost}",
     "working": "Proponiendo los textos… puedes salir de esta página.",
@@ -1090,7 +1104,9 @@
     "setOk": "Set válido: {set}",
     "optionsHint": "Opciones de cada miniatura (mandan sobre la guía):",
     "unlockHint": "Marca «Sin producto» en esa tarjeta para usarlo sin fotos.",
-    "ideaTitle": "Título: {title}"
+    "ideaTitle": "Título: {title}",
+    "deleteIdeas": "Borrar textos",
+    "deleteIdeasConfirm": "Se borran los textos de miniaturas (también los de las tarjetas A, B y C). ¿Continuar?"
   },
   "publicationTitles": {
     "title": "Títulos",
@@ -1165,7 +1181,13 @@
       "failed": "Falló"
     },
     "renderOutdated": "Render desactualizado: rehazlo",
-    "download": "Descargar"
+    "download": "Descargar",
+    "deletePlan": "Borrar plan",
+    "deletePlanConfirm": "Se borra el plan de ayudas visuales con todas sus ayudas. ¿Continuar?",
+    "deleteRenders": "Borrar renders",
+    "deleteRendersConfirm": "Se borran los renders de todas las ayudas (los videos). ¿Continuar?",
+    "deleteRender": "Borrar render",
+    "deleteRenderConfirm": "Se borran los renders de esta ayuda. ¿Continuar?"
   },
   "resources": {
     "title": "Recursos del episodio",
@@ -1210,6 +1232,19 @@
       "failed": "Falló",
       "missing": "Sin render",
       "unchosen": "Falta elegir"
+    }
+  },
+  "dependents": {
+    "usedBy": "Depende de esto:",
+    "hintRedo": "Para rehacer, borra eso primero.",
+    "hintDelete": "Para borrar, borra eso primero.",
+    "kind": {
+      "script": "el guion",
+      "podcast": "el podcast",
+      "plan": "el plan de ayudas visuales",
+      "renders": "los renders de {detail}",
+      "ideas": "los textos de miniaturas",
+      "thumbnails": "las miniaturas {detail}"
     }
   }
 }

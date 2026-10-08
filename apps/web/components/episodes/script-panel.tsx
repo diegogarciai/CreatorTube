@@ -6,13 +6,16 @@ import { useTranslations } from "next-intl";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Copy, Loader2, Mic, Minus, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, Copy, Loader2, Mic, Minus } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { VerificationTable } from "@/components/episodes/verification-table";
+import { DeleteButton, RedoButton } from "@/components/episodes/redo-button";
 import { updateEpisode } from "@/lib/actions/episodes";
-import { startScript } from "@/lib/actions/script";
+import { deletePodcast, deleteScript, startScript } from "@/lib/actions/script";
+import type { ScriptStep } from "@planificador/ai";
+import { blockersFor, type Blocker, type EpisodeDependents } from "@/lib/dependencies";
 import type { ScriptStageView, ScriptStepView, ScriptView } from "@/lib/data/script";
 import { createClient } from "@/lib/supabase/browser";
 import {
@@ -21,7 +24,7 @@ import {
   SCRIPT_ESTIMATE_CREDITS,
 } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
-import { cn, usd } from "@/lib/utils";
+import { cn, usd, type ActionResult } from "@/lib/utils";
 
 const STATUS_TONE: Record<string, Tone> = {
   queued: "neutral",
@@ -54,9 +57,12 @@ export function ScriptPanel({
   direction,
   targetMinutes,
   timezone,
+  deps,
 }: {
   episodeId: string;
   view: ScriptView;
+  /** Lo generado del episodio: qué bloquea rehacer cada paso. */
+  deps: EpisodeDependents;
   canEdit: boolean;
   /** Puede cambiar las keywords y el pilar del episodio. */
   canTag: boolean;
@@ -158,6 +164,15 @@ export function ScriptPanel({
       if (!res.ok) toast.error(errorText(res.error));
       router.refresh();
     });
+  const remove = (action: (id: string) => Promise<ActionResult>) =>
+    start(async () => {
+      const res = await action(episodeId);
+      if (!res.ok) toast.error(errorText(res.error));
+      router.refresh();
+    });
+  // Qué bloquea rehacer un paso ya generado (lo que sale de él y ya existe).
+  const stepBlockers = (key: string): Blocker[] =>
+    blockersFor({ kind: "step", step: key as ScriptStep }, deps);
 
   const scriptHasContent = stages
     .find((s) => s.stage === "script")
@@ -458,6 +473,7 @@ export function ScriptPanel({
                             ? () => generate(currentStep.key)
                             : null
                         }
+                        restartBlockers={currentStep.body ? stepBlockers(currentStep.key) : []}
                         pending={pending}
                         custom={
                           currentStep.key === "verify" &&
@@ -473,6 +489,7 @@ export function ScriptPanel({
                                   ? () => generate("fix")
                                   : null
                               }
+                              redoBlockers={fixStep?.body ? stepBlockers("fix") : []}
                               redoCost={usd(FIX_REDO_ESTIMATE_CREDITS)}
                               continuing={pausedAtVerify}
                               pending={pending}
@@ -495,17 +512,39 @@ export function ScriptPanel({
                 {pending ? <Loader2 className="size-4 animate-spin" /> : null} {t("generate")}
               </Button>
             ) : (
-              <Button
-                variant="secondary"
+              <RedoButton
+                label={t("regenerateAll")}
                 onClick={() => generate("dossier")}
+                blockers={stepBlockers("dossier")}
                 disabled={pending || active}
-              >
-                <RotateCcw className="size-4" /> {t("regenerateAll")}
-              </Button>
+                variant="secondary"
+                size="md"
+                testId="redo-script"
+              />
             )}
             <span className="text-xs text-muted">
               {t("estimate", { cost: usd(SCRIPT_ESTIMATE_CREDITS) })}
             </span>
+            {run ? (
+              <DeleteButton
+                label={t("deleteScript")}
+                confirmText={t("deleteScriptConfirm")}
+                onDelete={() => remove(deleteScript)}
+                blockers={blockersFor({ kind: "deleteScript" }, deps)}
+                disabled={pending || active}
+                testId="delete-script"
+                showNote={false}
+              />
+            ) : null}
+            {deps.podcast ? (
+              <DeleteButton
+                label={t("deletePodcast")}
+                confirmText={t("deletePodcastConfirm")}
+                onDelete={() => remove(deletePodcast)}
+                disabled={pending || active}
+                testId="delete-podcast"
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -571,6 +610,7 @@ function StepPane({
   runFailed,
   targetMinutes,
   onRestart,
+  restartBlockers,
   pending,
   custom,
 }: {
@@ -583,6 +623,8 @@ function StepPane({
   runFailed: boolean;
   targetMinutes: number;
   onRestart: (() => void) | null;
+  /** Lo generado que sale de este paso y no deja rehacerlo. */
+  restartBlockers: Blocker[];
   pending: boolean;
   /** Vista propia del paso en lugar del texto (la tabla de verificación). */
   custom?: ReactNode;
@@ -649,9 +691,13 @@ function StepPane({
       ) : null}
       {content}
       {onRestart ? (
-        <Button variant="ghost" size="sm" onClick={onRestart} disabled={pending}>
-          <RotateCcw className="size-3.5" /> {t("regenerateHere")}
-        </Button>
+        <RedoButton
+          label={t("regenerateHere")}
+          onClick={onRestart}
+          blockers={restartBlockers}
+          disabled={pending}
+          testId="redo-step"
+        />
       ) : null}
     </div>
   );

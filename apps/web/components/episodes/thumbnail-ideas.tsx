@@ -19,7 +19,9 @@ import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { generateFromIdeas, proposeThumbnailIdeas } from "@/lib/actions/thumbnails";
+import { DeleteButton, RedoButton } from "@/components/episodes/redo-button";
+import { deleteIdeas, generateFromIdeas, proposeThumbnailIdeas } from "@/lib/actions/thumbnails";
+import { blockersFor, type EpisodeDependents } from "@/lib/dependencies";
 import type { ThumbnailIdeaView, ThumbnailsView } from "@/lib/data/thumbnails";
 import { createClient } from "@/lib/supabase/browser";
 import { THUMBNAIL_ESTIMATE_CREDITS, THUMBNAIL_IDEAS_ESTIMATE_CREDITS } from "@/lib/tasks";
@@ -61,12 +63,15 @@ export function ThumbnailIdeas({
   view,
   canEdit,
   canGenerate,
+  deps,
 }: {
   episodeId: string;
   view: ThumbnailsView;
   canEdit: boolean;
   /** Hay fotos del presentador y ninguna miniatura en marcha. */
   canGenerate: boolean;
+  /** Lo generado del episodio: las miniaturas bloquean rehacer o borrar los textos. */
+  deps: EpisodeDependents;
 }) {
   const t = useTranslations("thumbnailIdeas");
   const errorText = useActionError();
@@ -164,21 +169,53 @@ export function ThumbnailIdeas({
         action={
           canEdit ? (
             <div className="flex flex-col items-end gap-1">
-              <Button
-                variant="secondary"
-                onClick={propose}
-                disabled={pending || view.ideasActive || !view.verdict}
-              >
-                {view.ideasActive ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Lightbulb className="size-4" />
-                )}
-                {view.ideas.length ? t("repropose") : t("propose")}
-              </Button>
+              {view.ideas.length ? (
+                <RedoButton
+                  label={t("repropose")}
+                  onClick={propose}
+                  blockers={blockersFor({ kind: "ideas" }, deps)}
+                  pending={view.ideasActive}
+                  disabled={pending || !view.verdict}
+                  variant="secondary"
+                  size="md"
+                  align="end"
+                  testId="redo-ideas"
+                />
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={propose}
+                  disabled={pending || view.ideasActive || !view.verdict}
+                >
+                  {view.ideasActive ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Lightbulb className="size-4" />
+                  )}
+                  {t("propose")}
+                </Button>
+              )}
               <span className="text-xs text-muted">
                 {t("estimate", { cost: usd(THUMBNAIL_IDEAS_ESTIMATE_CREDITS) })}
               </span>
+              {view.ideas.length ? (
+                <DeleteButton
+                  label={t("deleteIdeas")}
+                  confirmText={t("deleteIdeasConfirm")}
+                  blockers={blockersFor({ kind: "deleteIdeas" }, deps)}
+                  disabled={pending || view.ideasActive}
+                  align="end"
+                  testId="delete-ideas"
+                  showNote={false}
+                  onDelete={() =>
+                    start(async () => {
+                      const res = await deleteIdeas(episodeId);
+                      if (res.ok) router.refresh();
+                      else toast.error(errorText(res.error));
+                    })
+                  }
+                />
+              ) : null}
             </div>
           ) : null
         }

@@ -28,16 +28,19 @@ import {
   type ThumbnailOptions,
 } from "@planificador/core";
 import { CopyButton } from "@/components/copy-button";
+import { DeleteButton } from "./redo-button";
 import { ThumbnailIdeas } from "./thumbnail-ideas";
 import { optionLabels, ThumbnailOptionChecks } from "./thumbnail-options";
 import {
   addEpisodeRef,
   chooseThumbnail,
   deleteEpisodeRef,
+  deleteThumbnails,
   editThumbnailText,
   generateThumbnails,
 } from "@/lib/actions/thumbnails";
 import type { ThumbnailDesignView, ThumbnailsView, ThumbnailVersion } from "@/lib/data/thumbnails";
+import type { EpisodeDependents } from "@/lib/dependencies";
 import { createClient } from "@/lib/supabase/browser";
 import { THUMBNAIL_ESTIMATE_CREDITS, THUMBNAIL_TEXT_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { discardMedia, uploadEpisodeRef } from "@/lib/upload";
@@ -53,14 +56,20 @@ export function ThumbnailsPanel({
   channelId,
   view,
   canEdit,
+  deps,
 }: {
   episodeId: string;
   channelId: string;
   view: ThumbnailsView;
   canEdit: boolean;
+  /** Lo generado del episodio (qué bloquea rehacer los textos). */
+  deps: EpisodeDependents;
 }) {
   const t = useTranslations("thumbnails");
   const router = useRouter();
+  const errorText = useActionError();
+  const [deleting, startDelete] = useTransition();
+  const hasThumbnails = view.designs.some((d) => d.versions.length);
 
   // Mientras hay una tarea en marcha se consulta el estado; si cambia, se recarga.
   const supabase = useMemo(() => createClient(), []);
@@ -114,9 +123,33 @@ export function ThumbnailsPanel({
         view={view}
         canEdit={canEdit}
         canGenerate={view.presenterPhotos > 0 && !view.active}
+        deps={deps}
       />
       <Card>
-        <CardHeader title={t("title")} description={t("description")} />
+        <CardHeader
+          title={t("title")}
+          description={t("description")}
+          action={
+            canEdit && hasThumbnails ? (
+              // De las miniaturas no depende nada generado: se pueden borrar siempre.
+              <DeleteButton
+                label={t("deleteAll")}
+                confirmText={t("deleteAllConfirm")}
+                pending={deleting}
+                disabled={view.active}
+                align="end"
+                testId="delete-thumbnails"
+                onDelete={() =>
+                  startDelete(async () => {
+                    const res = await deleteThumbnails(episodeId);
+                    if (res.ok) router.refresh();
+                    else toast.error(errorText(res.error));
+                  })
+                }
+              />
+            ) : null
+          }
+        />
         <CardBody className="space-y-4">
           {!view.verdict ? (
             <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AidRenderView, VisualAidView } from "./data/visual-aids";
 import type { ThumbnailDesignView, ThumbnailVersion } from "./data/thumbnails";
-import { aidFileName, episodeResources, resourcesSummary, zipEntries } from "./resources";
+import {
+  aidFileName,
+  defaultProductionTab,
+  episodeResources,
+  productionStates,
+  resourcesSummary,
+  zipEntries,
+} from "./resources";
 
 const render = (format: AidRenderView["format"], extra: Partial<AidRenderView> = {}) =>
   ({
@@ -112,5 +119,37 @@ describe("recursos del episodio", () => {
       "E12-recursos/ayudas/E12-C1-verde.mp4",
       "E12-recursos/miniatura/E12-B-abc123.jpg",
     ]);
+  });
+});
+
+describe("subpestañas de Producción", () => {
+  it("abre la primera fase sin terminar", () => {
+    const empty = episodeResources("E12", [], [design("A", [{}])]);
+    expect(productionStates(empty)).toEqual({
+      aids: "missing",
+      thumbnails: "missing",
+      resources: "missing",
+    });
+    expect(defaultProductionTab(productionStates(empty))).toBe("aids");
+
+    const rendered = [aid("C", "C1", { renders: [render("green"), render("alpha")] })];
+    const noThumb = episodeResources("E12", rendered, [design("A", [{}])]);
+    expect(defaultProductionTab(productionStates(noThumb))).toBe("thumbnails");
+
+    const all = episodeResources("E12", rendered, [design("A", [{ chosen: true }])]);
+    expect(productionStates(all)).toEqual({
+      aids: "ready",
+      thumbnails: "ready",
+      resources: "ready",
+    });
+    expect(defaultProductionTab(productionStates(all))).toBe("resources");
+
+    // Un render desactualizado vuelve a abrir las ayudas.
+    const stale = episodeResources(
+      "E12",
+      [aid("C", "C1", { renders: [render("green", { outdated: true }), render("alpha")] })],
+      [design("A", [{ chosen: true }])],
+    );
+    expect(defaultProductionTab(productionStates(stale))).toBe("aids");
   });
 });

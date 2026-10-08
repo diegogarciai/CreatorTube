@@ -7,6 +7,7 @@ import { statusIndex } from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
 import { DIRECTION_ESTIMATE_CREDITS } from "../tasks";
+import { hasBlockers } from "../data/dependents";
 import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 
@@ -51,6 +52,23 @@ export async function prepareDirection(episodeId: string): Promise<ActionResult>
     const taskStatus = current?.tasks?.status;
     if (current?.status === "generating" && (taskStatus === "queued" || taskStatus === "running")) {
       return { ok: true };
+    }
+    // Volver a preparar: no si ya hay un guion hecho con esta Dirección.
+    if (current && current.status !== "generating") {
+      const { data: ep } = await admin
+        .from("episodes")
+        .select("current_script_run_id")
+        .eq("id", episodeId)
+        .single();
+      if (
+        await hasBlockers(
+          admin,
+          { kind: "direction" },
+          episodeId,
+          ep?.current_script_run_id ?? null,
+        )
+      )
+        return { ok: false, error: "errors.has_dependents" };
     }
 
     const { error } = await admin.from("episode_direction").upsert({

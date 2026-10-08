@@ -12,6 +12,8 @@ import {
 } from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
+import { hasBlockers, taskRunning } from "../data/dependents";
+import { MEDIA_BUCKET } from "../media";
 import { createAdminClient } from "../supabase/admin";
 import { VISUAL_PLAN_ESTIMATE_CREDITS } from "../tasks";
 import { errorMessage, type ActionResult } from "../utils";
@@ -50,6 +52,9 @@ export async function proposeVisualPlan(episodeId: string): Promise<ActionResult
       .eq("step", "fix")
       .eq("status", "succeeded");
     if (!count) return { ok: false, error: "errors.no_verified_script" };
+    // Rehacer el plan: no si ya hay renders de sus ayudas (se borran primero).
+    if (await hasBlockers(createAdminClient(), { kind: "plan" }, episodeId, null))
+      return { ok: false, error: "errors.has_dependents" };
     const { data: credits } = await supabase.rpc("workspace_credits", { ws: row.workspace_id });
     if (Number(credits?.[0]?.remaining ?? 0) < VISUAL_PLAN_ESTIMATE_CREDITS)
       return { ok: false, error: "errors.no_credits" };
@@ -233,6 +238,52 @@ export async function renderAid(aidId: string): Promise<ActionResult> {
     const user = await requireUser();
     await startRenders(row, user.id, [aid]);
     revalidate(row.channel_id, aid.episode_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Borra el plan de ayudas visuales, para poder rehacer el guion. No si ya hay renders. */
+export async function deletePlan(episodeId: string): Promise<ActionResult> {
+  try {
+    const { row } = await loadEpisode(episodeId);
+    const admin = createAdminClient();
+    if (await taskRunning(admin, episodeId, ["visual_plan", "render_aids"]))
+      return { ok: false, error: "errors.busy" };
+    if (await hasBlockers(admin, { kind: "deletePlan" }, episodeId, null))
+      return { ok: false, error: "errors.has_dependents" };
+    const { error } = await admin.from("visual_aids").delete().eq("episode_id", episodeId);
+    if (error) throw error;
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Borra los renders (filas y archivos), de una ayuda o de todo el episodio. */
+export async function deleteRenders(episodeId: string, aidId?: string): Promise<ActionResult> {
+  try {
+    const { row } = await loadEpisode(episodeId);
+    const admin = createAdminClient();
+    if (await taskRunning(admin, episodeId, ["render_aids"]))
+      return { ok: false, error: "errors.busy" };
+    let query = admin.from("aid_renders").select("id, path").eq("episode_id", episodeId);
+    if (aidId) query = query.eq("visual_aid_id", aidId);
+    const { data: renders } = await query;
+    if (!renders?.length) return { ok: true };
+    const paths = renders.flatMap((r) => (r.path ? [r.path] : []));
+    if (paths.length) await admin.storage.from(MEDIA_BUCKET).remove(paths);
+    const { error } = await admin
+      .from("aid_renders")
+      .delete()
+      .in(
+        "id",
+        renders.map((r) => r.id),
+      );
+    if (error) throw error;
+    revalidate(row.channel_id, episodeId);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
