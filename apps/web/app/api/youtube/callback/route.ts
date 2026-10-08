@@ -12,16 +12,25 @@ import {
   stateKey,
   syncChannelById,
 } from "@/lib/youtube";
+import { classifyConnectError, missingYouTubeScope } from "@/lib/youtube-errors";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
-  const fail = (reason: string) => {
-    const res = NextResponse.redirect(new URL(`/onboarding?error=${reason}`, origin));
+  const fail = (reason: string, detail?: string) => {
+    const url = new URL("/onboarding", origin);
+    url.searchParams.set("error", reason);
+    if (detail) url.searchParams.set("detail", detail);
+    const res = NextResponse.redirect(url);
     res.cookies.delete({ name: NONCE_COOKIE, path: "/api/youtube" });
     return res;
   };
 
-  if (searchParams.get("error")) return fail("youtube_denied");
+  const googleError = searchParams.get("error");
+  if (googleError) {
+    return googleError === "access_denied"
+      ? fail("youtube_denied")
+      : fail("youtube_oauth", googleError.slice(0, 60));
+  }
   const user = await getUser();
   if (!user) return NextResponse.redirect(new URL("/login", origin));
 
@@ -39,6 +48,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   try {
     const tokens = await exchangeCode(oauthConfig(), searchParams.get("code") ?? "");
+    if (missingYouTubeScope(tokens.scopes)) return fail("youtube_scope");
     const info = await new YouTubeClient(tokens.accessToken).getMyChannel();
     if (!info) return fail("youtube_no_channel");
 
@@ -93,7 +103,8 @@ export async function GET(request: NextRequest) {
     res.cookies.delete({ name: NONCE_COOKIE, path: "/api/youtube" });
     return res;
   } catch (err) {
-    console.error("YouTube callback", err);
-    return fail("youtube_error");
+    const failure = classifyConnectError(err);
+    console.error("YouTube callback", failure, err);
+    return fail(failure.reason, failure.detail);
   }
 }

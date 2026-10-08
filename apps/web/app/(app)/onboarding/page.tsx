@@ -18,9 +18,9 @@ export const metadata: Metadata = { title: "Puesta en marcha" };
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ workspace?: string; error?: string }>;
+  searchParams: Promise<{ workspace?: string; error?: string; detail?: string }>;
 }) {
-  const { workspace, error } = await searchParams;
+  const { workspace, error, detail } = await searchParams;
   const t = await getTranslations();
   const workspaces = (await getMyMemberships()).filter((m) => can(m.role, "configure_channel"));
   if (workspaces.length === 0) {
@@ -42,7 +42,8 @@ export default async function OnboardingPage({
             role="alert"
             className="mb-4 rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical"
           >
-            {t.has(`errors.${error}`) ? t(`errors.${error}`) : t("errors.unknown")} ({error})
+            {t.has(`errors.${error}`) ? t(`errors.${error}`) : t("errors.unknown")}{" "}
+            <span className="opacity-70">({detail ? `${error} · ${detail}` : error})</span>
           </p>
         ) : null}
         {workspaces.length > 1 ? (
