@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AI_STAGES, isAiStage, type AiStage } from "@planificador/ai";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Page, PageHeader } from "@/components/page-header";
@@ -6,6 +7,12 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { InviteForm } from "@/components/workspace/invite-form";
 import { CreateOwnWorkspaceCard } from "@/components/workspace/no-workspace";
 import { CreditsQuotaForm } from "@/components/workspace/credits";
+import {
+  AiModelsCatalog,
+  WorkspaceAiForm,
+  type AiModelRow,
+  type WorkspaceAiRow,
+} from "@/components/workspace/ai-models";
 import { JobTestButton } from "@/components/workspace/job-test";
 import { JOBS_CONFIGURED } from "@/lib/jobs";
 import { RevokeInvitationButton } from "@/components/workspace/member-row";
@@ -25,18 +32,45 @@ export default async function AdminPage({
   const t = await getTranslations("admin");
   const tw = await getTranslations("workspace");
   const admin = createAdminClient();
-  const [{ data: workspaces }, { data: invitations }] = await Promise.all([
-    admin
-      .from("workspaces")
-      .select("id, name, created_at, monthly_credits, channels(count), memberships(count)")
-      .order("created_at", { ascending: false }),
-    admin
-      .from("invitations")
-      .select("id, email, expires_at, accepted_at")
-      .eq("kind", "platform")
-      .order("created_at", { ascending: false })
-      .limit(50),
-  ]);
+  const [{ data: workspaces }, { data: invitations }, { data: modelRows }, { data: aiRows }] =
+    await Promise.all([
+      admin
+        .from("workspaces")
+        .select("id, name, created_at, monthly_credits, channels(count), memberships(count)")
+        .order("created_at", { ascending: false }),
+      admin
+        .from("invitations")
+        .select("id, email, expires_at, accepted_at")
+        .eq("kind", "platform")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      admin
+        .from("ai_models")
+        .select("id, display_name, available, input_price_usd, output_price_usd, created_at_api")
+        .order("available", { ascending: false })
+        .order("created_at_api", { ascending: false, nullsFirst: false }),
+      admin.from("workspace_ai_settings").select("workspace_id, default_model, stage_models"),
+    ]);
+  const models: AiModelRow[] = (modelRows ?? []).map((m) => ({
+    id: m.id,
+    displayName: m.display_name,
+    available: m.available,
+    inputPrice: m.input_price_usd === null ? null : Number(m.input_price_usd),
+    outputPrice: m.output_price_usd === null ? null : Number(m.output_price_usd),
+  }));
+  const aiByWorkspace = new Map<string, WorkspaceAiRow>(
+    (aiRows ?? []).map((r) => [
+      r.workspace_id,
+      {
+        defaultModel: r.default_model,
+        stageModels: Object.fromEntries(
+          Object.entries((r.stage_models ?? {}) as Record<string, unknown>).filter(
+            (e): e is [AiStage, string] => isAiStage(e[0]) && typeof e[1] === "string",
+          ),
+        ),
+      },
+    ]),
+  );
   const fmt = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
   const balances = new Map(
     await Promise.all(
@@ -68,6 +102,12 @@ export default async function AdminPage({
           <CardBody className="space-y-2">
             {JOBS_CONFIGURED() ? null : <p className="text-sm text-warn">{t("jobsMissing")}</p>}
             <JobTestButton disabled={!JOBS_CONFIGURED()} />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={t("aiModels")} description={t("aiModelsDesc")} />
+          <CardBody>
+            <AiModelsCatalog models={models} jobsConfigured={JOBS_CONFIGURED()} />
           </CardBody>
         </Card>
         <Card>
@@ -103,6 +143,12 @@ export default async function AdminPage({
                   {t("creditsUsed", { used: usd(balances.get(w.id) ?? 0) })}
                 </span>
                 <CreditsQuotaForm workspaceId={w.id} monthly={w.monthly_credits} />
+                <WorkspaceAiForm
+                  workspaceId={w.id}
+                  models={models}
+                  settings={aiByWorkspace.get(w.id) ?? null}
+                  stages={AI_STAGES}
+                />
               </li>
             ))}
           </ul>

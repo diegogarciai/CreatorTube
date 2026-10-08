@@ -1,15 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
-import {
-  aiConfigFromEnv,
-  CATALOG_BATCH,
-  classifyVideos,
-  pricesFromEnv,
-  usageCostUsd,
-  usdToCredits,
-  type StreamClient,
-} from "@planificador/ai";
+import { CATALOG_BATCH, classifyVideos, usdToCredits, type StreamClient } from "@planificador/ai";
+import { loadAiSettings } from "../lib/ai-settings";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
@@ -63,8 +56,8 @@ export async function runYouTubeImport(taskId: string, db: ServiceClient, client
       const total = all.length;
       const presenter =
         ((channel.profile ?? {}) as { hosts?: string[] }).hosts?.[0] || channel.name;
-      const config = aiConfigFromEnv(process.env);
-      const prices = pricesFromEnv(process.env);
+      const ai = await loadAiSettings(db, task.workspace_id);
+      const config = ai.config("youtube_import");
 
       let done = total - pending.length;
       for (let i = 0; i < pending.length; i += CATALOG_BATCH) {
@@ -103,7 +96,7 @@ export async function runYouTubeImport(taskId: string, db: ServiceClient, client
         });
 
         // Se cobra por lote: si después se cae algo, lo gastado ya quedó registrado.
-        const usd = usageCostUsd(out.usage, prices);
+        const usd = ai.costUsd(out.usage, out.model);
         await db.from("usage_ledger").insert({
           workspace_id: task.workspace_id,
           channel_id: channelId,

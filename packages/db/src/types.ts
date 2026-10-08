@@ -68,6 +68,36 @@ export type Database = {
           },
         ];
       };
+      ai_models: {
+        Row: {
+          id: string;
+          display_name: string;
+          created_at_api: string | null;
+          input_price_usd: number | null;
+          output_price_usd: number | null;
+          available: boolean;
+          fetched_at: string;
+        };
+        Insert: {
+          id: string;
+          display_name?: string;
+          created_at_api?: string | null;
+          input_price_usd?: number | null;
+          output_price_usd?: number | null;
+          available?: boolean;
+          fetched_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string;
+          created_at_api?: string | null;
+          input_price_usd?: number | null;
+          output_price_usd?: number | null;
+          available?: boolean;
+          fetched_at?: string;
+        };
+        Relationships: [];
+      };
       brand_kits: {
         Row: {
           channel_id: string;
@@ -1563,6 +1593,52 @@ export type Database = {
             foreignKeyName: "verification_items_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workspace_ai_settings: {
+        Row: {
+          workspace_id: string;
+          default_model: string | null;
+          stage_models: Json;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          workspace_id: string;
+          default_model?: string | null;
+          stage_models?: Json;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          workspace_id?: string;
+          default_model?: string | null;
+          stage_models?: Json;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workspace_ai_settings_default_model_fkey";
+            columns: ["default_model"];
+            isOneToOne: false;
+            referencedRelation: "ai_models";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_ai_settings_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workspace_ai_settings_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: true;
             referencedRelation: "workspaces";
             referencedColumns: ["id"];
           },

@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import {
-  aiConfigFromEnv,
   buildStepPrompt,
   episodePatchFromAssets,
   extractAssets,
@@ -13,7 +12,6 @@ import {
   pauseAfterFix,
   pauseAfterVerify,
   pendingDatos,
-  pricesFromEnv,
   runStep,
   runSteps,
   SCRIPT_STAGES,
@@ -21,7 +19,6 @@ import {
   stageBlocks,
   STAGE_STEPS,
   stepInputs,
-  usageCostUsd,
   usdToCredits,
   verificationTable,
   verifyGroup,
@@ -45,6 +42,7 @@ import {
   type GuideSection,
   type StageSections,
 } from "@planificador/core";
+import { loadAiSettings, type AiSettings } from "../lib/ai-settings";
 import { parallelConfigFromEnv, parallelSearch } from "../lib/parallel";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { errorText, runTracked } from "../lib/task-row";
@@ -101,18 +99,21 @@ export async function runScript(
         .single();
       if (error) throw error;
 
-      const config = aiConfigFromEnv(process.env);
-      await db
-        .from("script_runs")
-        .update({ status: "running", model: config.model })
-        .eq("id", run.id);
-
       // Desde el paso pedido; si no hay, desde el primero de la etapa de inicio.
       // Hasta Publicación: el Podcast corre solo si la corrida empieza en él.
       const first = isScriptStep(run.from_step)
         ? run.from_step
         : (IMPLEMENTED_STEPS.find((s) => s.stage === run.from_stage)?.key ?? "dossier");
       const steps = runSteps(first);
+
+      // El modelo de cada etapa sale de Administración (o de AI_MODEL); la
+      // corrida guarda los que usa, para compararlos en el historial.
+      const ai = await loadAiSettings(db, run.workspace_id);
+      const models = [...new Set(steps.map((s) => ai.config(s.stage).model))];
+      await db
+        .from("script_runs")
+        .update({ status: "running", model: models.join(" · ") })
+        .eq("id", run.id);
       const base = await loadStageBase(db, run);
 
       for (const [i, spec] of steps.entries()) {
@@ -239,7 +240,8 @@ export async function runScript(
                 run,
                 taskId,
                 client,
-                config,
+                config: ai.config(stage),
+                ai,
                 spec,
                 ctx,
                 bodies,
@@ -247,7 +249,18 @@ export async function runScript(
                 pillars: base.pillars,
                 progress,
               })
-            : await runTextStep({ db, run, taskId, client, config, spec, ctx, done, progress });
+            : await runTextStep({
+                db,
+                run,
+                taskId,
+                client,
+                config: ai.config(stage),
+                ai,
+                spec,
+                ctx,
+                done,
+                progress,
+              });
         } catch (err) {
           const failed = {
             status: "failed" as const,
@@ -355,6 +368,7 @@ type StepArgs = {
   taskId: string;
   client: StreamClient;
   config: AiConfig;
+  ai: AiSettings;
   spec: StepSpec;
   ctx: StageContext;
   progress: (message: string, preview?: string) => Promise<void>;
@@ -362,12 +376,12 @@ type StepArgs = {
 
 /** Registra el consumo de una llamada (o de un grupo) y devuelve sus créditos. */
 async function charge(
-  { db, run, taskId, spec }: Pick<StepArgs, "db" | "run" | "taskId" | "spec">,
+  { db, run, taskId, spec, ai }: Pick<StepArgs, "db" | "run" | "taskId" | "spec" | "ai">,
   usage: UsageTotals,
   model: string,
   extra: { searches?: number; searchUsd?: number } = {},
 ) {
-  const usd = usageCostUsd(usage, pricesFromEnv(process.env)) + (extra.searchUsd ?? 0);
+  const usd = ai.costUsd(usage, model) + (extra.searchUsd ?? 0);
   const credits = usdToCredits(usd);
   await db.from("usage_ledger").insert({
     workspace_id: run.workspace_id,
