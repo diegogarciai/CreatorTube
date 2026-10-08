@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { addUsage, emptyUsage, type UsageTotals } from "./cost";
 import { EPISODE_TYPE_LABELS } from "./direction";
+import { isTransientAiError } from "./errors";
 import { AiRefusalError, type AiConfig } from "./generate";
 
 /**
@@ -273,19 +274,57 @@ export interface StageResult {
 /** Mínimo de la interfaz del SDK que se usa; en las pruebas se inyecta un falso. */
 export type StreamClient = Pick<Anthropic, "beta">;
 
+/** Esperas antes de cada reintento cuando Claude está saturado o falla la red. */
+export const RETRY_DELAYS_MS = [20_000, 60_000, 120_000];
+
+export interface StageOptions {
+  /** Avance: palabras escritas, o un aviso (p. ej. el reintento) con `words` en 0. */
+  onProgress?: (words: number, notice?: string) => void | Promise<void>;
+  /** Se inyecta en las pruebas para no esperar de verdad. */
+  sleep?: (ms: number) => Promise<void>;
+  retryDelaysMs?: readonly number[];
+}
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 /**
  * Llama a una etapa en streaming (salidas largas) y avisa el avance con las
  * palabras escritas. Con `fallbacks`, una negativa se reintenta en el servidor
- * con el modelo de respaldo recomendado.
+ * con el modelo de respaldo recomendado. Si Claude está saturado (también a
+ * mitad del stream, que el SDK no reintenta), espera y vuelve a empezar.
  */
 export async function runStage(
   client: StreamClient,
   config: AiConfig,
   stage: ScriptStage,
   ctx: StageContext,
-  onProgress: (words: number) => void | Promise<void> = () => {},
+  { onProgress = () => {}, sleep = wait, retryDelaysMs = RETRY_DELAYS_MS }: StageOptions = {},
 ): Promise<StageResult> {
   const { system, user } = buildStagePrompt(stage, ctx);
+  const attempts = retryDelaysMs.length + 1;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await streamStage(client, config, stage, system, user, onProgress);
+    } catch (err) {
+      if (attempt >= attempts || !isTransientAiError(err)) throw err;
+      const ms = retryDelaysMs[attempt - 1]!;
+      await onProgress(
+        0,
+        `Claude está saturado; reintento ${attempt + 1} de ${attempts} en ${Math.round(ms / 1000)} s`,
+      );
+      await sleep(ms);
+    }
+  }
+}
+
+async function streamStage(
+  client: StreamClient,
+  config: AiConfig,
+  stage: ScriptStage,
+  system: string,
+  user: string,
+  onProgress: NonNullable<StageOptions["onProgress"]>,
+): Promise<StageResult> {
   const stream = client.beta.messages.stream({
     model: config.model,
     max_tokens: 64_000,

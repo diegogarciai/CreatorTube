@@ -48,10 +48,14 @@ export function ScriptPanel({
   const active = run?.status === "queued" || run?.status === "running";
 
   // Primera etapa con contenido o en curso; si no, Estudio.
+  // Se abre la etapa en curso, la que falló o la última con contenido.
+  const failedStage = stages.find((s) => s.status === "failed" || s.status === "incomplete");
   const firstUseful =
     stages.find((s) => s.status === "running") ??
+    failedStage ??
     [...stages].reverse().find((s) => s.blocks.length > 0) ??
     stages[0]!;
+  const failReason = run?.error ?? failedStage?.error ?? null;
   const [tab, setTab] = useState(firstUseful.stage);
   // Cuando la corrida avanza a otra etapa, la pestaña la sigue.
   const [followed, setFollowed] = useState(firstUseful.stage);
@@ -128,7 +132,8 @@ export function ScriptPanel({
 
         {run?.status === "failed" ? (
           <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">
-            {t("failed")} {run.error ? `(${errorText(run.error)})` : ""} {t("retryHint")}
+            {failedStage ? t("failedAt", { stage: t(`stage.${failedStage.stage}`) }) : t("failed")}{" "}
+            {failReason ? errorText(failReason) : ""} {t("retryHint")}
           </p>
         ) : null}
 
@@ -182,6 +187,7 @@ export function ScriptPanel({
               stage={current}
               progress={live[current.stage] ?? current.progress}
               runActive={active}
+              runFailed={run.status === "failed"}
               targetMinutes={targetMinutes}
             />
           </>
@@ -251,11 +257,13 @@ function StagePane({
   stage,
   progress,
   runActive,
+  runFailed,
   targetMinutes,
 }: {
   stage: ScriptStageView;
   progress: string | null;
   runActive: boolean;
+  runFailed: boolean;
   targetMinutes: number;
 }) {
   const t = useTranslations("script");
@@ -272,9 +280,10 @@ function StagePane({
   }
   return (
     <div className="space-y-4">
-      {stage.status === "incomplete" || stage.status === "failed" ? (
+      {/* Si la corrida falló aquí, el aviso de arriba ya lo dice. */}
+      {stage.status === "incomplete" || (stage.status === "failed" && !runFailed) ? (
         <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
-          {stage.status === "incomplete" ? t("incomplete") : t("failed")}{" "}
+          {stage.status === "incomplete" ? t("incomplete") : t("stageFailed")}{" "}
           {stage.error ? errorText(stage.error) : ""} {t("retryHint")}
         </p>
       ) : null}

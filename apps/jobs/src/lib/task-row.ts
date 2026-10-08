@@ -1,3 +1,4 @@
+import { aiErrorKey } from "@planificador/ai";
 import { serviceClient, type ServiceClient } from "./supabase";
 
 /**
@@ -29,7 +30,8 @@ export async function runTracked<T>(
     return result;
   } catch (err) {
     // Trigger.dev reintenta; si se agotan los intentos, onFailure marca la falla.
-    await update({ message: `Reintentando: ${errorText(err)}` }).catch(() => undefined);
+    const detail = aiErrorKey(err) ? "Claude no respondió" : errorText(err);
+    await update({ message: `Reintentando: ${detail}` }).catch(() => undefined);
     throw err;
   }
 }
@@ -58,7 +60,10 @@ function clamp(v: number) {
   return Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
 }
 
+/** Clave `errors.*` si es un error conocido de la IA (la app lo traduce); si no, el texto. */
 export function errorText(err: unknown): string {
+  const key = aiErrorKey(err);
+  if (key) return key;
   const text = err instanceof Error ? err.message : String(err);
   return text.slice(0, 500);
 }
