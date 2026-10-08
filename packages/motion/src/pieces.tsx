@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { AidElement, AidPiece, BrandColors } from "@planificador/core";
-import { barScale, countedText, numericValue, staggerFrames } from "./spec";
+import { barScale, countedText, elementStarts, numericValue, PIECE_TIMING as T } from "./spec";
 import { alpha, brandEase, MONO, Text, useEnter, type Layout } from "./theme";
 
 /**
@@ -24,9 +24,9 @@ const valueText = (e: AidElement) => [e.value, e.unit].filter(Boolean).join(" ")
 function useStagger(count: number) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const starts = staggerFrames(count, Math.round(durationInFrames * 0.6));
+  const starts = elementStarts(count, durationInFrames);
   return starts.map((s) =>
-    interpolate(frame, [s, s + 24], [0, 1], {
+    interpolate(frame, [s, s + T.stagger.frames], [0, 1], {
       easing: brandEase,
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
@@ -122,7 +122,7 @@ function Bars({ elements, colors, layout, area }: PieceProps) {
 }
 
 function Ring({ elements, colors, layout, area }: PieceProps) {
-  const enter = useEnter(6, 40);
+  const enter = useEnter(T.ring.start, T.ring.frames);
   const main = elements[0];
   const pct = Math.min(Math.max(numericValue(main?.value) ?? 100, 0), 100) / 100;
   const size = Math.min(area.w, area.h) * 0.78;
@@ -196,7 +196,7 @@ function Ring({ elements, colors, layout, area }: PieceProps) {
 }
 
 function Counter({ elements, colors, layout, area }: PieceProps) {
-  const enter = useEnter(4, 50);
+  const enter = useEnter(T.counter.start, T.counter.frames);
   const p = useStagger(elements.length);
   const [main, ...rest] = elements;
   return (
@@ -240,7 +240,7 @@ function Counter({ elements, colors, layout, area }: PieceProps) {
 }
 
 function Timeline({ elements, colors, layout, area }: PieceProps) {
-  const line = useEnter(0, 40);
+  const line = useEnter(T.timelineLine.start, T.timelineLine.frames);
   const p = useStagger(elements.length);
   const n = Math.max(elements.length, 1);
   const vertical = layout.vertical;
@@ -376,7 +376,7 @@ function DotMatrix({ elements, colors, layout, area }: PieceProps) {
     >
       <svg width={size} height={size}>
         {Array.from({ length: 100 }, (_, i) => {
-          const on = i < lit && frame > 8 + i * 0.6;
+          const on = i < lit && frame > T.dotMatrix.start + i * T.dotMatrix.perDot;
           return (
             <circle
               key={i}
@@ -413,7 +413,7 @@ function DotMatrix({ elements, colors, layout, area }: PieceProps) {
 }
 
 function Curve({ elements, colors, layout, area }: PieceProps) {
-  const draw = useEnter(6, 60);
+  const draw = useEnter(T.curve.start, T.curve.frames);
   const values = elements.map((e) => numericValue(e.value) ?? 0);
   const max = Math.max(...values, 1);
   const labelH = layout.type.body * 2.4;
@@ -505,8 +505,8 @@ function Curve({ elements, colors, layout, area }: PieceProps) {
 }
 
 function BeforeAfter({ elements, colors, layout, area }: PieceProps) {
-  const wipe = useEnter(20, 36);
-  const first = useEnter(0, 24);
+  const wipe = useEnter(T.beforeAfter.wipe.start, T.beforeAfter.wipe.frames);
+  const first = useEnter(T.beforeAfter.first.start, T.beforeAfter.first.frames);
   const [before, after] = elements;
   const half = layout.vertical
     ? { w: area.w, h: (area.h - 40) / 2 }
@@ -652,7 +652,7 @@ function Comparison({ elements, colors, layout, area }: PieceProps) {
 
 function Network({ elements, colors, layout, area }: PieceProps) {
   const p = useStagger(elements.length);
-  const center = useEnter(0, 24);
+  const center = useEnter(T.networkCenter.start, T.networkCenter.frames);
   const cx = area.w / 2;
   const cy = area.h / 2;
   const r = Math.min(area.w, area.h) * 0.38;
@@ -710,7 +710,7 @@ function Zoom({ elements, colors, layout, area }: PieceProps) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const zoom = interpolate(frame, [0, durationInFrames], [1, 1.12], { extrapolateRight: "clamp" });
-  const focus = useEnter(10, 30);
+  const focus = useEnter(T.zoomFocus.start, T.zoomFocus.frames);
   const p = useStagger(elements.length);
   const [main, ...rest] = elements;
   return (

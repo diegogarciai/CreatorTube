@@ -1164,7 +1164,52 @@
       "ready": "Listo",
       "failed": "Falló"
     },
-    "renderOutdated": "Editada después del render",
+    "renderOutdated": "Render desactualizado: rehazlo",
     "download": "Descargar"
+  },
+  "resources": {
+    "title": "Recursos del episodio",
+    "description": "Lo que necesitas para editar: motion graphics, ayudas y la miniatura elegida.",
+    "downloadAll": "Descargar todo (.zip · {count})",
+    "zipProgress": "Descargando {done} de {total}…",
+    "zipError": "No se pudo armar el .zip. Prueba de nuevo o descarga los archivos uno a uno.",
+    "allReady": "Todo listo para editar.",
+    "summary": "{ready} de {total} listos.",
+    "outdatedHint": "{count, plural, one {# render está desactualizado: rehazlo en Ayudas visuales.} other {# renders están desactualizados: rehazlos en Ayudas visuales.}}",
+    "download": "Descargar",
+    "noThumbnail": "Elige una miniatura en Miniaturas",
+    "soundNote": "Los MP4 traen los efectos de sonido; el WebM transparente va sin sonido. En CapCut usa el fondo verde con croma.",
+    "col": {
+      "resource": "Recurso",
+      "format": "Formato",
+      "file": "Archivo",
+      "status": "Estado"
+    },
+    "type": {
+      "motion": "Motion graphics",
+      "aid": "Ayudas (concepto y listas)",
+      "thumbnail": "Miniatura"
+    },
+    "empty": {
+      "motion": "No hay motion graphics aprobados.",
+      "aid": "No hay ayudas aprobadas.",
+      "thumbnail": ""
+    },
+    "format": {
+      "horizontal": "Horizontal · MP4 1920 × 1080",
+      "vertical": "Vertical · MP4 1080 × 1920",
+      "green": "Fondo verde · MP4 (croma)",
+      "alpha": "Transparente · WebM",
+      "thumbnail": "JPG 1280 × 720"
+    },
+    "status": {
+      "ready": "Listo",
+      "outdated": "Desactualizado",
+      "rendering": "Renderizando",
+      "queued": "En cola",
+      "failed": "Falló",
+      "missing": "Sin render",
+      "unchosen": "Falta elegir"
+    }
   }
 }

@@ -1,7 +1,9 @@
 import "server-only";
 import type { AidElement, AidKind, AidPiece, AidScores, AidStatus } from "@planificador/core";
+import { RENDER_VERSION } from "@planificador/motion";
 import { getSupabase } from "../auth";
 import { MEDIA_BUCKET, SIGNED_URL_SECONDS } from "../media";
+import { aidFileName } from "../resources";
 
 export type AidRenderView = {
   id: string;
@@ -11,7 +13,7 @@ export type AidRenderView = {
   downloadUrl: string | null;
   bytes: number | null;
   error: string | null;
-  /** La ayuda se editó después de este render. */
+  /** La ayuda se editó después de este render, o se hizo con una versión anterior (sin sonido). */
   outdated: boolean;
 };
 
@@ -77,15 +79,20 @@ export async function loadVisualAidsView(episode: {
   ]);
   const { data: renders } = await supabase
     .from("aid_renders")
-    .select("id, visual_aid_id, format, status, path, bytes, error, created_at, task:tasks(status)")
+    .select(
+      "id, visual_aid_id, format, status, path, bytes, error, created_at, render_version, task:tasks(status)",
+    )
     .eq("episode_id", episode.id);
   const storage = supabase.storage.from(MEDIA_BUCKET);
   const ORDER = ["horizontal", "vertical", "green", "alpha"];
   const renderViews = await Promise.all(
     (renders ?? []).map(async (r) => {
       const aid = (aids ?? []).find((a) => a.id === r.visual_aid_id);
-      const ext = r.path?.split(".").pop() ?? "mp4";
-      const name = `${episode.code}-${aid?.code ?? "ayuda"}-${r.format}.${ext}`;
+      const name = aidFileName(
+        episode.code,
+        aid?.code ?? "ayuda",
+        r.format as AidRenderView["format"],
+      );
       const ready = r.status === "ready" && r.path;
       // Si la tarea se cayó, lo que quedó a medias cuenta como fallido.
       const dead =
@@ -107,7 +114,9 @@ export async function loadVisualAidsView(episode: {
             : null,
           bytes: r.bytes,
           error: dead ? "errors.unknown" : r.error,
-          outdated: Boolean(aid && aid.updated_at > r.created_at && r.status === "ready"),
+          outdated:
+            r.status === "ready" &&
+            Boolean((aid && aid.updated_at > r.created_at) || r.render_version < RENDER_VERSION),
         } satisfies AidRenderView,
       };
     }),

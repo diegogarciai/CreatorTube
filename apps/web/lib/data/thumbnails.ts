@@ -22,6 +22,8 @@ export type ThumbnailVersion = {
   status: "queued" | "generating" | "composing" | "scoring" | "ready" | "failed";
   url: string | null;
   downloadUrl: string | null;
+  /** El nombre con que se descarga: código del episodio y letra. */
+  fileName: string;
   text: ThumbnailText | null;
   /** El esquema de la guía (null en versiones de antes de la guía). */
   scheme: SchemeId | null;
@@ -182,6 +184,7 @@ export async function loadThumbnailsView(episode: {
           status,
           url: r.path ? (urls.get(r.path) ?? null) : null,
           downloadUrl: download,
+          fileName: name,
           text: (r.text as ThumbnailText | null) ?? null,
           scheme: isSchemeId(r.scheme) ? r.scheme : null,
           mirror: r.mirror,

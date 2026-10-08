@@ -1450,11 +1450,12 @@ describe("Fase 3 · render de las ayudas visuales", () => {
     );
     const insert = (format: string, path: string | null = null) =>
       sql(
-        "insert into public.aid_renders (visual_aid_id, episode_id, channel_id, format, path) values ($1, $2, $3, $4, $5) returning id, workspace_id, status",
+        "insert into public.aid_renders (visual_aid_id, episode_id, channel_id, format, path) values ($1, $2, $3, $4, $5) returning id, workspace_id, status, render_version",
         [aid.id, ep, ch, format, path],
       );
     const [green] = await insert("green", `${ch}/episodes/${ep}/aids/C1-green.mp4`);
-    expect(green).toMatchObject({ workspace_id: ws, status: "queued" });
+    // Sin versión, cuenta como un render viejo (sin sonido).
+    expect(green).toMatchObject({ workspace_id: ws, status: "queued", render_version: 1 });
     await expect(insert("green")).rejects.toThrow(/duplicate key/);
     await expect(insert("square")).rejects.toThrow(/check constraint/);
     await expect(insert("alpha", `${ch}/otra/${ep}/C1.webm`)).rejects.toThrow(/check constraint/);

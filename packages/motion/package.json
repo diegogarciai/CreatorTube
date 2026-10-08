@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "remotion bundle src/root.tsx --public-dir public --out-dir build",
+    "sfx": "node scripts/make-sfx.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run"
