@@ -276,12 +276,26 @@ Después de importar, el artefacto queda en solo lectura.
 
 Cada paso va en su PR, con las pruebas del núcleo y de la base y una prueba de punta a punta. Las llamadas a Claude y a Parallel se simulan en las pruebas automáticas. Las pruebas con IA real se hacen con temas de Gartechs y cuestan créditos.
 
-## 13. Decisiones para Diego
+## 13. Decisiones
 
-1. **Motor de tareas.** Recomendado: Trigger.dev, unos US$10 al mes. Hay que crear la cuenta y conectar el repositorio. Alternativa: funciones de Vercel, que obligan a pasar a Vercel Pro, US$20 al mes, para tener más duración.
-2. **Modelo de la etapa Guion.** Recomendado: empezar con Sonnet 5.5 en todas las etapas y comparar con Opus 5.5 en 2 episodios antes de decidir, porque Opus duplica el costo de esa etapa.
-3. **Cuentas y claves.** Crear las claves de API de Anthropic y de Parallel (lista de la Fase 0) y cargarlas como variables de entorno. No se pegan en el chat.
-4. **Cupo de créditos para la beta**, por ejemplo 3.000 créditos (US$30) al mes para Gartechs.
-5. **Reglas para otros canales.** La especificación recomienda que la v4.1 completa quede solo para Gartechs y que los demás canales partan de una versión general. Recomendado: en la Fase 2, cada canal pega su propia guía; la plantilla general se escribe cuando entre el segundo canal.
+Tomadas el 8 de octubre de 2026:
+
+1. **Motor de tareas: Trigger.dev.** Falta crear la cuenta y conectar el repositorio.
+2. **Modelo:** Sonnet 5.5 en todas las etapas. En 2 episodios se compara la etapa Guion con Opus 5.5 antes de decidir.
+3. **Cupo de la beta: US$20 al mes (2.000 créditos).** Es el valor por defecto de cada espacio; se cambia por espacio en **Administración**.
+
+Pendientes:
+
+4. **Cuentas y claves.** Crear las claves de API de Anthropic y de Parallel y cargarlas como variables de entorno en Vercel y Trigger.dev. No se pegan en el chat.
+5. **Reglas para otros canales.** Recomendado: en la Fase 2, cada canal pega su propia guía; la plantilla general se escribe cuando entre el segundo canal.
 6. **Exportación del artefacto.** ¿El panel actual puede exportar los episodios como JSON o CSV? Con un ejemplo se arma el importador.
-7. **Recomendaciones de ideas con IA.** Están en la Fase 2 de la especificación, pero no en el criterio de salida. Recomendado: hacerlas al final de la fase, si el guion ya está estable.
+7. **Recomendaciones de ideas con IA.** Recomendado: hacerlas al final de la fase, si el guion ya está estable.
+
+## 14. Avance
+
+- **Paso 1 (bases):**
+  - ficha de entrada en el episodio;
+  - guía del guionista por versiones, con secciones y las etapas que reciben cada una;
+  - cupo y consumo de créditos.
+
+  Con la v4.1 real se detectan 22 secciones: de la 0 a la 16 y de la 20 a la 24.

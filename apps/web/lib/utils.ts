@@ -28,3 +28,8 @@ export function formatDateKey(
     new Date(Date.UTC(y!, m! - 1, d!)),
   );
 }
+
+/** Créditos de IA en dólares (1 crédito = US$0,01): "US$20,00". */
+export function usd(credits: number): string {
+  return `US$${(credits / 100).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

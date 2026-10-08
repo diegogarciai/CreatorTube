@@ -79,6 +79,11 @@ export async function updateEpisode(episodeId: string, input: unknown): Promise<
         ...(p.publishDate !== undefined && { publish_date: p.publishDate }),
         ...(p.recordDate !== undefined && { record_date: p.recordDate }),
         ...(p.pillarId !== undefined && { pillar_id: p.pillarId }),
+        ...(p.episodeType !== undefined && { episode_type: p.episodeType }),
+        ...(p.targetMinutes !== undefined && { target_minutes: p.targetMinutes }),
+        ...(p.sponsorship !== undefined && { sponsorship: p.sponsorship }),
+        ...(p.ownMeasurements !== undefined && { own_measurements: p.ownMeasurements }),
+        ...(p.stanceConfirmed !== undefined && { stance_confirmed: p.stanceConfirmed }),
       })
       .eq("id", episodeId);
     if (error) throw error;

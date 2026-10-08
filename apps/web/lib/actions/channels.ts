@@ -7,9 +7,14 @@ import {
   channelProfileSchema,
   channelRhythmSchema,
   checklistStepSchema,
+  DEFAULT_STAGE_SECTIONS,
+  parseGuide,
   pillarSchema,
   reorderSteps,
+  validateGuide,
+  writerGuideSchema,
   type ChecklistStep,
+  type StageSections,
 } from "@planificador/core";
 import { revokeToken } from "@planificador/youtube";
 import { getMyMemberships, getSupabase, requireChannelPermission, requireUser } from "../auth";
@@ -47,16 +52,14 @@ export async function createManualChannel(workspaceId: string, formData: FormDat
   await seedChannelDefaults(createAdminClient(), data.id).catch(async () => {
     // Sin service role (entorno sin configurar): se siembra con la sesión.
     const { DEFAULT_CHECKLIST } = await import("@planificador/core");
-    await supabase
-      .from("checklist_steps")
-      .insert(
-        DEFAULT_CHECKLIST.map((s, i) => ({
-          channel_id: data.id,
-          label: s.label,
-          phase: s.phase,
-          position: i,
-        })),
-      );
+    await supabase.from("checklist_steps").insert(
+      DEFAULT_CHECKLIST.map((s, i) => ({
+        channel_id: data.id,
+        label: s.label,
+        phase: s.phase,
+        position: i,
+      })),
+    );
   });
   revalidatePath("/", "layout");
   redirect(`/onboarding/canal/${data.id}`);
@@ -195,14 +198,12 @@ export async function addChecklistStep(channelId: string, input: unknown): Promi
       .order("position", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const { error } = await supabase
-      .from("checklist_steps")
-      .insert({
-        channel_id: channelId,
-        label: s.label,
-        phase: s.phase,
-        position: (last?.position ?? -1) + 1,
-      });
+    const { error } = await supabase.from("checklist_steps").insert({
+      channel_id: channelId,
+      label: s.label,
+      phase: s.phase,
+      position: (last?.position ?? -1) + 1,
+    });
     if (error) throw error;
     revalidateChannel(channelId);
   });
@@ -315,6 +316,38 @@ export async function disconnectYouTube(channelId: string): Promise<ActionResult
       .from("channels")
       .update({ disconnected_at: new Date().toISOString(), youtube_channel_id: null })
       .eq("id", channelId);
+    if (error) throw error;
+    revalidateChannel(channelId);
+  });
+}
+
+/**
+ * Publica una versión nueva de la guía del guionista. Se corta por secciones y
+ * se rechaza si falta alguna de las que piden las etapas del guion.
+ */
+export async function publishWriterGuide(channelId: string, input: unknown): Promise<ActionResult> {
+  return run(async () => {
+    await requireChannelPermission(channelId, "configure_channel");
+    const { content, notes } = writerGuideSchema.parse(input);
+    const supabase = await getSupabase();
+    const { data: current } = await supabase
+      .from("writer_guides")
+      .select("version:writer_guide_versions!writer_guides_current_version_fk(stage_sections)")
+      .eq("channel_id", channelId)
+      .maybeSingle();
+    const previous = current?.version?.stage_sections as Partial<StageSections> | undefined;
+    const stages: StageSections = { ...DEFAULT_STAGE_SECTIONS, ...previous };
+    const parsed = parseGuide(content);
+    const check = validateGuide(parsed, stages);
+    if (parsed.sections.length === 0) throw new Error("errors.guide_no_sections");
+    if (!check.ok) throw new Error("errors.guide_missing_sections");
+    const { error } = await supabase.rpc("publish_writer_guide_version", {
+      ch: channelId,
+      content,
+      notes,
+      sections: parsed.sections.map(({ key, title, body }) => ({ key, title, body })),
+      stage_sections: stages,
+    });
     if (error) throw error;
     revalidateChannel(channelId);
   });

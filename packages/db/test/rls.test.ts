@@ -499,3 +499,123 @@ describe("retención de datos de YouTube", () => {
     ]);
   });
 });
+
+describe("Fase 2 · guía del guionista y créditos", () => {
+  const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
+  const stages = JSON.stringify({ study: ["0"] });
+  const publish = (uid: string, ch: string, content: string) =>
+    as(
+      uid,
+      async (q) =>
+        (
+          await q(
+            "select public.publish_writer_guide_version($1, $2, 'nota', $3::jsonb, $4::jsonb) as id",
+            [ch, content, sections, stages],
+          )
+        )[0].id as string,
+    );
+
+  it("publica versiones consecutivas; solo quien configura; no se editan", async () => {
+    const owner = await createUser();
+    const writer = await createUser();
+    const ws = await createWorkspace(owner.id);
+    const ch = await createChannel(ws);
+    await addMember(ws, writer.id, "writer");
+
+    const v1 = await publish(owner.id, ch, "0. PRIORIDADES\nVerdad.");
+    const v2 = await publish(owner.id, ch, "0. PRIORIDADES\nVerdad y claridad.");
+    const versions = await as(writer.id, (q) =>
+      q(
+        "select id, version, sections, created_by from public.writer_guide_versions where channel_id = $1 order by version",
+        [ch],
+      ),
+    );
+    expect(versions.map((v) => v.version)).toEqual([1, 2]);
+    expect(versions[0].sections[0].title).toBe("PRIORIDADES");
+    expect(versions[0].created_by).toBe(owner.id);
+    const [guide] = await sql(
+      "select current_version_id from public.writer_guides where channel_id = $1",
+      [ch],
+    );
+    expect(guide.current_version_id).toBe(v2);
+
+    await expect(publish(writer.id, ch, "x")).rejects.toThrow(/no permite/);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.writer_guide_versions (channel_id, guide_id, version, content) select $1, guide_id, 9, 'x' from public.writer_guide_versions where id = $2",
+          [ch, v1],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    const updated = await as(owner.id, (q) =>
+      q("update public.writer_guide_versions set content = 'cambiado' where id = $1 returning id", [
+        v1,
+      ]),
+    );
+    expect(updated).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q("select public.publish_writer_guide_version($1, 'x', null, '[]'::jsonb, '{}'::jsonb)", [
+          ch,
+        ]),
+      ),
+    ).rejects.toThrow(/no tiene secciones/);
+  });
+
+  it("ficha de entrada en el episodio", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id);
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch);
+    const [row] = await as(owner.id, (q) =>
+      q(
+        "update public.episodes set episode_type = 'product', target_minutes = 12, sponsorship = 'none', own_measurements = 'Medí 3 horas', stance_confirmed = true where id = $1 returning episode_type, target_minutes, sponsorship, stance_confirmed",
+        [ep],
+      ),
+    );
+    expect(row).toEqual({
+      episode_type: "product",
+      target_minutes: 12,
+      sponsorship: "none",
+      stance_confirmed: true,
+    });
+    await expect(
+      as(owner.id, (q) => q("update public.episodes set target_minutes = 90 where id = $1", [ep])),
+    ).rejects.toThrow(/check/);
+  });
+
+  it("créditos: cupo por espacio, consumo del mes y solo la plataforma cambia el cupo", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await sql(
+      `insert into public.usage_ledger (workspace_id, kind, credits, cost_usd, created_at) values
+        ($1, 'script', 120.5, 1.205, now()),
+        ($1, 'script', 999, 9.99, now() - interval '40 days')`,
+      [ws],
+    );
+    const [bal] = await as(owner.id, (q) => q("select * from public.workspace_credits($1)", [ws]));
+    expect(Number(bal.monthly)).toBe(2000);
+    expect(Number(bal.used)).toBe(120.5);
+    expect(Number(bal.remaining)).toBe(1879.5);
+    expect(
+      await as(outsider.id, (q) => q("select * from public.workspace_credits($1)", [ws])),
+    ).toEqual([]);
+
+    await expect(
+      as(owner.id, (q) =>
+        q("update public.workspaces set monthly_credits = 999999 where id = $1", [ws]),
+      ),
+    ).rejects.toThrow(/Solo la administración/);
+    await as(owner.id, (q) =>
+      q("update public.workspaces set name = 'Renombrado' where id = $1", [ws]),
+    );
+    // El cupo lo cambia el servidor (service role) tras verificar que es administración.
+    await sql("update public.workspaces set monthly_credits = 3000 where id = $1", [ws]);
+    const [w] = await sql("select name, monthly_credits from public.workspaces where id = $1", [
+      ws,
+    ]);
+    expect(w).toEqual({ name: "Renombrado", monthly_credits: 3000 });
+  });
+});

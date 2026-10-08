@@ -207,6 +207,11 @@ export default async function EpisodePage({
                     stance: row.stance,
                     keywords: row.keywords,
                     notes: row.notes,
+                    episodeType: row.episode_type,
+                    targetMinutes: row.target_minutes,
+                    sponsorship: row.sponsorship,
+                    ownMeasurements: row.own_measurements,
+                    stanceConfirmed: row.stance_confirmed,
                   }}
                 />
               </CardBody>

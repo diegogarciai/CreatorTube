@@ -1,5 +1,6 @@
 export * from "./checklist";
 export * from "./episodes";
+export * from "./guide";
 export * from "./ics";
 export * from "./ideas";
 export * from "./permissions";
