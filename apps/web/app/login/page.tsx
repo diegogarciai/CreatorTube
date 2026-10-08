@@ -17,9 +17,9 @@ function safeNext(next: string | undefined) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; reason?: string }>;
 }) {
-  const { next, error } = await searchParams;
+  const { next, error, reason } = await searchParams;
   const t = await getTranslations("auth");
   const configured = SUPABASE_CONFIGURED();
   if (configured && (await getUser())) redirect(safeNext(next));
@@ -29,9 +29,13 @@ export default async function LoginPage({
       ? t("configMissing")
       : error === "signup"
         ? t("signupBlocked")
-        : error
-          ? t("callbackError")
-          : null;
+        : error === "callback" && reason === "expired"
+          ? t("callbackExpired")
+          : error === "callback" && reason === "browser"
+            ? t("callbackBrowser")
+            : error
+              ? t("callbackError")
+              : null;
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
