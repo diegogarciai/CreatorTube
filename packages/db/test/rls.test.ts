@@ -977,3 +977,55 @@ describe("Fase 2 · modelos de IA", () => {
     expect(row.default_model).toBeNull();
   });
 });
+
+describe("Fase 2 · panel de consumo", () => {
+  it("el desglose y los presupuestos solo los usa el servidor", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await sql(
+      `insert into public.usage_ledger (workspace_id, kind, credits, cost_usd, meta) values
+        ($1, 'script_outline', 30, 0.3, '{"model":"modelo-a","input_tokens":1000,"output_tokens":200,"ai_usd":0.3}'),
+        ($1, 'script_verify', 10, 0.1, '{"model":"modelo-a","searches":4,"search_usd":0.02}'),
+        ($1, 'script_verify', 5, 0.05, '{"model":"modelo-a","searches":2}')`,
+      [ws],
+    );
+    const rows = await sql(
+      "select kind, calls, cost_usd, searches, search_usd, legacy_searches from public.usage_breakdown(now() - interval '1 day', now() + interval '1 day') where workspace_id = $1 order by kind",
+      [ws],
+    );
+    expect(
+      rows.map((r) => [
+        r.kind,
+        Number(r.calls),
+        Number(r.cost_usd),
+        Number(r.searches),
+        Number(r.search_usd),
+        Number(r.legacy_searches),
+      ]),
+    ).toEqual([
+      ["script_outline", 1, 0.3, 0, 0, 0],
+      ["script_verify", 2, 0.15, 6, 0.02, 2],
+    ]);
+    const [month] = await sql("select calls from public.usage_monthly(1)");
+    expect(Number(month.calls)).toBeGreaterThanOrEqual(3);
+
+    await expect(
+      as(owner.id, (q) =>
+        q("select * from public.usage_breakdown(now() - interval '1 day', now())"),
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await expect(as(owner.id, (q) => q("select * from public.usage_monthly(6)"))).rejects.toThrow(
+      /permission denied/,
+    );
+    await sql("insert into public.service_budgets (service, monthly_usd) values ('ai', 50)");
+    await expect(
+      sql("insert into public.service_budgets (service, monthly_usd) values ('otro', 5)"),
+    ).rejects.toThrow(/check constraint/);
+    expect(await as(owner.id, (q) => q("select service from public.service_budgets"))).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q("insert into public.service_budgets (service, monthly_usd) values ('parallel', 1)"),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+});

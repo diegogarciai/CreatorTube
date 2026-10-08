@@ -381,7 +381,10 @@ async function charge(
   model: string,
   extra: { searches?: number; searchUsd?: number } = {},
 ) {
-  const usd = ai.costUsd(usage, model) + (extra.searchUsd ?? 0);
+  // La parte de IA y la de búsqueda van por separado para el panel de consumo.
+  const aiUsd = ai.costUsd(usage, model);
+  const searchUsd = extra.searchUsd ?? 0;
+  const usd = aiUsd + searchUsd;
   const credits = usdToCredits(usd);
   await db.from("usage_ledger").insert({
     workspace_id: run.workspace_id,
@@ -391,7 +394,12 @@ async function charge(
     kind: `script_${spec.key}`,
     credits,
     cost_usd: usd,
-    meta: { model, ...usage, ...(extra.searches !== undefined && { searches: extra.searches }) },
+    meta: {
+      model,
+      ...usage,
+      ai_usd: aiUsd,
+      ...(extra.searches !== undefined && { searches: extra.searches, search_usd: searchUsd }),
+    },
   });
   return credits;
 }

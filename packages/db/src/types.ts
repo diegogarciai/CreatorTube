@@ -1340,6 +1340,35 @@ export type Database = {
           },
         ];
       };
+      service_budgets: {
+        Row: {
+          service: string;
+          monthly_usd: number;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          service: string;
+          monthly_usd: number;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          service?: string;
+          monthly_usd?: number;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_budgets_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tasks: {
         Row: {
           id: string;
@@ -2085,6 +2114,34 @@ export type Database = {
       shares_workspace_with: {
         Args: { other: string };
         Returns: boolean;
+      };
+      usage_breakdown: {
+        Args: { since: string; until: string };
+        Returns: {
+          workspace_id: string;
+          kind: string;
+          model: string;
+          calls: number;
+          credits: number;
+          cost_usd: number;
+          input_tokens: number;
+          output_tokens: number;
+          cache_tokens: number;
+          searches: number;
+          search_usd: number;
+          legacy_searches: number;
+        }[];
+      };
+      usage_monthly: {
+        Args: { months: number };
+        Returns: {
+          month: string;
+          calls: number;
+          cost_usd: number;
+          searches: number;
+          search_usd: number;
+          legacy_searches: number;
+        }[];
       };
       workspace_credits: {
         Args: { ws: string };

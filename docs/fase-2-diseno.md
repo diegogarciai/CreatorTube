@@ -399,3 +399,10 @@ Pendientes:
   - catálogo con los modelos que la API ofrece a la cuenta (**Actualizar lista**, tarea `ai_models_refresh`) y el precio de cada uno para los créditos;
   - por espacio, un modelo por defecto y, si se quiere, uno distinto por etapa (Dirección, Estudio, Guion, Verificación, Publicación, Podcast e importación de YouTube);
   - sin nada elegido se usan `AI_MODEL` y los precios de las variables; cada corrida guarda los modelos que usó y el consumo se cobra al precio del modelo que respondió.
+
+- **Panel de consumo de servicios** (**Administración → Consumo de servicios**):
+  - por mes y por espacio, lo que registra la app de cada servicio: IA (Claude) por espacio, etapa y modelo; Parallel (búsquedas y costo); cuota diaria de YouTube por canal y estado de las conexiones; tareas del motor (hechas y fallidas, con el error); Artlist, sin conectar hasta la Fase 3;
+  - gráfica de los últimos 6 meses (IA y Parallel) y enlace a la consola de cada servicio para ver la factura real;
+  - presupuesto mensual por servicio (`service_budgets`; en YouTube, % de la cuota diaria) con aviso al 80 % y rojo al superarlo;
+  - desde ahora cada registro guarda por separado la parte de IA (`ai_usd`) y la de búsqueda (`search_usd`); en los viejos la búsqueda se estima a US$0,005;
+  - se arregló «IA este mes» de cada espacio en Administración, que salía siempre en US$0,00.
