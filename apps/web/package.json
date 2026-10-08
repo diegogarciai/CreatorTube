@@ -20,6 +20,7 @@
     "@planificador/core": "workspace:*",
     "@planificador/db": "workspace:*",
     "@planificador/jobs": "workspace:*",
+    "@planificador/motion": "workspace:*",
     "@planificador/youtube": "workspace:*",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.3",

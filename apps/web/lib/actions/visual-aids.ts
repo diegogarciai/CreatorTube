@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { formatsFor } from "@planificador/motion";
 import {
   AID_PIECES,
   validateAidRows,
@@ -155,6 +156,82 @@ export async function editAid(aidId: string, input: unknown): Promise<ActionResu
       })
       .eq("id", aid.id);
     if (error) throw error;
+    revalidate(row.channel_id, aid.episode_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/**
+ * Crea las filas de render (una por formato) de esas ayudas aprobadas y lanza
+ * la tarea. Un render nuevo reemplaza al anterior del mismo formato.
+ */
+async function startRenders(
+  episode: { id: string; channel_id: string; workspace_id: string },
+  userId: string,
+  aids: { id: string; kind: string; vertical: boolean }[],
+) {
+  const admin = createAdminClient();
+  await startJob(
+    "render_aids",
+    {
+      workspaceId: episode.workspace_id,
+      channelId: episode.channel_id,
+      episodeId: episode.id,
+      requestedBy: userId,
+    },
+    async (taskId) => {
+      const now = new Date().toISOString();
+      const rows = aids.flatMap((a) =>
+        formatsFor({ kind: a.kind as AidKind, vertical: a.vertical }).map((format) => ({
+          visual_aid_id: a.id,
+          episode_id: episode.id,
+          channel_id: episode.channel_id,
+          format,
+          status: "queued",
+          path: null,
+          bytes: null,
+          duration_s: null,
+          error: null,
+          task_id: taskId,
+          created_at: now,
+        })),
+      );
+      const { error } = await admin
+        .from("aid_renders")
+        .upsert(rows, { onConflict: "visual_aid_id,format" });
+      if (error) throw error;
+    },
+  );
+}
+
+/** Renderiza todas las ayudas aprobadas del episodio. */
+export async function renderApprovedAids(episodeId: string): Promise<ActionResult> {
+  try {
+    const { user, row } = await loadEpisode(episodeId);
+    const admin = createAdminClient();
+    const { data: aids } = await admin
+      .from("visual_aids")
+      .select("id, kind, vertical")
+      .eq("episode_id", episodeId)
+      .eq("status", "approved");
+    if (!aids?.length) return { ok: false, error: "errors.no_approved_aids" };
+    await startRenders(row, user.id, aids);
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Rehace el render de una ayuda aprobada. */
+export async function renderAid(aidId: string): Promise<ActionResult> {
+  try {
+    const { aid, row } = await loadAid(aidId);
+    if (aid.status !== "approved") return { ok: false, error: "errors.no_approved_aids" };
+    const user = await requireUser();
+    await startRenders(row, user.id, [aid]);
     revalidate(row.channel_id, aid.episode_id);
     return { ok: true };
   } catch (err) {

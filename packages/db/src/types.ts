@@ -98,6 +98,93 @@ export type Database = {
         };
         Relationships: [];
       };
+      aid_renders: {
+        Row: {
+          id: string;
+          visual_aid_id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          task_id: string | null;
+          format: string;
+          status: string;
+          path: string | null;
+          bytes: number | null;
+          duration_s: number | null;
+          error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          visual_aid_id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          format: string;
+          status?: string;
+          path?: string | null;
+          bytes?: number | null;
+          duration_s?: number | null;
+          error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          visual_aid_id?: string;
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          format?: string;
+          status?: string;
+          path?: string | null;
+          bytes?: number | null;
+          duration_s?: number | null;
+          error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "aid_renders_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aid_renders_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aid_renders_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aid_renders_visual_aid_id_fkey";
+            columns: ["visual_aid_id"];
+            isOneToOne: false;
+            referencedRelation: "visual_aids";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aid_renders_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       brand_kits: {
         Row: {
           channel_id: string;

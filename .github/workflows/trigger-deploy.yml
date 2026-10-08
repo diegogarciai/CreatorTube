@@ -11,6 +11,7 @@ on:
       - "packages/ai/**"
       - "packages/core/**"
       - "packages/db/src/**"
+      - "packages/motion/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/trigger-deploy.yml"
   workflow_dispatch:
@@ -38,6 +39,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # El bundle de Remotion (piezas animadas) viaja con el despliegue.
+      - name: Armar el bundle de Remotion
+        run: pnpm --filter @planificador/motion build
       - name: Desplegar en Trigger.dev
         working-directory: apps/jobs
         env:

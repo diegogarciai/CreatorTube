@@ -1,5 +1,6 @@
 import { additionalFiles } from "@trigger.dev/build/extensions/core";
 import { defineConfig } from "@trigger.dev/sdk";
+import { remotionChrome } from "./build-extensions/remotion-chrome";
 import { markFailed } from "./src/lib/task-row";
 
 /**
@@ -14,9 +15,13 @@ export default defineConfig({
   maxDuration: 1800,
   build: {
     // sharp trae binarios nativos: se instala en la imagen y no se empaqueta.
-    external: ["sharp"],
+    external: ["sharp", "@remotion/renderer"],
     // La fuente de las miniaturas viaja con el despliegue.
-    extensions: [additionalFiles({ files: ["./assets/fonts/**"] })],
+    extensions: [
+      // El bundle de Remotion se arma antes del despliegue (pnpm --filter @planificador/motion build).
+      additionalFiles({ files: ["./assets/fonts/**", "../../packages/motion/build/**"] }),
+      remotionChrome(),
+    ],
   },
   retries: {
     enabledInDev: false,

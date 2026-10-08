@@ -5,6 +5,7 @@
 export type { aiModelsRefreshTask } from "./trigger/ai-models";
 export type { directionTask } from "./trigger/direction";
 export type { pingTask } from "./trigger/ping";
+export type { renderAidsTask } from "./trigger/render-aids";
 export type { scriptTask } from "./trigger/script";
 export type { thumbnailIdeasTask } from "./trigger/thumbnail-ideas";
 export type { thumbnailsTask } from "./trigger/thumbnails";
@@ -21,5 +22,6 @@ export const JOB_KINDS = [
   "thumbnails",
   "thumbnail_ideas",
   "visual_plan",
+  "render_aids",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];

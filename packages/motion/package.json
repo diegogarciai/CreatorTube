@@ -1,0 +1,28 @@
+{
+  "name": "@planificador/motion",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "remotion bundle src/root.tsx --public-dir public --out-dir build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@planificador/core": "workspace:*",
+    "remotion": "4.0.534",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@planificador/config": "workspace:*",
+    "@remotion/cli": "4.0.534",
+    "@types/react": "19.2.18",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

@@ -137,7 +137,11 @@ export default async function EpisodePage({
       ? loadTitleOptions({ id: episodeId, currentScriptRunId: row.current_script_run_id })
       : null,
     tab === "production"
-      ? loadVisualAidsView({ id: episodeId, currentScriptRunId: row.current_script_run_id })
+      ? loadVisualAidsView({
+          id: episodeId,
+          code: row.code,
+          currentScriptRunId: row.current_script_run_id,
+        })
       : null,
   ]);
   const directionState: DirectionState | null = direction.data

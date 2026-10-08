@@ -4,7 +4,20 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Check, Copy, Loader2, PencilLine, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
+import {
+  Check,
+  Clapperboard,
+  Copy,
+  Download,
+  Loader2,
+  PencilLine,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  Undo2,
+  X,
+} from "lucide-react";
 import {
   AID_PIECES,
   pieceLabel,
@@ -19,8 +32,14 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
-import { editAid, proposeVisualPlan, setAidStatus } from "@/lib/actions/visual-aids";
-import type { VisualAidView, VisualAidsView } from "@/lib/data/visual-aids";
+import {
+  editAid,
+  proposeVisualPlan,
+  renderAid,
+  renderApprovedAids,
+  setAidStatus,
+} from "@/lib/actions/visual-aids";
+import type { AidRenderView, VisualAidView, VisualAidsView } from "@/lib/data/visual-aids";
 import { createClient } from "@/lib/supabase/browser";
 import { VISUAL_PLAN_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
@@ -83,6 +102,23 @@ export function VisualAidsPanel({
     return () => clearInterval(timer);
   }, [view.active, supabase, episodeId, router]);
 
+  // Mientras renderiza, se consulta el estado de los renders; si cambia, se recarga.
+  const renderSignature = view.aids
+    .flatMap((a) => a.renders.map((r) => `${r.id}:${r.status}`))
+    .join(",");
+  useEffect(() => {
+    if (!view.rendering) return;
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from("aid_renders")
+        .select("id, status")
+        .eq("episode_id", episodeId);
+      const now = (data ?? []).map((r) => `${r.id}:${r.status}`);
+      if (now.some((x) => !renderSignature.includes(x))) router.refresh();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [view.rendering, supabase, episodeId, router, renderSignature]);
+
   const count = (k: VisualAidView["kind"]) =>
     view.aids.filter((a) => a.kind === k && a.status !== "discarded").length;
   const approved = view.aids.filter((a) => a.status === "approved");
@@ -95,6 +131,15 @@ export function VisualAidsPanel({
       else toast.error(errorText(res.error));
     });
   };
+
+  const renderAll = () =>
+    start(async () => {
+      const res = await renderApprovedAids(episodeId);
+      if (res.ok) {
+        toast.success(t("renderStarted"));
+        router.refresh();
+      } else toast.error(errorText(res.error));
+    });
 
   const copy = async () => {
     await navigator.clipboard.writeText(planToText(approved.map(toAid)));
@@ -160,10 +205,29 @@ export function VisualAidsPanel({
                 {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 {copied ? t("copied") : t("copy")}
               </Button>
+              {canEdit ? (
+                <Button
+                  size="sm"
+                  onClick={renderAll}
+                  disabled={pending || view.rendering || !approved.length}
+                >
+                  {view.rendering ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Clapperboard className="size-3.5" />
+                  )}
+                  {t("renderAll", { count: approved.length })}
+                </Button>
+              ) : null}
             </div>
+            {view.rendering ? (
+              <p className="flex items-center gap-2 text-xs text-muted">
+                <Loader2 className="size-3.5 animate-spin text-accent" /> {t("rendering")}
+              </p>
+            ) : null}
             <ol className="space-y-2">
               {view.aids.map((aid) => (
-                <AidItem key={aid.id} aid={aid} canEdit={canEdit} />
+                <AidItem key={aid.id} aid={aid} canEdit={canEdit} busy={view.rendering} />
               ))}
             </ol>
           </>
@@ -175,7 +239,7 @@ export function VisualAidsPanel({
   );
 }
 
-function AidItem({ aid, canEdit }: { aid: VisualAidView; canEdit: boolean }) {
+function AidItem({ aid, canEdit, busy }: { aid: VisualAidView; canEdit: boolean; busy: boolean }) {
   const t = useTranslations("visualAids");
   const errorText = useActionError();
   const router = useRouter();
@@ -252,8 +316,32 @@ function AidItem({ aid, canEdit }: { aid: VisualAidView; canEdit: boolean }) {
         </div>
       )}
 
+      {aid.status === "approved" && aid.renders.length ? (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {aid.renders.map((r) => (
+            <RenderBox key={r.id} render={r} />
+          ))}
+        </div>
+      ) : null}
+
       {canEdit && !editing ? (
         <div className="mt-2 flex flex-wrap gap-2">
+          {aid.status === "approved" && aid.renders.length ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending || busy}
+              onClick={() =>
+                start(async () => {
+                  const res = await renderAid(aid.id);
+                  if (res.ok) router.refresh();
+                  else toast.error(errorText(res.error));
+                })
+              }
+            >
+              <RefreshCw className="size-3.5" /> {t("rerender")}
+            </Button>
+          ) : null}
           {aid.status !== "approved" ? (
             <Button size="sm" onClick={() => status("approved")} disabled={pending}>
               <Check className="size-3.5" /> {t("approve")}
@@ -280,6 +368,61 @@ function AidItem({ aid, canEdit }: { aid: VisualAidView; canEdit: boolean }) {
         </div>
       ) : null}
     </li>
+  );
+}
+
+const RENDER_TONE: Record<AidRenderView["status"], Tone> = {
+  queued: "neutral",
+  rendering: "accent",
+  ready: "ok",
+  failed: "critical",
+};
+
+/** Un formato renderizado: vista previa, estado y descarga. */
+function RenderBox({ render }: { render: AidRenderView }) {
+  const t = useTranslations("visualAids");
+  const errorText = useActionError();
+  return (
+    <div
+      className="space-y-1 rounded-lg border border-border p-2"
+      data-testid={`render-${render.format}`}
+    >
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="font-medium">{t(`format.${render.format}`)}</span>
+        <Badge tone={RENDER_TONE[render.status]}>{t(`renderStatus.${render.status}`)}</Badge>
+        {render.outdated ? <Badge tone="warn">{t("renderOutdated")}</Badge> : null}
+        {render.bytes ? (
+          <span className="text-muted">{(render.bytes / 1024 / 1024).toFixed(1)} MB</span>
+        ) : null}
+      </div>
+      {render.url ? (
+        <video
+          src={render.url}
+          controls
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className={cn(
+            "w-full rounded",
+            render.format === "vertical" ? "aspect-[9/16] max-h-80 object-contain" : "aspect-video",
+            render.format === "alpha" &&
+              "bg-[conic-gradient(#ccc_25%,#fff_0_50%,#ccc_0_75%,#fff_0)] bg-[length:16px_16px]",
+          )}
+        />
+      ) : null}
+      {render.status === "failed" && render.error ? (
+        <p className="text-xs text-critical">{errorText(render.error)}</p>
+      ) : null}
+      {render.downloadUrl ? (
+        <a
+          href={render.downloadUrl}
+          className="inline-flex items-center gap-1 text-xs text-accent underline"
+        >
+          <Download className="size-3.5" /> {t("download")}
+        </a>
+      ) : null}
+    </div>
   );
 }
 

@@ -542,7 +542,8 @@
     "scheme_needs_product": "Ese esquema necesita fotos del producto: sube al menos 1 (y 2 para el duelo).",
     "thumbnail_needs_idea": "Elige primero los textos de las miniaturas en la lista.",
     "invalid_scheme_set": "Las 3 miniaturas necesitan esquemas distintos, al menos una con cara y una sin cara.",
-    "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion."
+    "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion.",
+    "no_approved_aids": "Aprueba al menos una ayuda visual antes de renderizar."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -601,7 +602,8 @@
       "ai_models_refresh": "Actualizar modelos de IA",
       "thumbnails": "Miniaturas",
       "thumbnail_ideas": "Textos para miniaturas",
-      "visual_plan": "Plan de ayudas visuales"
+      "visual_plan": "Plan de ayudas visuales",
+      "render_aids": "Render de ayudas visuales"
     },
     "status": {
       "queued": "En cola",
@@ -858,7 +860,8 @@
       "youtube_import": "Importación de YouTube",
       "other": "Otros",
       "thumbnails": "Miniaturas",
-      "visual_aids": "Ayudas visuales"
+      "visual_aids": "Ayudas visuales",
+      "render": "Render (Trigger.dev)"
     },
     "parallelDesc": "Búsquedas web de la verificación.",
     "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",
@@ -1144,6 +1147,24 @@
     "fieldDuration": "Duración (s)",
     "fieldPiece": "Pieza",
     "addElement": "Agregar elemento",
-    "removeElement": "Quitar elemento"
+    "removeElement": "Quitar elemento",
+    "renderAll": "Renderizar aprobadas ({count})",
+    "renderStarted": "Renderizando las ayudas aprobadas…",
+    "rendering": "Renderizando… puedes salir de esta página: el trabajo sigue en segundo plano.",
+    "rerender": "Rehacer render",
+    "format": {
+      "horizontal": "Horizontal 1920 × 1080",
+      "vertical": "Vertical 1080 × 1920",
+      "green": "Fondo verde (croma)",
+      "alpha": "Transparente (WebM)"
+    },
+    "renderStatus": {
+      "queued": "En cola",
+      "rendering": "Renderizando",
+      "ready": "Listo",
+      "failed": "Falló"
+    },
+    "renderOutdated": "Editada después del render",
+    "download": "Descargar"
   }
 }
