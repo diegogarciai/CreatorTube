@@ -541,7 +541,8 @@
     "no_verdict": "El guion no tiene veredicto («el punto»). Sin veredicto no se diseñan las miniaturas: termina el guion con una postura.",
     "scheme_needs_product": "Ese esquema necesita fotos del producto: sube al menos 1 (y 2 para el duelo).",
     "thumbnail_needs_idea": "Elige primero los textos de las miniaturas en la lista.",
-    "invalid_scheme_set": "Las 3 miniaturas necesitan esquemas distintos, al menos una con cara y una sin cara."
+    "invalid_scheme_set": "Las 3 miniaturas necesitan esquemas distintos, al menos una con cara y una sin cara.",
+    "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -599,7 +600,8 @@
       "youtube_import": "Importar videos de YouTube",
       "ai_models_refresh": "Actualizar modelos de IA",
       "thumbnails": "Miniaturas",
-      "thumbnail_ideas": "Textos para miniaturas"
+      "thumbnail_ideas": "Textos para miniaturas",
+      "visual_plan": "Plan de ayudas visuales"
     },
     "status": {
       "queued": "En cola",
@@ -814,7 +816,8 @@
       "publication": "Publicación",
       "podcast": "Podcast",
       "youtube_import": "Importación de YouTube",
-      "thumbnails": "Miniaturas (brief y calificación)"
+      "thumbnails": "Miniaturas (brief y calificación)",
+      "visual_aids": "Ayudas visuales"
     }
   },
   "usage": {
@@ -854,7 +857,8 @@
       "podcast": "Podcast",
       "youtube_import": "Importación de YouTube",
       "other": "Otros",
-      "thumbnails": "Miniaturas"
+      "thumbnails": "Miniaturas",
+      "visual_aids": "Ayudas visuales"
     },
     "parallelDesc": "Búsquedas web de la verificación.",
     "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",
@@ -1092,5 +1096,54 @@
     "fromThumbnail": "De la miniatura {letter}",
     "tooLong": "Pasa de {max} caracteres.",
     "empty": "Todavía no hay títulos: genera el guion hasta Publicación o elige los textos de las miniaturas."
+  },
+  "visualAids": {
+    "title": "Plan de ayudas visuales",
+    "description": "Motion graphics (M), etiquetas de concepto (C) y listas (L) del guion verificado, con las reglas de la sección 12. Aprueba cuáles se hacen, corrige sus textos y copia el plan para el editor.",
+    "propose": "Proponer plan",
+    "repropose": "Rehacer plan",
+    "reproposeConfirm": "Se reemplazan las ayudas propuestas y descartadas; las aprobadas se conservan si siguen en el guion. ¿Continuar?",
+    "estimate": "Costo estimado: {cost}",
+    "working": "Armando el plan… puedes salir de esta página.",
+    "failed": "No se pudo armar el plan.",
+    "notVerified": "El plan sale del guion verificado: termina antes la verificación del guion.",
+    "outdated": "Este plan salió de una versión anterior del guion. Rehaz el plan para el guion actual.",
+    "empty": "Todavía no hay plan. Propónlo a partir del guion verificado.",
+    "summary": "{m} M · {c} C · {l} L",
+    "approved": "{count, plural, one {# aprobada} other {# aprobadas}}",
+    "copy": "Copiar plan aprobado",
+    "copied": "Copiado",
+    "concept": "Concepto: {term}",
+    "statusApproved": "Aprobada",
+    "statusDiscarded": "Descartada",
+    "edited": "Editada",
+    "vertical": "También vertical",
+    "anchor": "Entra en «{anchor}»",
+    "idea": "Idea visual: {idea}",
+    "row": "Fila #{row}",
+    "piece": "Pieza: {piece}",
+    "duration": "{s} s",
+    "score": "{score}/20",
+    "footer": "Pie: {footer}",
+    "approve": "Aprobar",
+    "discard": "Descartar",
+    "undo": "Volver a propuesta",
+    "edit": "Editar",
+    "save": "Guardar",
+    "fieldTitle": "Título en pantalla",
+    "fieldTerm": "Término",
+    "fieldIdea": "Idea visual",
+    "fieldDefinition": "Definición (máx. 14 palabras)",
+    "fieldElements": "Elementos (2 a 6 palabras)",
+    "fieldElement": "Elemento {n}",
+    "fieldValue": "Cifra",
+    "fieldUnit": "Unidad",
+    "fieldAnchor": "Dónde empieza",
+    "fieldRows": "Filas de verificación (#)",
+    "fieldFooter": "Pie",
+    "fieldDuration": "Duración (s)",
+    "fieldPiece": "Pieza",
+    "addElement": "Agregar elemento",
+    "removeElement": "Quitar elemento"
   }
 }

@@ -1,0 +1,473 @@
+"use client";
+
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { Check, Copy, Loader2, PencilLine, Plus, Sparkles, Trash2, Undo2, X } from "lucide-react";
+import {
+  AID_PIECES,
+  pieceLabel,
+  planToText,
+  scoreTotal,
+  validateAidText,
+  type AidElement,
+  type AidPiece,
+  type VisualAid,
+} from "@planificador/core";
+import { Badge, type Tone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Input, Select, Textarea } from "@/components/ui/form";
+import { editAid, proposeVisualPlan, setAidStatus } from "@/lib/actions/visual-aids";
+import type { VisualAidView, VisualAidsView } from "@/lib/data/visual-aids";
+import { createClient } from "@/lib/supabase/browser";
+import { VISUAL_PLAN_ESTIMATE_CREDITS } from "@/lib/tasks";
+import { useActionError } from "@/lib/use-action-error";
+import { cn, usd } from "@/lib/utils";
+
+const KIND_TONE: Record<VisualAidView["kind"], Tone> = { M: "accent", C: "ok", L: "warn" };
+const ROW_OK = new Set(["verified", "nuanced"]);
+
+const toAid = (a: VisualAidView): VisualAid => ({
+  kind: a.kind,
+  code: a.code,
+  anchor: a.anchor,
+  idea: a.idea,
+  title: a.title,
+  definition: a.definition,
+  elements: a.elements,
+  rows: a.rows,
+  footer: a.footer,
+  durationS: a.durationS,
+  piece: a.piece,
+  scores: a.scores,
+  vertical: a.vertical,
+});
+
+/**
+ * Plan de ayudas visuales (sección 12): motion graphics (M), etiquetas de
+ * concepto (C) y listas (L). El presentador aprueba, descarta o corrige cada
+ * una, y copia el plan aprobado para el editor.
+ */
+export function VisualAidsPanel({
+  episodeId,
+  view,
+  canEdit,
+}: {
+  episodeId: string;
+  view: VisualAidsView;
+  canEdit: boolean;
+}) {
+  const t = useTranslations("visualAids");
+  const errorText = useActionError();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [copied, setCopied] = useState(false);
+
+  // Mientras se arma el plan, se consulta la tarea; al terminar, se recarga.
+  const supabase = useMemo(() => createClient(), []);
+  useEffect(() => {
+    if (!view.active) return;
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from("tasks")
+        .select("status")
+        .eq("episode_id", episodeId)
+        .eq("kind", "visual_plan")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data && data.status !== "queued" && data.status !== "running") router.refresh();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [view.active, supabase, episodeId, router]);
+
+  const count = (k: VisualAidView["kind"]) =>
+    view.aids.filter((a) => a.kind === k && a.status !== "discarded").length;
+  const approved = view.aids.filter((a) => a.status === "approved");
+
+  const propose = () => {
+    if (view.aids.length && !confirm(t("reproposeConfirm"))) return;
+    start(async () => {
+      const res = await proposeVisualPlan(episodeId);
+      if (res.ok) router.refresh();
+      else toast.error(errorText(res.error));
+    });
+  };
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(planToText(approved.map(toAid)));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <Card data-testid="visual-aids">
+      <CardHeader
+        title={t("title")}
+        description={t("description")}
+        action={
+          canEdit ? (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                variant="secondary"
+                onClick={propose}
+                disabled={pending || view.active || !view.verified}
+              >
+                {view.active ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                {view.aids.length ? t("repropose") : t("propose")}
+              </Button>
+              <span className="text-xs text-muted">
+                {t("estimate", { cost: usd(VISUAL_PLAN_ESTIMATE_CREDITS) })}
+              </span>
+            </div>
+          ) : null
+        }
+      />
+      <CardBody className="space-y-4 text-sm">
+        {!view.verified ? (
+          <p className="rounded-lg bg-warn-soft px-3 py-2 text-warn">{t("notVerified")}</p>
+        ) : null}
+        {view.active ? (
+          <p className="flex items-center gap-2 text-muted">
+            <Loader2 className="size-4 animate-spin text-accent" /> {t("working")}
+          </p>
+        ) : null}
+        {view.error ? (
+          <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-critical">
+            {t("failed")} {errorText(view.error)}
+          </p>
+        ) : null}
+        {view.outdated ? (
+          <p role="status" className="rounded-lg bg-warn-soft px-3 py-2 text-warn">
+            {t("outdated")}
+          </p>
+        ) : null}
+
+        {view.aids.length ? (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <span data-testid="aids-summary">
+                {t("summary", { m: count("M"), c: count("C"), l: count("L") })} ·{" "}
+                {t("approved", { count: approved.length })}
+              </span>
+              <Button size="sm" variant="secondary" onClick={copy} disabled={!approved.length}>
+                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                {copied ? t("copied") : t("copy")}
+              </Button>
+            </div>
+            <ol className="space-y-2">
+              {view.aids.map((aid) => (
+                <AidItem key={aid.id} aid={aid} canEdit={canEdit} />
+              ))}
+            </ol>
+          </>
+        ) : !view.active ? (
+          <p className="text-muted">{t("empty")}</p>
+        ) : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+function AidItem({ aid, canEdit }: { aid: VisualAidView; canEdit: boolean }) {
+  const t = useTranslations("visualAids");
+  const errorText = useActionError();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [editing, setEditing] = useState(false);
+
+  const status = (next: VisualAidView["status"]) =>
+    start(async () => {
+      const res = await setAidStatus(aid.id, next);
+      if (res.ok) router.refresh();
+      else toast.error(errorText(res.error));
+    });
+
+  const discarded = aid.status === "discarded";
+  return (
+    <li
+      data-testid={`aid-${aid.code}`}
+      className={cn(
+        "rounded-lg border px-3 py-2",
+        aid.status === "approved" ? "border-ok" : "border-border",
+        discarded && "opacity-50",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={KIND_TONE[aid.kind]}>{aid.code}</Badge>
+        <span className="font-semibold">
+          {aid.kind === "C" ? t("concept", { term: aid.title }) : aid.title}
+        </span>
+        {aid.status === "approved" ? <Badge tone="ok">{t("statusApproved")}</Badge> : null}
+        {discarded ? <Badge>{t("statusDiscarded")}</Badge> : null}
+        {aid.edited ? <Badge>{t("edited")}</Badge> : null}
+        {aid.vertical ? <Badge tone="accent">{t("vertical")}</Badge> : null}
+      </div>
+      <p className="mt-1 text-xs text-muted">{t("anchor", { anchor: aid.anchor })}</p>
+
+      {editing ? (
+        <AidEditor aid={aid} onDone={() => setEditing(false)} />
+      ) : (
+        <div className="mt-1 space-y-1 text-xs">
+          {aid.kind === "M" ? (
+            <>
+              {aid.idea ? <p>{t("idea", { idea: aid.idea })}</p> : null}
+              <p>
+                {aid.elements
+                  .map((e) => [e.value, e.unit, e.text].filter(Boolean).join(" "))
+                  .join(" · ")}
+              </p>
+              <p className="flex flex-wrap gap-1.5 text-muted">
+                {aid.rows.map((r) => (
+                  <Badge key={r} tone={ROW_OK.has(aid.rowStatus[r] ?? "") ? "ok" : "critical"}>
+                    {t("row", { row: r })}
+                  </Badge>
+                ))}
+                {aid.piece ? <span>{t("piece", { piece: pieceLabel(aid.piece) })}</span> : null}
+                {aid.durationS ? <span>{t("duration", { s: aid.durationS })}</span> : null}
+                {aid.scores ? <span>{t("score", { score: scoreTotal(aid.scores) })}</span> : null}
+              </p>
+              {aid.footer ? (
+                <p className="text-muted">{t("footer", { footer: aid.footer })}</p>
+              ) : null}
+            </>
+          ) : aid.kind === "C" ? (
+            <p>{aid.definition}</p>
+          ) : (
+            <ul className="list-disc pl-4">
+              {aid.elements.map((e, i) => (
+                <li key={i}>
+                  {e.text}
+                  {e.anchor ? <span className="text-muted"> · «{e.anchor}»</span> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {canEdit && !editing ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {aid.status !== "approved" ? (
+            <Button size="sm" onClick={() => status("approved")} disabled={pending}>
+              <Check className="size-3.5" /> {t("approve")}
+            </Button>
+          ) : null}
+          {aid.status !== "discarded" ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => status("discarded")}
+              disabled={pending}
+            >
+              <Trash2 className="size-3.5" /> {t("discard")}
+            </Button>
+          ) : null}
+          {aid.status !== "proposed" ? (
+            <Button size="sm" variant="ghost" onClick={() => status("proposed")} disabled={pending}>
+              <Undo2 className="size-3.5" /> {t("undo")}
+            </Button>
+          ) : null}
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)} disabled={pending}>
+            <PencilLine className="size-3.5" /> {t("edit")}
+          </Button>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) {
+  const t = useTranslations("visualAids");
+  const errorText = useActionError();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [title, setTitle] = useState(aid.title);
+  const [idea, setIdea] = useState(aid.idea ?? "");
+  const [definition, setDefinition] = useState(aid.definition ?? "");
+  const [elements, setElements] = useState<AidElement[]>(aid.elements);
+  const [rows, setRows] = useState(aid.rows.join(", "));
+  const [footer, setFooter] = useState(aid.footer ?? "");
+  const [duration, setDuration] = useState(String(aid.durationS ?? ""));
+  const [piece, setPiece] = useState<AidPiece | "">(aid.piece ?? "");
+
+  const parsedRows = rows
+    .split(/[,\s]+/)
+    .map((r) => Number(r.replace("#", "")))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  const draft: VisualAid = {
+    ...toAid(aid),
+    title,
+    idea: idea || null,
+    definition: definition || null,
+    elements: elements.filter((e) => e.text.trim()),
+    rows: parsedRows,
+    footer: footer || null,
+    durationS: Number(duration) || null,
+    piece: piece || null,
+  };
+  // Las reglas 12.4 y 12.5, en vivo (las filas las revisa el servidor).
+  const errors = validateAidText(draft);
+
+  const setElement = (i: number, patch: Partial<AidElement>) =>
+    setElements((els) => els.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+
+  const save = () =>
+    start(async () => {
+      const res = await editAid(aid.id, {
+        title,
+        idea: idea || null,
+        definition: definition || null,
+        elements: draft.elements,
+        rows: parsedRows,
+        footer: footer || null,
+        durationS: Number(duration) || null,
+        piece: piece || null,
+      });
+      if (res.ok) {
+        onDone();
+        router.refresh();
+      } else toast.error(errorText(res.error));
+    });
+
+  return (
+    <div className="mt-2 space-y-2 rounded-lg bg-surface-muted p-3 text-xs">
+      <label className="block space-y-1">
+        <span>{aid.kind === "C" ? t("fieldTerm") : t("fieldTitle")}</span>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-8" />
+      </label>
+      {aid.kind === "M" ? (
+        <label className="block space-y-1">
+          <span>{t("fieldIdea")}</span>
+          <Input value={idea} onChange={(e) => setIdea(e.target.value)} className="h-8" />
+        </label>
+      ) : null}
+      {aid.kind === "C" ? (
+        <label className="block space-y-1">
+          <span>{t("fieldDefinition")}</span>
+          <Textarea
+            value={definition}
+            onChange={(e) => setDefinition(e.target.value)}
+            className="min-h-12"
+          />
+        </label>
+      ) : null}
+      {aid.kind !== "C" ? (
+        <div className="space-y-1">
+          <span>{t("fieldElements")}</span>
+          {elements.map((e, i) => (
+            <div key={i} className="flex flex-wrap gap-1.5">
+              {aid.kind === "M" ? (
+                <>
+                  <Input
+                    value={e.value ?? ""}
+                    onChange={(ev) => setElement(i, { value: ev.target.value || null })}
+                    placeholder={t("fieldValue")}
+                    aria-label={t("fieldValue")}
+                    className="h-8 w-20"
+                  />
+                  <Input
+                    value={e.unit ?? ""}
+                    onChange={(ev) => setElement(i, { unit: ev.target.value || null })}
+                    placeholder={t("fieldUnit")}
+                    aria-label={t("fieldUnit")}
+                    className="h-8 w-16"
+                  />
+                </>
+              ) : null}
+              <Input
+                value={e.text}
+                onChange={(ev) => setElement(i, { text: ev.target.value })}
+                aria-label={t("fieldElement", { n: i + 1 })}
+                className="h-8 min-w-40 flex-1"
+              />
+              {aid.kind === "L" ? (
+                <Input
+                  value={e.anchor ?? ""}
+                  onChange={(ev) => setElement(i, { anchor: ev.target.value || null })}
+                  placeholder={t("fieldAnchor")}
+                  aria-label={t("fieldAnchor")}
+                  className="h-8 min-w-32 flex-1"
+                />
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setElements((els) => els.filter((_, j) => j !== i))}
+                aria-label={t("removeElement")}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setElements((els) => [...els, { text: "" }])}
+          >
+            <Plus className="size-3.5" /> {t("addElement")}
+          </Button>
+        </div>
+      ) : null}
+      {aid.kind === "M" ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span>{t("fieldRows")}</span>
+            <Input value={rows} onChange={(e) => setRows(e.target.value)} className="h-8" />
+          </label>
+          <label className="block space-y-1">
+            <span>{t("fieldFooter")}</span>
+            <Input value={footer} onChange={(e) => setFooter(e.target.value)} className="h-8" />
+          </label>
+          <label className="block space-y-1">
+            <span>{t("fieldDuration")}</span>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              className="h-8"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span>{t("fieldPiece")}</span>
+            <Select
+              value={piece}
+              onChange={(e) => setPiece(e.target.value as AidPiece)}
+              className="h-8"
+            >
+              {AID_PIECES.map((p) => (
+                <option key={p} value={p}>
+                  {pieceLabel(p)}
+                </option>
+              ))}
+            </Select>
+          </label>
+        </div>
+      ) : null}
+      {errors.length ? (
+        <ul role="alert" className="text-critical" data-testid="aid-errors">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="flex gap-2">
+        <Button size="sm" onClick={save} disabled={pending || errors.length > 0}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {t("save")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDone}>
+          <X className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}

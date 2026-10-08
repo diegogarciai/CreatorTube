@@ -57,3 +57,6 @@ export const THUMBNAIL_IDEAS_ESTIMATE_CREDITS = 6;
 
 /** Cambiar el texto de una miniatura: solo se recompone y se califica. */
 export const THUMBNAIL_TEXT_ESTIMATE_CREDITS = 2;
+
+/** Plan de ayudas visuales: una llamada a Claude con el guion verificado. */
+export const VISUAL_PLAN_ESTIMATE_CREDITS = 15;

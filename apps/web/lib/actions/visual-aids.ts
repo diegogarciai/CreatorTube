@@ -1,0 +1,163 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import {
+  AID_PIECES,
+  validateAidRows,
+  validateAidText,
+  type AidKind,
+  type VisualAid,
+} from "@planificador/core";
+import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
+import { startJob } from "../jobs";
+import { createAdminClient } from "../supabase/admin";
+import { VISUAL_PLAN_ESTIMATE_CREDITS } from "../tasks";
+import { errorMessage, type ActionResult } from "../utils";
+
+/**
+ * Plan de ayudas visuales (Fase 3 · paso 3). Las filas de `visual_aids` las
+ * escribe el servidor: aquí se revisan el permiso y las reglas de la sección 12.
+ */
+
+async function loadEpisode(episodeId: string) {
+  const user = await requireUser();
+  const supabase = await getSupabase();
+  const { data: row } = await supabase
+    .from("episodes")
+    .select("id, channel_id, workspace_id, current_script_run_id")
+    .eq("id", episodeId)
+    .single();
+  if (!row) throw new Error("errors.not_found");
+  const ctx = await getChannelContext(row.channel_id);
+  if (!ctx.can("write_script")) throw new PermissionError();
+  return { user, supabase, row };
+}
+
+const revalidate = (channelId: string, episodeId: string) =>
+  revalidatePath(`/c/${channelId}/episodios/${episodeId}`);
+
+/** Lanza la tarea que arma el plan de ayudas visuales del guion verificado. */
+export async function proposeVisualPlan(episodeId: string): Promise<ActionResult> {
+  try {
+    const { user, supabase, row } = await loadEpisode(episodeId);
+    if (!row.current_script_run_id) return { ok: false, error: "errors.no_verified_script" };
+    const { count } = await supabase
+      .from("script_step_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("run_id", row.current_script_run_id)
+      .eq("step", "fix")
+      .eq("status", "succeeded");
+    if (!count) return { ok: false, error: "errors.no_verified_script" };
+    const { data: credits } = await supabase.rpc("workspace_credits", { ws: row.workspace_id });
+    if (Number(credits?.[0]?.remaining ?? 0) < VISUAL_PLAN_ESTIMATE_CREDITS)
+      return { ok: false, error: "errors.no_credits" };
+    await startJob("visual_plan", {
+      workspaceId: row.workspace_id,
+      channelId: row.channel_id,
+      episodeId,
+      requestedBy: user.id,
+    });
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+async function loadAid(aidId: string) {
+  const admin = createAdminClient();
+  const { data: aid } = await admin.from("visual_aids").select("*").eq("id", aidId).single();
+  if (!aid) throw new Error("errors.not_found");
+  const { row } = await loadEpisode(aid.episode_id);
+  return { admin, aid, row };
+}
+
+const statusSchema = z.enum(["proposed", "approved", "discarded"]);
+
+/** Aprueba, descarta o devuelve a propuesta una ayuda. */
+export async function setAidStatus(aidId: string, status: unknown): Promise<ActionResult> {
+  try {
+    const next = statusSchema.parse(status);
+    const { admin, aid, row } = await loadAid(aidId);
+    const { error } = await admin.from("visual_aids").update({ status: next }).eq("id", aid.id);
+    if (error) throw error;
+    revalidate(row.channel_id, aid.episode_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+const elementSchema = z.object({
+  text: z.string().trim().max(120),
+  value: z.string().trim().max(30).nullish(),
+  unit: z.string().trim().max(20).nullish(),
+  anchor: z.string().trim().max(200).nullish(),
+});
+
+const editSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  idea: z.string().trim().max(400).nullish(),
+  definition: z.string().trim().max(200).nullish(),
+  elements: z.array(elementSchema).max(12),
+  rows: z.array(z.number().int().min(1).max(999)).max(12),
+  footer: z.string().trim().max(200).nullish(),
+  durationS: z.number().int().min(1).max(60).nullish(),
+  piece: z.enum(AID_PIECES).nullish(),
+});
+
+/**
+ * Corrige los textos de una ayuda con las reglas de la sección 12: largos de
+ * 12.4 y, en una M, que sus cifras salgan de filas Verificado o Con matiz.
+ */
+export async function editAid(aidId: string, input: unknown): Promise<ActionResult> {
+  try {
+    const edit = editSchema.parse(input);
+    const { admin, aid, row } = await loadAid(aidId);
+    const kind = aid.kind as AidKind;
+    const next: VisualAid = {
+      kind,
+      code: aid.code,
+      anchor: aid.anchor,
+      idea: kind === "M" ? (edit.idea ?? aid.idea) : null,
+      title: edit.title,
+      definition: kind === "C" ? (edit.definition ?? null) : null,
+      elements: kind === "C" ? [] : edit.elements.filter((e) => e.text),
+      rows: kind === "M" ? edit.rows : [],
+      footer: kind === "M" ? (edit.footer ?? null) : null,
+      durationS: kind === "M" ? (edit.durationS ?? aid.duration_s) : null,
+      piece: kind === "M" ? (edit.piece ?? (aid.piece as VisualAid["piece"])) : null,
+    };
+    let broken = validateAidText(next);
+    if (kind === "M") {
+      const { data: claims } = aid.script_run_id
+        ? await admin
+            .from("verification_items")
+            .select("idx, status")
+            .eq("run_id", aid.script_run_id)
+        : { data: [] };
+      broken = [...broken, ...validateAidRows(next, claims ?? [])];
+    }
+    if (broken.length) return { ok: false, error: broken.join(" ") };
+    const { error } = await admin
+      .from("visual_aids")
+      .update({
+        title: next.title,
+        idea: next.idea ?? null,
+        definition: next.definition ?? null,
+        elements: next.elements,
+        claim_rows: next.rows,
+        footer: next.footer ?? null,
+        duration_s: next.durationS ?? null,
+        piece: next.piece ?? null,
+        edited: true,
+      })
+      .eq("id", aid.id);
+    if (error) throw error;
+    revalidate(row.channel_id, aid.episode_id);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}

@@ -19,6 +19,7 @@ export const USAGE_STAGES = [
   "podcast",
   "youtube_import",
   "thumbnails",
+  "visual_aids",
   "other",
 ] as const;
 export type UsageStage = (typeof USAGE_STAGES)[number];
@@ -27,6 +28,7 @@ export type UsageStage = (typeof USAGE_STAGES)[number];
 export function stageOfKind(kind: string): UsageStage {
   if (kind === "direction" || kind === "youtube_import") return kind;
   if (kind.startsWith("thumbnail_")) return "thumbnails";
+  if (kind === "visual_plan") return "visual_aids";
   if (kind.startsWith("script_")) {
     const step = kind.slice("script_".length);
     if (isScriptStep(step)) return stepSpec(step).stage;

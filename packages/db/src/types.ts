@@ -1982,6 +1982,126 @@ export type Database = {
           },
         ];
       };
+      visual_aids: {
+        Row: {
+          id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          task_id: string | null;
+          script_run_id: string | null;
+          kind: string;
+          code: string;
+          position: number;
+          paragraph: number;
+          anchor: string;
+          idea: string | null;
+          title: string;
+          definition: string | null;
+          elements: Json;
+          claim_rows: number[];
+          footer: string | null;
+          duration_s: number | null;
+          piece: string | null;
+          scores: Json | null;
+          vertical: boolean;
+          status: string;
+          edited: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          script_run_id?: string | null;
+          kind: string;
+          code: string;
+          position?: number;
+          paragraph?: number;
+          anchor: string;
+          idea?: string | null;
+          title: string;
+          definition?: string | null;
+          elements?: Json;
+          claim_rows?: number[];
+          footer?: string | null;
+          duration_s?: number | null;
+          piece?: string | null;
+          scores?: Json | null;
+          vertical?: boolean;
+          status?: string;
+          edited?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          script_run_id?: string | null;
+          kind?: string;
+          code?: string;
+          position?: number;
+          paragraph?: number;
+          anchor?: string;
+          idea?: string | null;
+          title?: string;
+          definition?: string | null;
+          elements?: Json;
+          claim_rows?: number[];
+          footer?: string | null;
+          duration_s?: number | null;
+          piece?: string | null;
+          scores?: Json | null;
+          vertical?: boolean;
+          status?: string;
+          edited?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "visual_aids_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "visual_aids_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "visual_aids_script_run_id_fkey";
+            columns: ["script_run_id"];
+            isOneToOne: false;
+            referencedRelation: "script_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "visual_aids_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "visual_aids_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       workspace_ai_settings: {
         Row: {
           workspace_id: string;
