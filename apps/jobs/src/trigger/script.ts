@@ -195,6 +195,19 @@ export async function runScript(
           previous:
             stage === "study" || stage === "script" ? await previousBlocks(db, run.id, stage) : [],
         };
+        // El guion verificado sale de la tabla al día, con las decisiones que el
+        // presentador haya tomado fila por fila (10.4).
+        if (spec.key === "fix") {
+          const claims = await loadClaims(db, run.id);
+          if (claims.length) {
+            bodies.verify = verificationTable(claims);
+            await db
+              .from("script_step_runs")
+              .update({ body: bodies.verify })
+              .eq("run_id", run.id)
+              .eq("step", "verify");
+          }
+        }
         const done = stepInputs(spec.key, bodies);
         const progress = async (message: string, preview?: string) => {
           // Solo mientras corre: un aviso tardío no pisa el paso ya terminado.
@@ -394,6 +407,8 @@ async function loadClaims(db: ServiceClient, runId: string): Promise<Claim[]> {
     date: r.data_date,
     value: r.value,
     note: r.note,
+    decision: r.decision as Claim["decision"],
+    decisionValue: r.decision_value,
   }));
 }
 

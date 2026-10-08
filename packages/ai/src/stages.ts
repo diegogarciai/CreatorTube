@@ -132,7 +132,7 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       "fix",
       "verification",
       "GUION — TELEPROMPTER VERIFICADO",
-      "el teleprompter de arriba corregido con la tabla de verificación: cada Con matiz reescrito con su matiz, cada dato de Marca dicho atribuido, cada ___DATO completado con su valor verificado, y cada No verificable o Contradicho resuelto con la regla 10.4 (reescribir con lo confirmado, eliminar la línea o dejar ___DATO POR CONFIRMAR___). Aplica también el control de sesgo 10.7. Sin avisos ni notas dentro del texto: el panel los muestra. Texto plano, sin ninguna marca",
+      "el teleprompter de arriba corregido con la tabla de verificación: cada Con matiz reescrito con su matiz, cada dato de Marca dicho atribuido, cada ___DATO completado con su valor verificado, y cada No verificable o Contradicho resuelto con la regla 10.4 (reescribir con lo confirmado, eliminar la línea o dejar ___DATO POR CONFIRMAR___). Si la tabla trae «Decisiones del presentador», esas mandan: aplica en cada fila la salida que eligió y, si da un valor, úsalo tal cual. Aplica también el control de sesgo 10.7. Sin avisos ni notas dentro del texto: el panel los muestra. Texto plano, sin ninguna marca",
       { plain: true, effort: "high", guide: "verification_fix" },
     ),
     step(

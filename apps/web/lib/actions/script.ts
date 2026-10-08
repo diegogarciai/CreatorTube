@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import {
   directionBlock,
+  needsDecision,
   IMPLEMENTED_STEPS,
   isScriptStep,
   SCRIPT_STAGES,
@@ -222,6 +224,10 @@ export async function startScript(
               data_date: item.data_date,
               value: item.value,
               note: item.note,
+              decision: item.decision,
+              decision_value: item.decision_value,
+              decided_by: item.decided_by,
+              decided_at: item.decided_at,
             })),
           );
           if (copyError) throw copyError;
@@ -254,6 +260,62 @@ export async function startScript(
         .eq("id", run.id);
       throw err;
     }
+    revalidatePath(`/c/${row.channel_id}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+const decisionSchema = z
+  .object({
+    idx: z.number().int().positive(),
+    decision: z.enum(["rewrite", "remove", "mark", "value"]).nullable(),
+    value: z.string().trim().max(300).optional(),
+  })
+  .refine((d) => d.decision !== "value" || Boolean(d.value), { message: "errors.invalid_input" });
+
+/**
+ * Guarda la salida de la regla 10.4 que elige el presentador para una fila de
+ * la verificación vigente. Se aplica al rehacer el guion verificado.
+ */
+export async function decideClaim(episodeId: string, input: unknown): Promise<ActionResult> {
+  try {
+    const { idx, decision, value } = decisionSchema.parse(input);
+    const user = await requireUser();
+    const supabase = await getSupabase();
+    const { data: row } = await supabase
+      .from("episodes")
+      .select("channel_id, current_script_run_id")
+      .eq("id", episodeId)
+      .single();
+    if (!row?.current_script_run_id) throw new Error("errors.not_found");
+    const ctx = await getChannelContext(row.channel_id);
+    if (!ctx.can("write_script")) throw new PermissionError();
+
+    const { data: item } = await supabase
+      .from("verification_items")
+      .select("kind, status")
+      .eq("run_id", row.current_script_run_id)
+      .eq("idx", idx)
+      .maybeSingle();
+    if (!item) throw new Error("errors.not_found");
+    if (!needsDecision({ kind: item.kind as "fact", status: item.status as "pending" })) {
+      throw new Error("errors.invalid_input");
+    }
+
+    const { error } = await createAdminClient()
+      .from("verification_items")
+      .update({
+        decision,
+        decision_value: decision === "value" ? value! : null,
+        decided_by: decision ? user.id : null,
+        decided_at: decision ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("run_id", row.current_script_run_id)
+      .eq("idx", idx);
+    if (error) throw error;
     revalidatePath(`/c/${row.channel_id}`, "layout");
     return { ok: true };
   } catch (err) {

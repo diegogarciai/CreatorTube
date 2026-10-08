@@ -10,11 +10,16 @@ import { AlertTriangle, Check, Copy, Loader2, Mic, Minus, RotateCcw } from "luci
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { VerificationTable } from "@/components/episodes/verification-table";
 import { updateEpisode } from "@/lib/actions/episodes";
 import { startScript } from "@/lib/actions/script";
 import type { ScriptStageView, ScriptStepView, ScriptView } from "@/lib/data/script";
 import { createClient } from "@/lib/supabase/browser";
-import { PODCAST_ESTIMATE_CREDITS, SCRIPT_ESTIMATE_CREDITS } from "@/lib/tasks";
+import {
+  FIX_REDO_ESTIMATE_CREDITS,
+  PODCAST_ESTIMATE_CREDITS,
+  SCRIPT_ESTIMATE_CREDITS,
+} from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
 import { cn, usd } from "@/lib/utils";
 
@@ -165,6 +170,7 @@ export function ScriptPanel({
   };
   const index = currentStage.steps.findIndex((s) => s.key === currentStep?.key);
   const isPodcast = currentStage.stage === "podcast";
+  const fixStep = stages.flatMap((s) => s.steps).find((s) => s.key === "fix");
   const podcastDone = isPodcast && currentStage.steps.some((s) => s.body);
   const stepActive = active && (!isPodcast || podcastInRun);
 
@@ -221,10 +227,21 @@ export function ScriptPanel({
               ))}
             </ul>
             {canEdit ? (
-              <Button size="sm" onClick={() => generate("motion")} disabled={pending}>
-                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-                {t("continueWithPending")}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {verification.items.length ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setSel({ stage: "verification", step: "verify" })}
+                  >
+                    {t("decideInTable")}
+                  </Button>
+                ) : null}
+                <Button size="sm" onClick={() => generate("motion")} disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {t("continueWithPending")}
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -415,6 +432,25 @@ export function ScriptPanel({
                             : null
                         }
                         pending={pending}
+                        custom={
+                          currentStep.key === "verify" &&
+                          currentStep.body &&
+                          verification.items.length ? (
+                            <VerificationTable
+                              episodeId={episodeId}
+                              items={verification.items}
+                              markdown={currentStep.body}
+                              canEdit={canEdit}
+                              onRedo={
+                                canEdit && !active && fixStep?.canRestart
+                                  ? () => generate("fix")
+                                  : null
+                              }
+                              redoCost={usd(FIX_REDO_ESTIMATE_CREDITS)}
+                              pending={pending}
+                            />
+                          ) : undefined
+                        }
                       />
                     ) : null}
                   </>
@@ -508,6 +544,7 @@ function StepPane({
   targetMinutes,
   onRestart,
   pending,
+  custom,
 }: {
   step: ScriptStepView;
   previous: string | null;
@@ -519,6 +556,8 @@ function StepPane({
   targetMinutes: number;
   onRestart: (() => void) | null;
   pending: boolean;
+  /** Vista propia del paso en lugar del texto (la tabla de verificación). */
+  custom?: ReactNode;
 }) {
   const t = useTranslations("script");
   const errorText = useActionError();
@@ -562,7 +601,7 @@ function StepPane({
             {t("revisionNote")}
           </p>
         ) : null}
-        <BlockView step={step} targetMinutes={targetMinutes} />
+        {custom ?? <BlockView step={step} targetMinutes={targetMinutes} />}
       </div>
     );
   } else if (step.status === "failed" || step.status === "incomplete") {

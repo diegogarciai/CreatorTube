@@ -17,6 +17,8 @@ import { RETRY_DELAYS_MS, type StageOptions, type StreamClient } from "./stages"
 export type ClaimKind = "fact" | "opinion" | "dato";
 export type ClaimStatus = "pending" | "verified" | "nuanced" | "unverifiable" | "contradicted";
 export type ClaimNature = "brand" | "independent" | "own" | "press" | "estimate";
+/** La salida de la regla 10.4 que eligió el presentador; sin decisión, decide Claude. */
+export type ClaimDecision = "rewrite" | "remove" | "mark" | "value";
 
 // Alias, no interface: se guarda en jsonb y en filas.
 export type Claim = {
@@ -33,6 +35,9 @@ export type Claim = {
   date: string | null;
   value: string | null;
   note: string;
+  decision?: ClaimDecision | null;
+  /** El valor que da el presentador cuando la decisión es «value». */
+  decisionValue?: string | null;
 };
 
 /** Un resultado de búsqueda tal como lo devuelve el buscador. */
@@ -600,14 +605,40 @@ export function verificationTable(claims: readonly Claim[]): string {
       ...opinions.map((c) => `- ${cell(c.claim)} — «${cell(c.line)}»`),
     );
   }
+  const decided = claims.filter((c) => c.decision && needsDecision(c));
+  if (decided.length) {
+    out.push(
+      "",
+      "**Decisiones del presentador (mandan sobre la regla 10.4)**",
+      "",
+      ...decided.map((c) =>
+        c.decision === "value"
+          ? `- #${c.idx} (${cell(c.claim)}): usar el valor «${cell(c.decisionValue)}», que da el presentador`
+          : `- #${c.idx} (${cell(c.claim)}): ${DECISION_TEXT[c.decision!]}`,
+      ),
+    );
+  }
   return out.join("\n");
 }
 
+/**
+ * Las que piden una decisión del presentador (10.4): hechos No verificable o
+ * Contradicho y datos que no quedaron Verificados.
+ */
+export function needsDecision(c: Pick<Claim, "kind" | "status">): boolean {
+  return (
+    c.kind !== "opinion" &&
+    (c.status === "unverifiable" || c.status === "contradicted" || c.status === "pending")
+  );
+}
+
+const DECISION_TEXT: Record<Exclude<ClaimDecision, "value">, string> = {
+  rewrite: "reescribir la línea con lo confirmado",
+  remove: "eliminar la línea",
+  mark: "dejar ___DATO POR CONFIRMAR___",
+};
+
 /** Cuántas quedan por resolver para la regla de bloqueo (10.4). */
 export function blockingClaims(claims: readonly Claim[]): Claim[] {
-  return claims.filter(
-    (c) =>
-      c.kind !== "opinion" &&
-      (c.status === "unverifiable" || c.status === "contradicted" || c.status === "pending"),
-  );
+  return claims.filter(needsDecision);
 }

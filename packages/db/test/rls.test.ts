@@ -853,6 +853,33 @@ describe("Fase 2 · guion en etapas", () => {
         q("select id from public.verification_items where run_id = $1", [run.id]),
       ),
     ).toEqual([]);
+
+    // Decisiones del presentador (10.4): las escribe el servidor; «value» pide el dato.
+    await expect(
+      sql("update public.verification_items set decision = 'value' where run_id = $1", [run.id]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      sql("update public.verification_items set decision = 'otra' where run_id = $1", [run.id]),
+    ).rejects.toThrow(/check constraint/);
+    await sql(
+      "update public.verification_items set decision = 'value', decision_value = '1.099 dólares', decided_by = $2 where run_id = $1",
+      [run.id, writer.id],
+    );
+    expect(
+      await as(writer.id, (q) =>
+        q("select decision, decision_value from public.verification_items where run_id = $1", [
+          run.id,
+        ]),
+      ),
+    ).toEqual([{ decision: "value", decision_value: "1.099 dólares" }]);
+    expect(
+      await as(writer.id, (q) =>
+        q(
+          "update public.verification_items set decision = 'remove' where run_id = $1 returning 1",
+          [run.id],
+        ),
+      ),
+    ).toEqual([]);
   });
 });
 
