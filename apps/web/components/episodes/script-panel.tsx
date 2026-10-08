@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import ReactMarkdown from "react-markdown";
@@ -46,6 +46,7 @@ export function ScriptPanel({
   canEdit,
   canTag,
   directionDone,
+  direction,
   targetMinutes,
   timezone,
 }: {
@@ -55,6 +56,8 @@ export function ScriptPanel({
   /** Puede cambiar las keywords y el pilar del episodio. */
   canTag: boolean;
   directionDone: boolean;
+  /** La Dirección del episodio, como primera pestaña (antes de Estudio). */
+  direction?: ReactNode;
   targetMinutes: number;
   timezone: string;
 }) {
@@ -78,7 +81,14 @@ export function ScriptPanel({
     allSteps.find((x) => x.step.status === "failed" || x.step.status === "incomplete") ??
     [...allSteps].reverse().find((x) => x.step.body) ??
     allSteps[0]!;
-  const [sel, setSel] = useState({ stage: focus.stage.stage, step: focus.step.key });
+  // `stage` es una etapa o "direction", la pestaña de la Dirección; si la
+  // Dirección está por responder, se abre esa.
+  const [sel, setSel] = useState<{ stage: string; step: string }>(
+    direction && !directionDone
+      ? { stage: "direction", step: "" }
+      : { stage: focus.stage.stage, step: focus.step.key },
+  );
+  const showDirection = Boolean(direction) && sel.stage === "direction";
   // Cuando la corrida avanza a otro paso, la selección lo sigue.
   const [followed, setFollowed] = useState(focus.step.key);
   if (followed !== focus.step.key) {
@@ -211,7 +221,7 @@ export function ScriptPanel({
               ))}
             </ul>
             {canEdit ? (
-              <Button size="sm" onClick={() => generate("reels")} disabled={pending}>
+              <Button size="sm" onClick={() => generate("motion")} disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                 {t("continueWithPending")}
               </Button>
@@ -256,6 +266,22 @@ export function ScriptPanel({
               aria-label={t("stages")}
               className="flex gap-1 overflow-x-auto border-b border-border"
             >
+              {direction ? (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={showDirection}
+                  onClick={() => setSel({ stage: "direction", step: "" })}
+                  className={cn(
+                    "-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm",
+                    showDirection
+                      ? "border-accent font-medium text-text"
+                      : "border-transparent text-muted hover:text-text",
+                  )}
+                >
+                  {t("directionTab")}
+                </button>
+              ) : null}
               {stages.map((s) => (
                 <button
                   key={s.stage}
@@ -276,119 +302,125 @@ export function ScriptPanel({
               ))}
             </div>
 
-            {isPodcast && !podcastDone && !(active && podcastInRun) ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm">
-                <p className="w-full text-muted">
-                  {podcastReady ? t("podcast") : t("podcastNeedsVerification")}
-                </p>
-                {canEdit && podcastReady ? (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={() => generate("podcast_script")}
-                      disabled={pending || active}
-                    >
-                      {pending ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Mic className="size-4" />
-                      )}
-                      {t("generatePodcast")}
-                    </Button>
-                    <span className="text-xs text-muted">
-                      {t("podcastEstimate", { cost: usd(PODCAST_ESTIMATE_CREDITS) })}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-
-            {currentStage.implemented ? (
+            {showDirection ? (
+              direction
+            ) : (
               <>
-                <div role="tablist" aria-label={t("steps")} className="flex flex-wrap gap-1.5">
-                  {currentStage.steps.map((s, i) => (
-                    <button
-                      key={s.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={currentStep?.key === s.key}
-                      onClick={() => setSel({ stage: currentStage.stage, step: s.key })}
-                      className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
-                        currentStep?.key === s.key
-                          ? "border-accent bg-accent-soft font-medium text-text"
-                          : "border-border bg-surface text-muted hover:bg-surface-muted",
-                      )}
-                    >
-                      <StepIcon status={s.status} />
-                      {s.key.startsWith("extra-") ? null : `${i + 1}. `}
-                      {stepLabel(s)}
-                    </button>
-                  ))}
-                </div>
-                {currentStep?.key === "assets_json" && suggestion ? (
-                  <div
-                    role="note"
-                    className="space-y-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-3 text-sm"
-                  >
-                    <p className="font-semibold">{t("suggestionTitle")}</p>
-                    <p className="text-muted">{t("suggestionHint")}</p>
-                    {suggestion.keywords ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>
-                          {t("suggestedKeywords", { keywords: suggestion.keywords.join(", ") })}
+                {isPodcast && !podcastDone && !(active && podcastInRun) ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-3 text-sm">
+                    <p className="w-full text-muted">
+                      {podcastReady ? t("podcast") : t("podcastNeedsVerification")}
+                    </p>
+                    {canEdit && podcastReady ? (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => generate("podcast_script")}
+                          disabled={pending || active}
+                        >
+                          {pending ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Mic className="size-4" />
+                          )}
+                          {t("generatePodcast")}
+                        </Button>
+                        <span className="text-xs text-muted">
+                          {t("podcastEstimate", { cost: usd(PODCAST_ESTIMATE_CREDITS) })}
                         </span>
-                        {canTag ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={pending}
-                            onClick={() => applySuggestion({ keywords: suggestion.keywords! })}
-                          >
-                            {t("use")}
-                          </Button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {suggestion.pillar ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{t("suggestedPillar", { pillar: suggestion.pillar.name })}</span>
-                        {canTag ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={pending}
-                            onClick={() => applySuggestion({ pillarId: suggestion.pillar!.id })}
-                          >
-                            {t("use")}
-                          </Button>
-                        ) : null}
-                      </div>
+                      </>
                     ) : null}
                   </div>
                 ) : null}
-                {currentStep ? (
-                  <StepPane
-                    step={currentStep}
-                    previous={index > 0 ? stepLabel(currentStage.steps[index - 1]!) : null}
-                    corrected={
-                      currentStep.key === "teleprompter" &&
-                      Boolean(currentStage.steps.find((s) => s.key === "revision")?.body)
-                    }
-                    live={live[currentStep.key]}
-                    runActive={stepActive}
-                    runFailed={run.status === "failed"}
-                    targetMinutes={targetMinutes}
-                    onRestart={
-                      canEdit && !active && currentStep.canRestart
-                        ? () => generate(currentStep.key)
-                        : null
-                    }
-                    pending={pending}
-                  />
+
+                {currentStage.implemented ? (
+                  <>
+                    <div role="tablist" aria-label={t("steps")} className="flex flex-wrap gap-1.5">
+                      {currentStage.steps.map((s, i) => (
+                        <button
+                          key={s.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={currentStep?.key === s.key}
+                          onClick={() => setSel({ stage: currentStage.stage, step: s.key })}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
+                            currentStep?.key === s.key
+                              ? "border-accent bg-accent-soft font-medium text-text"
+                              : "border-border bg-surface text-muted hover:bg-surface-muted",
+                          )}
+                        >
+                          <StepIcon status={s.status} />
+                          {s.key.startsWith("extra-") ? null : `${i + 1}. `}
+                          {stepLabel(s)}
+                        </button>
+                      ))}
+                    </div>
+                    {currentStep?.key === "assets_json" && suggestion ? (
+                      <div
+                        role="note"
+                        className="space-y-2 rounded-lg border border-accent/40 bg-accent-soft px-3 py-3 text-sm"
+                      >
+                        <p className="font-semibold">{t("suggestionTitle")}</p>
+                        <p className="text-muted">{t("suggestionHint")}</p>
+                        {suggestion.keywords ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>
+                              {t("suggestedKeywords", { keywords: suggestion.keywords.join(", ") })}
+                            </span>
+                            {canTag ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={pending}
+                                onClick={() => applySuggestion({ keywords: suggestion.keywords! })}
+                              >
+                                {t("use")}
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {suggestion.pillar ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{t("suggestedPillar", { pillar: suggestion.pillar.name })}</span>
+                            {canTag ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={pending}
+                                onClick={() => applySuggestion({ pillarId: suggestion.pillar!.id })}
+                              >
+                                {t("use")}
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {currentStep ? (
+                      <StepPane
+                        step={currentStep}
+                        previous={index > 0 ? stepLabel(currentStage.steps[index - 1]!) : null}
+                        corrected={
+                          currentStep.key === "teleprompter" &&
+                          Boolean(currentStage.steps.find((s) => s.key === "revision")?.body)
+                        }
+                        live={live[currentStep.key]}
+                        runActive={stepActive}
+                        runFailed={run.status === "failed"}
+                        targetMinutes={targetMinutes}
+                        onRestart={
+                          canEdit && !active && currentStep.canRestart
+                            ? () => generate(currentStep.key)
+                            : null
+                        }
+                        pending={pending}
+                      />
+                    ) : null}
+                  </>
                 ) : null}
               </>
-            ) : null}
+            )}
           </>
         ) : null}
 

@@ -34,12 +34,15 @@ export function DirectionPanel({
   direction,
   hasGuide,
   canEdit,
+  embedded = false,
 }: {
   episodeId: string;
   channelId: string;
   direction: DirectionState | null;
   hasGuide: boolean;
   canEdit: boolean;
+  /** Dentro de la pestaña «Dirección» del guion: sin la tarjeta alrededor. */
+  embedded?: boolean;
 }) {
   const t = useTranslations("direction");
   const errorText = useActionError();
@@ -79,67 +82,79 @@ export function DirectionPanel({
 
   const hasQuestions = (direction?.questions.length ?? 0) > 0;
 
+  const badge =
+    direction?.status === "answered" ? (
+      <Badge tone="ok">{t("answered")}</Badge>
+    ) : direction?.status === "skipped" ? (
+      <Badge>{t("skipped")}</Badge>
+    ) : null;
+
+  const body = (
+    <>
+      {!hasGuide ? (
+        <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
+          {t("noGuide")}{" "}
+          <Link href={`/c/${channelId}/ajustes`} className="underline">
+            {t("goToGuide")}
+          </Link>
+        </p>
+      ) : null}
+
+      {generating ? (
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <Loader2 className="size-4 animate-spin text-accent" /> {t("generating")}
+        </p>
+      ) : null}
+
+      {failed ? (
+        <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">
+          {t("failed")} {direction?.taskError ? `(${errorText(direction.taskError)})` : ""}
+        </p>
+      ) : null}
+
+      {hasQuestions && !generating && direction ? (
+        <DirectionForm
+          key={direction.questions.map((q) => q.id + q.question).join("|")}
+          episodeId={episodeId}
+          direction={direction}
+          canEdit={canEdit}
+          onPrepare={prepare}
+          preparing={pending}
+        />
+      ) : !generating ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {direction?.status === "skipped" ? (
+            <p className="w-full text-sm text-muted">{t("skippedNoQuestions")}</p>
+          ) : null}
+          <Button onClick={prepare} disabled={!canEdit || !hasGuide || pending}>
+            {failed ? t("retry") : t("prepare")}
+          </Button>
+          <span className="text-xs text-muted">
+            {t("estimate", { cost: usd(DIRECTION_ESTIMATE_CREDITS) })}
+          </span>
+          {direction?.status !== "skipped" ? (
+            <SkipButton episodeId={episodeId} disabled={!canEdit} />
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <section id="direccion" className="space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="text-sm text-muted">{t("subtitle")}</p>
+          {badge}
+        </div>
+        {body}
+      </section>
+    );
+  }
   return (
     <Card id="direccion">
-      <CardHeader
-        title={t("title")}
-        description={t("subtitle")}
-        action={
-          direction?.status === "answered" ? (
-            <Badge tone="ok">{t("answered")}</Badge>
-          ) : direction?.status === "skipped" ? (
-            <Badge>{t("skipped")}</Badge>
-          ) : null
-        }
-      />
-      <CardBody className="space-y-5">
-        {!hasGuide ? (
-          <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
-            {t("noGuide")}{" "}
-            <Link href={`/c/${channelId}/ajustes`} className="underline">
-              {t("goToGuide")}
-            </Link>
-          </p>
-        ) : null}
-
-        {generating ? (
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <Loader2 className="size-4 animate-spin text-accent" /> {t("generating")}
-          </p>
-        ) : null}
-
-        {failed ? (
-          <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">
-            {t("failed")} {direction?.taskError ? `(${errorText(direction.taskError)})` : ""}
-          </p>
-        ) : null}
-
-        {hasQuestions && !generating && direction ? (
-          <DirectionForm
-            key={direction.questions.map((q) => q.id + q.question).join("|")}
-            episodeId={episodeId}
-            direction={direction}
-            canEdit={canEdit}
-            onPrepare={prepare}
-            preparing={pending}
-          />
-        ) : !generating ? (
-          <div className="flex flex-wrap items-center gap-3">
-            {direction?.status === "skipped" ? (
-              <p className="w-full text-sm text-muted">{t("skippedNoQuestions")}</p>
-            ) : null}
-            <Button onClick={prepare} disabled={!canEdit || !hasGuide || pending}>
-              {failed ? t("retry") : t("prepare")}
-            </Button>
-            <span className="text-xs text-muted">
-              {t("estimate", { cost: usd(DIRECTION_ESTIMATE_CREDITS) })}
-            </span>
-            {direction?.status !== "skipped" ? (
-              <SkipButton episodeId={episodeId} disabled={!canEdit} />
-            ) : null}
-          </div>
-        ) : null}
-      </CardBody>
+      <CardHeader title={t("title")} description={t("subtitle")} action={badge} />
+      <CardBody className="space-y-5">{body}</CardBody>
     </Card>
   );
 }

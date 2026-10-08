@@ -18,9 +18,9 @@ export const IMPLEMENTED_STAGES: readonly ScriptStage[] = SCRIPT_STAGES;
 
 /**
  * Cada etapa se genera por pasos: una llamada por bloque, en orden, y cada paso
- * recibe lo que ya quedó listo. Los reels, los motion graphics y los B-rolls
- * van después de verificar: así salen del guion verificado y no se pagan dos
- * veces.
+ * recibe lo que ya quedó listo. Los motion graphics y los B-rolls van después
+ * de verificar, y los reels en Publicación: así salen del guion verificado y
+ * no se pagan dos veces.
  */
 export const SCRIPT_STEPS = [
   "dossier",
@@ -32,7 +32,6 @@ export const SCRIPT_STEPS = [
   "claims",
   "verify",
   "fix",
-  "reels",
   "motion",
   "broll",
   "reels_final",
@@ -137,13 +136,6 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       { plain: true, effort: "high", guide: "verification_fix" },
     ),
     step(
-      "reels",
-      "verification",
-      "GUION CON REELS MARCADOS",
-      "secciones 13.3 y 9.7: el teleprompter verificado de arriba, palabra por palabra, con las marcas de reels e invitaciones",
-      { plain: true, guide: "verification_mark" },
-    ),
-    step(
       "motion",
       "verification",
       "MOTION GRAPHICS",
@@ -163,7 +155,7 @@ export const STAGE_STEPS: Partial<Record<ScriptStage, StepSpec[]>> = {
       "reels_final",
       "publication",
       "REELS R1, R2 Y R3",
-      "sección 13.4: los tres reels en orden (R1, R2 y R3), cada uno con título interno, origen, ubicación, guion, texto en pantalla, B-roll, caption, hashtags y, solo si es toma aparte, gancho alternativo. El GUION de cada reel es el fragmento marcado entre >>> y <<< en el guion con reels marcados de arriba, palabra por palabra; el B-roll, si usa motion graphic, la versión vertical del más fuerte de arriba",
+      "sección 13: elige en el guion verificado de arriba los tres fragmentos con los ángulos de la 13.1 y las reglas de la 13.2, y entrega los tres reels en orden (R1, R2 y R3) con el contenido de la 13.4: título interno, origen, ubicación, guion, texto en pantalla, B-roll, caption, hashtags y, solo si es toma aparte, gancho alternativo. El GUION de cada reel inmerso se copia palabra por palabra del guion verificado; el B-roll, si usa motion graphic, la versión vertical del más fuerte de arriba",
       { plain: true },
     ),
     step(
@@ -255,11 +247,11 @@ export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
   const blocks = (...keys: ScriptStep[]) => keys.flatMap((k) => block(k, bodies[k]));
   switch (key) {
     case "reels_final":
-      return blocks("reels", "motion");
+      return blocks("fix", "motion");
     case "assets":
       return blocks("outline", "verify", "fix");
     case "sheet":
-      return blocks("outline", "quality", "verify", "fix", "reels", "reels_final", "motion");
+      return blocks("outline", "quality", "verify", "fix", "reels_final", "motion");
     case "assets_json":
       return blocks("assets", "sheet");
     case "podcast_script":
@@ -278,7 +270,6 @@ export function stepInputs(key: ScriptStep, bodies: StepBodies): Block[] {
         return [...tele, ...block("verify", bodies.verify)];
       case "motion":
         return [...block("verify", bodies.verify), ...block("fix", bodies.fix)];
-      case "reels":
       case "broll":
         return block("fix", bodies.fix);
       default:
