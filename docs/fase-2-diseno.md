@@ -152,7 +152,7 @@ Es la única etapa con búsqueda. Corre como un ciclo controlado por el servidor
 
 **Pegar un resultado de chat.** Se puede pegar una verificación hecha en un chat del proyecto: la app la lee al mismo formato de tabla y sigue con los pasos 5 y 6.
 
-**Bloqueo (10.4).** Mientras quede una fila No verificable o Contradicho sin resolver, el episodio no puede pasar a **Por grabar**. La pantalla muestra cuántas faltan y las tres salidas: reescribir, eliminar o marcar `___DATO POR CONFIRMAR___`. Con esto aparece en la app la acción "Resolver verificación", que el núcleo ya tiene marcada como de la Fase 2.
+**Bloqueo (10.4).** Si al terminar **Verificar** hay filas No verificable o Contradicho, o datos sin confirmar, la corrida se pausa antes del guion verificado y pide decidir en la tabla qué hacer con cada una: reescribir con lo confirmado, eliminar la línea, dejar `___DATO POR CONFIRMAR___` o escribir el dato. Lo que no se decida lo resuelve Claude. Así el guion verificado se escribe una sola vez. Si después quedan `___DATO` que nadie dejó así a propósito, se vuelve a pausar antes de los motion graphics. Mientras queden datos por confirmar, el episodio no pasa a **Por grabar**.
 
 ### Regenerar
 
@@ -385,3 +385,7 @@ Pendientes:
   - en cada fila No verificable o Contradicha, o dato sin confirmar, el presentador elige: que decida Claude, reescribir con lo confirmado, eliminar la línea, dejar **_DATO POR CONFIRMAR_** o escribir el dato;
   - las decisiones se guardan en `verification_items` y la tabla que recibe «Guion verificado» las lleva al final («Decisiones del presentador», que mandan sobre la 10.4);
   - **Rehacer el guion verificado con tus decisiones** vuelve a correr desde ese paso; el aviso de pausa lleva a la tabla con **Decidir en la tabla**.
+
+- **Decisiones antes del guion verificado:**
+  - la corrida se pausa al terminar **Verificar** si alguna fila pide decisión y no la tiene; **Seguir con mis decisiones** escribe el guion verificado una sola vez, con lo decidido (lo demás lo resuelve Claude);
+  - después del guion verificado solo se pausa si quedaron `___DATO` que el presentador no dejó así a propósito.

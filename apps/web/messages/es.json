@@ -697,7 +697,10 @@
     "use": "Usar",
     "used": "Listo: se guardó en el episodio.",
     "directionTab": "Dirección",
-    "decideInTable": "Decidir en la tabla"
+    "decideInTable": "Decidir en la tabla",
+    "pausedVerifyTitle": "La corrida se pausó después de Verificar: {count, plural, one {# fila pide} other {# filas piden}} tu decisión",
+    "pausedVerifyHint": "Decide en la tabla qué hacer con cada una (regla 10.4). Lo que no decidas lo resuelve Claude. Así el guion verificado se escribe una sola vez, ya con tus decisiones.",
+    "continueWithDecisions": "Seguir con mis decisiones"
   },
   "import": {
     "title": "Importar videos publicados",
@@ -763,6 +766,8 @@
     "saveValue": "Guardar dato",
     "summary": "{decided, plural, =0 {Sin decisiones} one {# decisión} other {# decisiones}} · {undecided, plural, =0 {nada por decidir} one {queda # por decidir (la decide Claude)} other {quedan # por decidir (las decide Claude)}}",
     "redo": "Rehacer el guion verificado con tus decisiones",
-    "redoHint": "Vuelve a correr desde «Guion verificado»: motion graphics, B-rolls y Publicación incluidos. Cuesta cerca de {cost}."
+    "redoHint": "Vuelve a correr desde «Guion verificado»: motion graphics, B-rolls y Publicación incluidos. Cuesta cerca de {cost}.",
+    "continue": "Seguir con mis decisiones",
+    "continueHint": "Escribe el guion verificado con lo que decidiste; lo que no decidas lo resuelve Claude."
   }
 }

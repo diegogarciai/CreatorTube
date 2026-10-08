@@ -4,7 +4,7 @@ import { z } from "zod";
 import { addUsage, emptyUsage, type UsageTotals } from "./cost";
 import { isTransientAiError } from "./errors";
 import { AiRefusalError, type AiConfig } from "./generate";
-import { RETRY_DELAYS_MS, type StageOptions, type StreamClient } from "./stages";
+import { pendingDatos, RETRY_DELAYS_MS, type StageOptions, type StreamClient } from "./stages";
 
 /**
  * Verificación (etapa 3, sección 10): se extraen las afirmaciones del guion y
@@ -637,6 +637,27 @@ const DECISION_TEXT: Record<Exclude<ClaimDecision, "value">, string> = {
   remove: "eliminar la línea",
   mark: "dejar ___DATO POR CONFIRMAR___",
 };
+
+/**
+ * La corrida se pausa al terminar Verificar si alguna fila pide decisión y no
+ * la tiene: así el guion verificado se escribe una sola vez, con lo que
+ * decida el presentador.
+ */
+export function pauseAfterVerify(claims: readonly Claim[]): boolean {
+  return claims.some((c) => needsDecision(c) && !c.decision);
+}
+
+/**
+ * Después del guion verificado se pausa si quedan ___DATO, salvo que el
+ * presentador los haya dejado a propósito: decidió todas las filas y al menos
+ * una como «dejar ___DATO POR CONFIRMAR___».
+ */
+export function pauseAfterFix(fixBody: string, claims: readonly Claim[]): boolean {
+  if (!pendingDatos(fixBody).length) return false;
+  const asked = claims.filter(needsDecision);
+  const onPurpose = asked.every((c) => c.decision) && asked.some((c) => c.decision === "mark");
+  return !onPurpose;
+}
 
 /** Cuántas quedan por resolver para la regla de bloqueo (10.4). */
 export function blockingClaims(claims: readonly Claim[]): Claim[] {
