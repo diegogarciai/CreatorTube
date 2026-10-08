@@ -309,3 +309,10 @@ Pendientes:
   - botón **Probar el motor** en Administración.
 
   La configuración está en [`configurar-trigger.md`](configurar-trigger.md).
+
+- **Paso 3 (preguntas de dirección):**
+  - paquete `packages/ai` con el prompt, la salida estructurada (zod), las reglas que se pueden contar, el bloque «DIRECCIÓN DEL EPISODIO», la ficha desde las respuestas y el costo;
+  - tarea `direction` en Trigger.dev, que usa la sección 2 de la guía, la ficha y el contexto del canal, y registra el consumo en `usage_ledger`;
+  - tabla `episode_direction`;
+  - sección **Dirección del episodio** en la pestaña Guion, con **Guardar respuestas**, **Saltar** y **Volver a preparar**;
+  - el modelo se elige con `AI_MODEL` en Trigger.dev.

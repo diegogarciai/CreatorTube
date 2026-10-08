@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 import { ACTION_PHASE, type NextStep } from "@planificador/core";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
 import { completeEpisodeStage, linkEpisodeVideo } from "@/lib/actions/episodes";
 import { useActionError } from "@/lib/use-action-error";
@@ -42,7 +43,17 @@ export function NextStepPanel({
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         {t("episode.nextStep")}
       </p>
-      {step.action === "link_video" && canAct ? (
+      {step.action === "answer_direction" && canAct ? (
+        <div className="mt-2">
+          <Link
+            href="?tab=script#direccion"
+            scroll={false}
+            className={buttonClass("primary", "lg")}
+          >
+            {label} <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      ) : step.action === "link_video" && canAct ? (
         <form
           className="mt-2 flex flex-wrap gap-2"
           onSubmit={(e) => {

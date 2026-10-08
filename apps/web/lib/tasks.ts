@@ -33,3 +33,6 @@ export function mergeTasks(prev: readonly TaskRow[], incoming: readonly TaskRow[
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, limit);
 }
+
+/** Lo que cuesta, a lo sumo, preparar las preguntas de dirección (créditos de US$0,01). */
+export const DIRECTION_ESTIMATE_CREDITS = 5;

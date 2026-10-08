@@ -619,3 +619,64 @@ describe("Fase 2 · guía del guionista y créditos", () => {
     expect(w).toEqual({ name: "Renombrado", monthly_credits: 3000 });
   });
 });
+
+describe("Fase 2 · dirección del episodio", () => {
+  it("la escribe el servidor, la responde quien escribe guiones y nadie la cuelga de otro canal", async () => {
+    const owner = await createUser();
+    const writer = await createUser();
+    const viewer = await createUser();
+    const ws = await createWorkspace(owner.id);
+    const ch = await createChannel(ws);
+    const other = await createChannel(ws, "Otro");
+    await addMember(ws, writer.id, "writer");
+    await addMember(ws, viewer.id, "viewer");
+    const ep = await createEpisode(ch);
+
+    // Los clientes no crean filas: las prepara el motor de tareas.
+    await expect(
+      as(owner.id, (q) =>
+        q("insert into public.episode_direction (episode_id, channel_id) values ($1, $2)", [
+          ep,
+          ch,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      sql("insert into public.episode_direction (episode_id, channel_id) values ($1, $2)", [
+        ep,
+        other,
+      ]),
+    ).rejects.toThrow(/no es de ese canal/);
+    await sql(
+      `insert into public.episode_direction (episode_id, channel_id, status, questions) values ($1, $2, 'ready', '[{"id":"q1"}]')`,
+      [ep, ch],
+    );
+    const [row] = await sql(
+      "select workspace_id from public.episode_direction where episode_id = $1",
+      [ep],
+    );
+    expect(row.workspace_id).toBe(ws);
+
+    const answered = await as(writer.id, (q) =>
+      q(
+        `update public.episode_direction set status = 'answered', answers = '{"q1":{"selected":["A"],"text":""}}' where episode_id = $1 returning status`,
+        [ep],
+      ),
+    );
+    expect(answered).toEqual([{ status: "answered" }]);
+    expect(
+      await as(viewer.id, (q) =>
+        q("update public.episode_direction set extra = 'x' where episode_id = $1 returning 1", [
+          ep,
+        ]),
+      ),
+    ).toEqual([]);
+    expect(
+      (
+        await as(viewer.id, (q) =>
+          q("select status from public.episode_direction where episode_id = $1", [ep]),
+        )
+      )[0].status,
+    ).toBe("answered");
+  });
+});

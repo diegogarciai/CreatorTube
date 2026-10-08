@@ -4,7 +4,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@planificador/core", "@planificador/config", "@planificador/db", "@planificador/youtube"],
+  transpilePackages: ["@planificador/ai", "@planificador/core", "@planificador/config", "@planificador/db", "@planificador/youtube"],
   poweredByHeader: false,
   images: {
     remotePatterns: [

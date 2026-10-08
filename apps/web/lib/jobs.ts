@@ -1,6 +1,6 @@
 import "server-only";
 import { tasks } from "@trigger.dev/sdk";
-import type { JobKind, pingTask } from "@planificador/jobs";
+import type { directionTask, JobKind, pingTask } from "@planificador/jobs";
 import { createAdminClient } from "./supabase/admin";
 
 /** Sin la clave de Trigger.dev la app funciona, pero no puede lanzar tareas largas. */
@@ -8,6 +8,7 @@ export const JOBS_CONFIGURED = () => Boolean(process.env.TRIGGER_SECRET_KEY);
 
 interface JobPayloads {
   ping: typeof pingTask;
+  direction: typeof directionTask;
 }
 
 export interface JobScope {

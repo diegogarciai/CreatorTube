@@ -456,6 +456,100 @@ export type Database = {
           },
         ];
       };
+      episode_direction: {
+        Row: {
+          episode_id: string;
+          workspace_id: string;
+          channel_id: string;
+          status: Database["public"]["Enums"]["direction_status"];
+          reading: string;
+          questions: Json;
+          answers: Json;
+          extra: string;
+          guide_version_id: string | null;
+          task_id: string | null;
+          generated_at: string | null;
+          answered_at: string | null;
+          answered_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          episode_id: string;
+          workspace_id?: string;
+          channel_id: string;
+          status?: Database["public"]["Enums"]["direction_status"];
+          reading?: string;
+          questions?: Json;
+          answers?: Json;
+          extra?: string;
+          guide_version_id?: string | null;
+          task_id?: string | null;
+          generated_at?: string | null;
+          answered_at?: string | null;
+          answered_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          episode_id?: string;
+          workspace_id?: string;
+          channel_id?: string;
+          status?: Database["public"]["Enums"]["direction_status"];
+          reading?: string;
+          questions?: Json;
+          answers?: Json;
+          extra?: string;
+          guide_version_id?: string | null;
+          task_id?: string | null;
+          generated_at?: string | null;
+          answered_at?: string | null;
+          answered_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "episode_direction_answered_by_fkey";
+            columns: ["answered_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_direction_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_direction_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: true;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_direction_guide_version_id_fkey";
+            columns: ["guide_version_id"];
+            isOneToOne: false;
+            referencedRelation: "writer_guide_versions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_direction_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_direction_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       episode_evaluations: {
         Row: {
           id: string;
@@ -1502,6 +1596,7 @@ export type Database = {
     Enums: {
       checklist_phase: "before_publish" | "after_publish";
       connection_status: "active" | "needs_reauth" | "revoked";
+      direction_status: "generating" | "ready" | "answered" | "skipped";
       episode_stage:
         | "planning"
         | "direction"
