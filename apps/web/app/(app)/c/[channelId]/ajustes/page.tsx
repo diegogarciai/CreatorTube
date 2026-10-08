@@ -9,6 +9,7 @@ import { PillarsEditor } from "@/components/settings/pillars-editor";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { RhythmForm } from "@/components/settings/rhythm-form";
 import { WriterGuide } from "@/components/settings/writer-guide";
+import { YouTubeImport } from "@/components/settings/youtube-import";
 import { DEFAULT_STAGE_SECTIONS, type GuideSection, type StageSections } from "@planificador/core";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { channelProfile, channelRhythm } from "@/lib/data/channel";
@@ -21,6 +22,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
   const { channelId } = await params;
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("settings");
+  const tImport = await getTranslations("import");
   const supabase = await getSupabase();
   const [pillars, steps, { data: conn }, { data: guide }, { data: versions }] = await Promise.all([
     getPillars(channelId, true),
@@ -93,6 +95,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             />
           </CardBody>
         </Card>
+        {connection?.status === "active" && ctx.can("manage_episodes") ? (
+          <Card>
+            <CardHeader title={tImport("title")} description={tImport("description")} />
+            <CardBody>
+              <YouTubeImport channelId={channelId} timezone={ctx.channel.timezone} />
+            </CardBody>
+          </Card>
+        ) : null}
         <Card>
           <CardHeader title={t("profile")} description={t("profileDesc")} />
           <CardBody>

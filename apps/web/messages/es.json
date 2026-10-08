@@ -576,7 +576,8 @@
     "kind": {
       "ping": "Prueba del motor de tareas",
       "direction": "Preguntas de dirección",
-      "script": "Guion"
+      "script": "Guion",
+      "youtube_import": "Importar videos de YouTube"
     },
     "status": {
       "queued": "En cola",
@@ -696,5 +697,24 @@
     "use": "Usar",
     "used": "Listo: se guardó en el episodio.",
     "directionTab": "Dirección"
+  },
+  "import": {
+    "title": "Importar videos publicados",
+    "description": "Convierte los videos que ya están en YouTube en episodios Publicados. El guionista los usa para no repetir temas y conectar con videos anteriores.",
+    "search": "Buscar videos en YouTube",
+    "nothing": "No hay videos publicados sin episodio.",
+    "found": "{count, plural, one {# video publicado} other {# videos publicados}} sin episodio. Los Shorts vienen sin marcar.",
+    "selectAll": "Marcar todos",
+    "selectNone": "Desmarcar todos",
+    "short": "Short",
+    "useAi": "Proponer pilar, keywords y postura con Claude",
+    "useAiCost": "Cuesta cerca de {cost} de tus créditos. La postura queda sin confirmar.",
+    "useAiHint": "Sin esto, el pilar y las keywords quedan vacíos para que los llenes tú.",
+    "import": "Importar {count, plural, one {# video} other {# videos}}",
+    "cancel": "Cancelar",
+    "done": "Se {count, plural, one {creó # episodio} other {crearon # episodios}} Publicados.",
+    "doneWithAi": "Se {count, plural, one {creó # episodio} other {crearon # episodios}} Publicados. Claude está proponiendo pilar, keywords y postura: lo ves en Tareas en curso.",
+    "goToProduction": "Ver en Producción",
+    "notConnected": "Conecta el canal de YouTube para importar sus videos."
   }
 }

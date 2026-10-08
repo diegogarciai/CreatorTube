@@ -99,6 +99,7 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
           view_count: v.viewCount,
           like_count: v.likeCount,
           comment_count: v.commentCount,
+          tags: v.tags,
           fetched_at: fetchedAt.toISOString(),
         })),
       );
@@ -160,7 +161,11 @@ function supabaseStore(admin: Admin, timezone: string): SyncStore {
 }
 
 /** Sincroniza un canal con su conexión guardada. */
-export async function syncChannelById(admin: Admin, channelId: string): Promise<SyncResult | null> {
+export async function syncChannelById(
+  admin: Admin,
+  channelId: string,
+  { maxVideos }: { maxVideos?: number } = {},
+): Promise<SyncResult | null> {
   const { data: conn } = await admin
     .from("channel_connections")
     .select(
@@ -179,7 +184,7 @@ export async function syncChannelById(admin: Admin, channelId: string): Promise<
       refreshToken: conn.refresh_token_enc ? decryptSecret(conn.refresh_token_enc, key) : null,
       tokenExpiresAt: conn.token_expires_at ? new Date(conn.token_expires_at) : null,
     },
-    { oauth: oauthConfig(), store: supabaseStore(admin, timezone) },
+    { oauth: oauthConfig(), store: supabaseStore(admin, timezone), maxVideos },
   );
 }
 

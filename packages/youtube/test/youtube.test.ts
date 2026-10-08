@@ -10,6 +10,7 @@ import {
   shouldSync,
   syncChannel,
   verifyState,
+  YouTubeClient,
   type LinkedEpisode,
   type SyncStore,
 } from "../src";
@@ -66,6 +67,36 @@ describe("API", () => {
     expect(parseIsoDuration("PT45S")).toBe(45);
     expect(parseIsoDuration("P1DT1M")).toBe(86460);
     expect(parseIsoDuration("raro")).toBeNull();
+  });
+
+  it("pagina las subidas hasta el máximo y lee las etiquetas", async () => {
+    const pages: (string | null)[] = [];
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/playlistItems")) {
+        const token = url.searchParams.get("pageToken");
+        pages.push(token);
+        const start = token ? Number(token) : 0;
+        const size = Number(url.searchParams.get("maxResults"));
+        return jsonResponse({
+          items: Array.from({ length: size }, (_, i) => ({
+            contentDetails: { videoId: `v${start + i}` },
+          })),
+          nextPageToken: String(start + size),
+        });
+      }
+      return jsonResponse({
+        items: [{ id: "v0", snippet: { title: "A", tags: ["chip", "m5"] }, status: {} }],
+      });
+    });
+    const client = new YouTubeClient("t", fetchImpl as unknown as typeof fetch);
+    const ids = await client.listRecentUploadIds("UU1", 120);
+    expect(ids).toHaveLength(120);
+    expect(ids.at(-1)).toBe("v119");
+    expect(pages).toEqual([null, "50", "100"]);
+    expect(client.quotaUsed).toBe(3);
+    const [video] = await client.getVideos(["v0"]);
+    expect(video!.tags).toEqual(["chip", "m5"]);
   });
 });
 

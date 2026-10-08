@@ -264,15 +264,15 @@ El contexto del canal sale de lo que ya existe:
 - **Ajustes del canal → Guía del guionista**: versiones, diferencias, secciones detectadas y qué etapa recibe cada una.
 - **Bandeja de tareas**: en la barra lateral, lo que está corriendo en el espacio.
 
-## 11. Migración desde el artefacto
+## 11. Importación desde YouTube
 
-Hay que traer los episodios de Gartechs, con estado, fechas, postura, notas y guiones si los hay. Depende de cómo exporte el artefacto (ver decisiones). La idea es un importador de JSON en **Administración** que:
+En lugar de exportar del artefacto, los videos ya publicados se traen directo de YouTube (decisión de Diego, 8 de octubre de 2026). En **Configuración del canal → Importar videos publicados**:
 
-- crea los episodios en el canal conectado;
-- respeta los códigos `GT-…`;
-- muestra un resumen antes de confirmar.
+1. **Buscar videos en YouTube** revisa todas las subidas (hasta 500, 1 unidad de cuota por cada 50) y lista los videos públicos que todavía no son un episodio. Los Shorts (3 minutos o menos) vienen sin marcar.
+2. **Importar** crea un episodio **Publicado** por video, enlazado a él, con el código de su fecha de publicación (`GT-AAMMDD-HHMM`) y ya evaluado, sin acciones pendientes. Los que ya tienen episodio se saltan.
+3. Opcional: la tarea `youtube_import` le pide a Claude, en lotes de 20, el pilar (de los del canal), 6 a 8 keywords y la postura (sin confirmar) de cada video, a partir del título, la descripción y las etiquetas. Cuesta unos US$0,003 por video.
 
-Después de importar, el artefacto queda en solo lectura.
+De YouTube solo se copia el título; la descripción y las etiquetas siguen en `youtube_videos` con la regla de 30 días. Los episodios en curso del artefacto se crean a mano.
 
 ## 12. Plan de entrega
 
@@ -284,7 +284,7 @@ Después de importar, el artefacto queda en solo lectura.
 | 4    | Etapas 1 y 2 (Estudio y Guion)                                             | Un tema real comparado con el panel actual                       |
 | 5    | Etapa 3 (Verificación con Parallel, reanudable y con bloqueo)              | Forzar fallas de búsqueda y reanudar                             |
 | 6    | Etapas 4 y 5; keywords y pilar                                             | Corrida completa                                                 |
-| 7    | Migración desde el artefacto                                               | Importar todo Gartechs                                           |
+| 7    | Importación de los videos publicados desde YouTube                         | Importar todo Gartechs                                           |
 | 8    | Gartechs graba un episodio con guion de la app                             | Criterio de salida                                               |
 
 Cada paso va en su PR, con las pruebas del núcleo y de la base y una prueba de punta a punta. Las llamadas a Claude y a Parallel se simulan en las pruebas automáticas. Las pruebas con IA real se hacen con temas de Gartechs y cuestan créditos.
@@ -373,3 +373,9 @@ Pendientes:
   - se quitó el paso «Guion con reels marcados» de Verificación (queda en 5 pasos): el paso «Reels R1–R3» de Publicación elige los fragmentos en el guion verificado (13.1 y 13.2) y entrega cada reel con su ubicación (13.4). Se ahorra una llamada por corrida;
   - si la verificación deja datos por confirmar, la pausa queda antes de los motion graphics;
   - la Dirección del episodio va arriba solo antes del primer guion; después es la primera pestaña del guion («Dirección», antes de Estudio) y ya no aparece encima de cada paso.
+
+- **Paso 7 (importar desde YouTube):**
+  - el cliente de YouTube pagina las subidas y lee las etiquetas (`youtube_videos.tags`, que también se borra a los 30 días);
+  - acciones `findImportableVideos` e `importYouTubeVideos` y la tarjeta **Importar videos publicados** en la configuración del canal;
+  - el código de un episodio importado lleva su fecha de publicación (el trigger solo respeta un código con el prefijo y el formato del canal);
+  - tabla `youtube_import_items` y tarea `youtube_import`: Claude propone pilar, keywords y postura por lotes de 20; se cobra por lote y, si falla, sigue con los pendientes.
