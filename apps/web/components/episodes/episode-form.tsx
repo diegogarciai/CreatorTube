@@ -3,7 +3,13 @@
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { FORMATS, PRIORITIES } from "@planificador/core";
+import {
+  EPISODE_TYPES,
+  FORMATS,
+  PRIORITIES,
+  SPONSORSHIPS,
+  TARGET_MINUTES,
+} from "@planificador/core";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { updateEpisode } from "@/lib/actions/episodes";
@@ -19,6 +25,11 @@ export interface EpisodeFormValues {
   stance: string;
   keywords: string[];
   notes: string;
+  episodeType: string | null;
+  targetMinutes: number;
+  sponsorship: string | null;
+  ownMeasurements: string;
+  stanceConfirmed: boolean;
 }
 
 export function EpisodeForm({
@@ -51,6 +62,11 @@ export function EpisodeForm({
           .map((k) => k.trim())
           .filter(Boolean),
         notes: form.get("notes"),
+        episodeType: form.get("episodeType"),
+        targetMinutes: form.get("targetMinutes"),
+        sponsorship: form.get("sponsorship"),
+        ownMeasurements: form.get("ownMeasurements"),
+        stanceConfirmed: form.get("stanceConfirmed") === "on",
       });
       if (res.ok) toast.success(t("common.saved"));
       else toast.error(errorText(res.error));
@@ -117,6 +133,60 @@ export function EpisodeForm({
             defaultValue={initial.stance}
             placeholder={t("episode.stancePlaceholder")}
             maxLength={500}
+          />
+        </Field>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="stanceConfirmed"
+            defaultChecked={initial.stanceConfirmed}
+            className="size-4 accent-[var(--accent)]"
+          />
+          {t("episode.stanceConfirmed")}
+        </label>
+        <div className="sm:col-span-2">
+          <h3 className="text-sm font-semibold">{t("episode.brief")}</h3>
+          <p className="text-xs text-muted">{t("episode.briefDesc")}</p>
+        </div>
+        <Field label={t("episode.episodeType")} htmlFor="e-type">
+          <Select id="e-type" name="episodeType" defaultValue={initial.episodeType ?? ""}>
+            <option value="">{t("episode.chooseForMe")}</option>
+            {EPISODE_TYPES.map((v) => (
+              <option key={v} value={v}>
+                {t(`episodeType.${v}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t("episode.targetMinutes")} htmlFor="e-minutes">
+          <Select id="e-minutes" name="targetMinutes" defaultValue={String(initial.targetMinutes)}>
+            {[...new Set([...TARGET_MINUTES, initial.targetMinutes])]
+              .sort((a, b) => a - b)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {t("episode.minutes", { count: m })}
+                </option>
+              ))}
+          </Select>
+        </Field>
+        <Field label={t("episode.sponsorship")} htmlFor="e-sponsor">
+          <Select id="e-sponsor" name="sponsorship" defaultValue={initial.sponsorship ?? ""}>
+            <option value="">{t("sponsorship.unconfirmed")}</option>
+            {SPONSORSHIPS.map((v) => (
+              <option key={v} value={v}>
+                {t(`sponsorship.${v}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t("episode.ownMeasurements")} htmlFor="e-measure" className="sm:col-span-2">
+          <Textarea
+            id="e-measure"
+            name="ownMeasurements"
+            defaultValue={initial.ownMeasurements}
+            rows={3}
+            maxLength={5000}
+            placeholder={t("episode.ownMeasurementsPlaceholder")}
           />
         </Field>
         <Field label={t("episode.notes")} htmlFor="e-notes" className="sm:col-span-2">

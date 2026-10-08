@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toPlannedEpisode, type EpisodeRow } from "./data/episodes";
-import { cn, errorMessage, formatDateKey } from "./utils";
+import { cn, errorMessage, formatDateKey, usd } from "./utils";
 
 describe("utils", () => {
   it("formatea fechas locales sin correrse de día", () => {
@@ -37,5 +37,12 @@ describe("toPlannedEpisode", () => {
     } as EpisodeRow;
     expect(toPlannedEpisode(row, "America/Bogota").publishedOn).toBe("2026-10-07");
     expect(toPlannedEpisode(row, "Europe/Madrid").publishedOn).toBe("2026-10-08");
+  });
+});
+
+describe("créditos", () => {
+  it("muestra dólares con separadores colombianos", () => {
+    expect(usd(2000)).toBe("US$20,00");
+    expect(usd(123456)).toBe("US$1.234,56");
   });
 });

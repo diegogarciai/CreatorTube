@@ -8,6 +8,8 @@ import { ConnectionPanel, RegenerateIcsButton } from "@/components/settings/conn
 import { PillarsEditor } from "@/components/settings/pillars-editor";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { RhythmForm } from "@/components/settings/rhythm-form";
+import { WriterGuide } from "@/components/settings/writer-guide";
+import { DEFAULT_STAGE_SECTIONS, type GuideSection, type StageSections } from "@planificador/core";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { channelProfile, channelRhythm } from "@/lib/data/channel";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
@@ -20,10 +22,22 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("settings");
   const supabase = await getSupabase();
-  const [pillars, steps, { data: conn }] = await Promise.all([
+  const [pillars, steps, { data: conn }, { data: guide }, { data: versions }] = await Promise.all([
     getPillars(channelId, true),
     getChecklistSteps(channelId),
     supabase.rpc("channel_connection_info", { ch: channelId }),
+    supabase
+      .from("writer_guides")
+      .select("current_version_id")
+      .eq("channel_id", channelId)
+      .maybeSingle(),
+    supabase
+      .from("writer_guide_versions")
+      .select(
+        "id, version, notes, created_at, sections, stage_sections, author:profiles(full_name, email)",
+      )
+      .eq("channel_id", channelId)
+      .order("version", { ascending: false }),
   ]);
   const canConfigure = ctx.can("configure_channel");
   const connection = conn?.[0] ?? null;
@@ -33,6 +47,28 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
     timeZone: ctx.channel.timezone,
   });
   const icsUrl = `${env.appUrl}/api/ics/${ctx.channel.ics_token}.ics`;
+  const guideVersions = (versions ?? []).map((v) => ({
+    id: v.id,
+    version: v.version,
+    createdAt: fmt.format(new Date(v.created_at)),
+    author: v.author?.full_name || v.author?.email || null,
+    notes: v.notes,
+  }));
+  const currentRow = (versions ?? []).find((v) => v.id === guide?.current_version_id);
+  const currentGuide = currentRow
+    ? {
+        ...guideVersions.find((v) => v.id === currentRow.id)!,
+        sections: (currentRow.sections as unknown as GuideSection[]).map((x) => ({
+          key: x.key,
+          title: x.title,
+          length: x.body.length,
+        })),
+        stageSections: {
+          ...DEFAULT_STAGE_SECTIONS,
+          ...(currentRow.stage_sections as Partial<StageSections>),
+        },
+      }
+    : null;
 
   return (
     <Page>
@@ -106,6 +142,17 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
                 position: s.position,
                 archived: s.archivedAt !== null,
               }))}
+            />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={t("writerGuide")} description={t("writerGuideDesc")} />
+          <CardBody>
+            <WriterGuide
+              channelId={channelId}
+              current={currentGuide}
+              versions={guideVersions}
+              disabled={!canConfigure}
             />
           </CardBody>
         </Card>

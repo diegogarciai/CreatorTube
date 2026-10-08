@@ -22,6 +22,14 @@ export type EpisodeFormat = (typeof FORMATS)[number];
 
 export const PRIORITIES = ["low", "normal", "high"] as const;
 
+/** Ficha de entrada (reglas del guionista, sección 3). */
+export const EPISODE_TYPES = ["product", "explainer", "news", "opinion"] as const;
+export type EpisodeType = (typeof EPISODE_TYPES)[number];
+/** Patrocinio: `null` = sin confirmar. */
+export const SPONSORSHIPS = ["none", "sponsor", "affiliate"] as const;
+export type Sponsorship = (typeof SPONSORSHIPS)[number];
+export const TARGET_MINUTES = [5, 8, 10, 12, 14] as const;
+
 export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export const episodeCreateSchema = z.object({
@@ -51,6 +59,17 @@ export const episodeUpdateSchema = z.object({
     .union([uuid, z.literal(""), z.null()])
     .transform((v) => v || null)
     .optional(),
+  episodeType: z
+    .union([z.enum(EPISODE_TYPES), z.literal(""), z.null()])
+    .transform((v) => v || null)
+    .optional(),
+  targetMinutes: z.coerce.number().int().min(3).max(30).optional(),
+  sponsorship: z
+    .union([z.enum(SPONSORSHIPS), z.literal(""), z.null()])
+    .transform((v) => v || null)
+    .optional(),
+  ownMeasurements: z.string().max(5000).optional(),
+  stanceConfirmed: z.boolean().optional(),
 });
 export type EpisodeUpdateInput = z.infer<typeof episodeUpdateSchema>;
 
@@ -110,4 +129,10 @@ export const invitationSchema = z.object({
   email: z.email("errors.invalid_email").transform((v) => v.toLowerCase()),
   role: z.enum(ROLES),
   channelIds: z.array(uuid).nullable().default(null),
+});
+
+/** Versión nueva de la guía del guionista: el texto se pega tal cual. */
+export const writerGuideSchema = z.object({
+  content: z.string().trim().min(1, "errors.required").max(300_000),
+  notes: z.string().trim().max(1000).default(""),
 });

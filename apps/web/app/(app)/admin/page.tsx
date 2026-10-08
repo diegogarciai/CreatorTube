@@ -5,9 +5,11 @@ import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { InviteForm } from "@/components/workspace/invite-form";
 import { CreateOwnWorkspaceCard } from "@/components/workspace/no-workspace";
+import { CreditsQuotaForm } from "@/components/workspace/credits";
 import { RevokeInvitationButton } from "@/components/workspace/member-row";
 import { isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { usd } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Administración" };
 
@@ -24,7 +26,7 @@ export default async function AdminPage({
   const [{ data: workspaces }, { data: invitations }] = await Promise.all([
     admin
       .from("workspaces")
-      .select("id, name, created_at, channels(count), memberships(count)")
+      .select("id, name, created_at, monthly_credits, channels(count), memberships(count)")
       .order("created_at", { ascending: false }),
     admin
       .from("invitations")
@@ -34,6 +36,14 @@ export default async function AdminPage({
       .limit(50),
   ]);
   const fmt = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
+  const balances = new Map(
+    await Promise.all(
+      (workspaces ?? []).map(async (w) => {
+        const { data } = await admin.rpc("workspace_credits", { ws: w.id });
+        return [w.id, Number(data?.[0]?.used ?? 0)] as const;
+      }),
+    ),
+  );
 
   return (
     <Page>
@@ -80,6 +90,10 @@ export default async function AdminPage({
                   {t("members", { count: w.memberships?.[0]?.count ?? 0 })}
                 </span>
                 <span className="text-xs text-muted">{fmt.format(new Date(w.created_at))}</span>
+                <span className="w-full text-xs text-muted sm:w-auto">
+                  {t("creditsUsed", { used: usd(balances.get(w.id) ?? 0) })}
+                </span>
+                <CreditsQuotaForm workspaceId={w.id} monthly={w.monthly_credits} />
               </li>
             ))}
           </ul>

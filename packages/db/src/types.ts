@@ -548,6 +548,11 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          episode_type: Database["public"]["Enums"]["episode_type"] | null;
+          target_minutes: number;
+          sponsorship: Database["public"]["Enums"]["sponsorship"] | null;
+          own_measurements: string;
+          stance_confirmed: boolean;
         };
         Insert: {
           id?: string;
@@ -578,6 +583,11 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          episode_type?: Database["public"]["Enums"]["episode_type"] | null;
+          target_minutes?: number;
+          sponsorship?: Database["public"]["Enums"]["sponsorship"] | null;
+          own_measurements?: string;
+          stance_confirmed?: boolean;
         };
         Update: {
           id?: string;
@@ -608,6 +618,11 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          episode_type?: Database["public"]["Enums"]["episode_type"] | null;
+          target_minutes?: number;
+          sponsorship?: Database["public"]["Enums"]["sponsorship"] | null;
+          own_measurements?: string;
+          stance_confirmed?: boolean;
         };
         Relationships: [
           {
@@ -1107,6 +1122,7 @@ export type Database = {
           created_by: string | null;
           created_at: string;
           updated_at: string;
+          monthly_credits: number;
         };
         Insert: {
           id?: string;
@@ -1115,6 +1131,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          monthly_credits?: number;
         };
         Update: {
           id?: string;
@@ -1123,6 +1140,7 @@ export type Database = {
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          monthly_credits?: number;
         };
         Relationships: [
           {
@@ -1145,6 +1163,8 @@ export type Database = {
           notes: string | null;
           created_by: string | null;
           created_at: string;
+          sections: Json;
+          stage_sections: Json;
         };
         Insert: {
           id?: string;
@@ -1156,6 +1176,8 @@ export type Database = {
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
+          sections?: Json;
+          stage_sections?: Json;
         };
         Update: {
           id?: string;
@@ -1167,6 +1189,8 @@ export type Database = {
           notes?: string | null;
           created_by?: string | null;
           created_at?: string;
+          sections?: Json;
+          stage_sections?: Json;
         };
         Relationships: [
           {
@@ -1450,6 +1474,10 @@ export type Database = {
           expires_at: string;
         }[];
       };
+      publish_writer_guide_version: {
+        Args: { ch: string; content: string; notes: string; sections: Json; stage_sections: Json };
+        Returns: string;
+      };
       purge_youtube_data: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
@@ -1466,6 +1494,10 @@ export type Database = {
         Args: { other: string };
         Returns: boolean;
       };
+      workspace_credits: {
+        Args: { ws: string };
+        Returns: { monthly: number; used: number; remaining: number }[];
+      };
     };
     Enums: {
       checklist_phase: "before_publish" | "after_publish";
@@ -1481,9 +1513,11 @@ export type Database = {
         | "distribution"
         | "evaluation";
       episode_status: "planned" | "script" | "to_record" | "editing" | "scheduled" | "published";
+      episode_type: "product" | "explainer" | "news" | "opinion";
       idea_origin: "recommendation" | "own" | "pain_point";
       idea_status: "new" | "in_progress" | "discarded";
       invitation_kind: "platform" | "workspace";
+      sponsorship: "none" | "sponsor" | "affiliate";
       task_status: "queued" | "running" | "succeeded" | "failed" | "canceled";
       workspace_role: "owner" | "admin" | "producer" | "writer" | "video_editor" | "viewer";
     };

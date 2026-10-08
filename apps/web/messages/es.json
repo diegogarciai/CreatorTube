@@ -342,7 +342,17 @@
       "view_count": "Vistas",
       "like_count": "Me gusta",
       "comment_count": "Comentarios"
-    }
+    },
+    "stanceConfirmed": "Postura confirmada por mí (si no, el guion la marca POSTURA SIN CONFIRMAR)",
+    "brief": "Ficha de entrada",
+    "briefDesc": "Lo que solo tú puedes dar. Lo que dejes vacío lo decide el guionista con las reglas.",
+    "episodeType": "Tipo de episodio",
+    "chooseForMe": "Que lo elija el guionista",
+    "targetMinutes": "Duración objetivo",
+    "minutes": "{count} minutos",
+    "sponsorship": "Patrocinio o afiliados",
+    "ownMeasurements": "Mediciones propias",
+    "ownMeasurementsPlaceholder": "Qué mediste, con qué equipo, cómo y cuándo. Vacío = no hay medición propia."
   },
   "calendar": {
     "title": "Calendario",
@@ -420,7 +430,9 @@
     "syncResult": "{videos, plural, one {# video leído} other {# videos leídos}}, {advanced, plural, one {# episodio avanzado} other {# episodios avanzados}}",
     "disconnect": "Desconectar",
     "disconnectConfirm": "Se revocará el acceso con Google y se borrarán los datos de YouTube del canal. ¿Continuar?",
-    "readOnly": "Tu rol puede ver esta configuración pero no cambiarla."
+    "readOnly": "Tu rol puede ver esta configuración pero no cambiarla.",
+    "writerGuide": "Guía del guionista",
+    "writerGuideDesc": "Las reglas que siguen las preguntas de dirección y las 5 etapas del guion. Cada etapa recibe solo las secciones que usa."
   },
   "workspace": {
     "title": "Espacio y equipo",
@@ -453,7 +465,8 @@
     "workspaces": "Espacios",
     "invitations": "Invitaciones de plataforma",
     "channels": "{count, plural, one {# canal} other {# canales}}",
-    "members": "{count, plural, one {# miembro} other {# miembros}}"
+    "members": "{count, plural, one {# miembro} other {# miembros}}",
+    "creditsUsed": "IA este mes: {used}"
   },
   "command": {
     "placeholder": "Busca un episodio, una sección o una acción…",
@@ -491,6 +504,55 @@
     "youtube_quota": "Se agotó la cuota diaria de YouTube. Se reinicia a medianoche, hora del Pacífico.",
     "youtube_api": "YouTube respondió con un error al leer el canal.",
     "youtube_db": "No pudimos guardar el canal.",
-    "youtube_error": "Algo salió mal al conectar el canal. Intenta de nuevo."
+    "youtube_error": "Algo salió mal al conectar el canal. Intenta de nuevo.",
+    "guide_no_sections": "No encontramos secciones numeradas en el texto (por ejemplo «0. PRIORIDADES»).",
+    "guide_missing_sections": "Faltan secciones que usan las etapas del guion."
+  },
+  "episodeType": {
+    "product": "Producto o compra",
+    "explainer": "Explicativo",
+    "news": "Actualidad con análisis",
+    "opinion": "Opinión o debate"
+  },
+  "sponsorship": {
+    "unconfirmed": "Sin confirmar",
+    "none": "No",
+    "sponsor": "Patrocinio",
+    "affiliate": "Enlaces de afiliado"
+  },
+  "guide": {
+    "empty": "Todavía no hay guía. Pega el texto de tus reglas para crear la versión 1.",
+    "versionN": "Versión {n}",
+    "paste": "Texto completo de la guía",
+    "pastePlaceholder": "Pega aquí el paquete de reglas tal cual, con sus secciones numeradas (0. PRIORIDADES, 1. ROL…).",
+    "detected": "{count, plural, one {# sección detectada} other {# secciones detectadas}}. Todo listo para publicar.",
+    "missing": "Faltan secciones que usan las etapas del guion: {sections}. Revisa que cada sección empiece con su número y el título en mayúsculas.",
+    "previewSections": "Ver las secciones detectadas",
+    "notes": "Qué cambió en esta versión",
+    "notesPlaceholder": "Por ejemplo: v4.1 · reglas de miniaturas",
+    "publish": "Publicar versión",
+    "published": "Versión publicada. Los próximos guiones la usan.",
+    "newVersion": "Subir versión nueva",
+    "history": "Versiones anteriores",
+    "section": "Sección",
+    "usedBy": "La reciben",
+    "noStage": "Ninguna etapa (referencia)"
+  },
+  "guideStage": {
+    "direction": "Preguntas",
+    "study": "Estudio",
+    "script": "Guion",
+    "verification_extract": "Verificación: extraer",
+    "verification_fix": "Verificación: corregir",
+    "verification_mark": "Verificación: marcar",
+    "publication": "Publicación",
+    "podcast": "Podcast"
+  },
+  "credits": {
+    "title": "Créditos de IA",
+    "desc": "Cupo mensual para guiones y demás funciones con IA. Se reinicia el primer día de cada mes.",
+    "usedOf": "Usado este mes: {used} de {monthly}",
+    "remaining": "quedan {remaining}",
+    "quota": "Cupo mensual (US$)"
   }
 }

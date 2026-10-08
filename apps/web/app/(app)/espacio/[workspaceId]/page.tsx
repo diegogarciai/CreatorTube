@@ -5,6 +5,7 @@ import { assignableRoles } from "@planificador/core";
 import { Page, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { CreditsMeter } from "@/components/workspace/credits";
 import { InviteForm } from "@/components/workspace/invite-form";
 import { MemberControls, RevokeInvitationButton } from "@/components/workspace/member-row";
 import { getMyChannels, getMyMemberships, getSupabase, requireUser } from "@/lib/auth";
@@ -24,21 +25,25 @@ export default async function WorkspacePage({
   const supabase = await getSupabase();
   const assignable = assignableRoles(mine.role);
   const canManage = assignable.length > 0;
-  const [{ data: members }, { data: invitations }, channels] = await Promise.all([
-    supabase
-      .from("memberships")
-      .select("user_id, role, channel_ids, profile:profiles(full_name, email)")
-      .eq("workspace_id", workspaceId),
-    canManage
-      ? supabase
-          .from("invitations")
-          .select("id, email, role, expires_at")
-          .eq("workspace_id", workspaceId)
-          .is("accepted_at", null)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] }),
-    getMyChannels(),
-  ]);
+  const [{ data: members }, { data: invitations }, channels, { data: credits }] = await Promise.all(
+    [
+      supabase
+        .from("memberships")
+        .select("user_id, role, channel_ids, profile:profiles(full_name, email)")
+        .eq("workspace_id", workspaceId),
+      canManage
+        ? supabase
+            .from("invitations")
+            .select("id, email, role, expires_at")
+            .eq("workspace_id", workspaceId)
+            .is("accepted_at", null)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] }),
+      getMyChannels(),
+      supabase.rpc("workspace_credits", { ws: workspaceId }),
+    ],
+  );
+  const balance = credits?.[0];
   const wsChannels = channels.filter((c) => c.workspace_id === workspaceId);
   const channelName = new Map(wsChannels.map((c) => [c.id, c.name]));
   const fmt = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
@@ -50,6 +55,14 @@ export default async function WorkspacePage({
         description={canManage ? mine.workspaceName : t("workspace.readOnly")}
       />
       <div className="space-y-6">
+        {balance ? (
+          <Card>
+            <CardHeader title={t("credits.title")} description={t("credits.desc")} />
+            <CardBody>
+              <CreditsMeter monthly={balance.monthly} used={Number(balance.used)} />
+            </CardBody>
+          </Card>
+        ) : null}
         <Card>
           <CardHeader title={t("workspace.members")} />
           <ul className="divide-y divide-border">
