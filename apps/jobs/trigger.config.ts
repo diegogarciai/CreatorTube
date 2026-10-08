@@ -7,7 +7,7 @@ import { markFailed } from "./src/lib/task-row";
  * Project settings en el panel de Trigger.dev y no es secreto.
  */
 export default defineConfig({
-  project: "proj_REEMPLAZAR",
+  project: "proj_rrnleywnvctyyhakvffy",
   dirs: ["./src/trigger"],
   // Una corrida de guion completa puede tardar varios minutos.
   maxDuration: 1800,
