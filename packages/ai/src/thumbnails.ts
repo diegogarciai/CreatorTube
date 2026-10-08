@@ -1,35 +1,37 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import {
+  FACE_GAP,
+  hasFace,
+  SCHEME_IDS,
+  THUMBNAIL_SCHEMES,
+  validateSchemeText,
+  type Scenario,
+  type SchemeId,
+} from "@planificador/core";
 import { addUsage, emptyUsage, type UsageTotals } from "./cost";
 import { AiRefusalError, type AiConfig } from "./generate";
 import type { PublicationAssets } from "./publication";
 import type { StreamClient } from "./stages";
 
 /**
- * Miniaturas (Fase 3 · paso 2). Claude escribe el brief de cada una (la escena
- * para Gemini, el texto en dos líneas y de qué lado va), Gemini pinta la
- * imagen sin texto, la app pone el texto de la marca y Claude la califica con
- * la sección 14 de las reglas.
+ * Miniaturas (Fase 3 · paso 2) con la guía de miniaturas v1.0: cada texto
+ * elegido tiene su esquema (A–F). Claude escribe la escena de cada una, Gemini
+ * pinta la imagen sin texto con el prompt base y el del esquema, la app pone
+ * el texto en la zona del esquema y Claude la califica con la guía.
  */
 
 export type ThumbnailDesign = PublicationAssets["miniaturas"][number];
-export type TextSide = "left" | "right";
 
 /**
- * Letras para «Probar y comparar» de YouTube. No tienen un papel fijo: cada
- * miniatura es un ángulo distinto de la idea central del episodio.
+ * Letras para «Probar y comparar» de YouTube: las tres miniaturas del video,
+ * cada una con un esquema distinto.
  */
 export const THUMBNAIL_LETTERS = ["A", "B", "C"] as const;
 export const thumbnailLetter = (idx: number) => THUMBNAIL_LETTERS[idx] ?? String(idx + 1);
 
+/** El texto de la miniatura (la app lo parte en líneas) y su palabra naranja. */
 export type ThumbnailText = { lines: string[]; accent: string };
-
-export type ThumbnailBrief = ThumbnailText & {
-  idx: number;
-  /** La escena para Gemini, en inglés y sin texto. */
-  scene: string;
-  textSide: TextSide;
-};
 
 /** Los colores del kit que importan para la imagen. */
 export type ThumbnailKit = {
@@ -37,7 +39,55 @@ export type ThumbnailKit = {
   glow: string;
   amberDeep: string;
   accent: string;
+  cream: string;
+  grid: string;
   thumbnailStyle: string;
+};
+
+const bareWord = (w: string) => w.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+
+/** La palabra naranja tal como está en el texto (o la última, si no está). */
+export function findAccent(text: string, accent: string): string {
+  const all = text.split(/\s+/).filter(Boolean);
+  // La cifra de B conserva su signo: «40%».
+  const exact = all.find((w) => w === accent.trim());
+  if (exact) return exact;
+  const found = all.find((w) => bareWord(w) && bareWord(w) === bareWord(accent));
+  return found ?? all.at(-1) ?? "";
+}
+
+/** Los escenarios en inglés, para la escena. */
+const SCENARIO_EN: Record<Scenario, string> = {
+  "set oscuro": "the dark brand studio set",
+  escritorio: "a desk setup",
+  "en la mano": "the product held in hand on the dark brand set",
+  detalle: "a macro detail shot on the dark brand set",
+  sofá: "a sofa at home",
+  café: "a café table",
+  carro: "inside a car",
+  calle: "a city street",
+};
+
+/** Una miniatura para el brief: el texto elegido con su esquema y escenario. */
+export interface BriefItem {
+  idx: number;
+  scheme: SchemeId;
+  scenario: Scenario;
+  text: string;
+  accent: string;
+  angle: string;
+  emotion: string;
+  /** La escena que propuso la lista de textos, en una frase. */
+  idea: string;
+  note?: string | null;
+}
+
+export type ThumbnailBrief = {
+  idx: number;
+  /** La escena para Gemini, en inglés y sin texto. */
+  scene: string;
+  /** Texto del otro lado (solo A y C). */
+  mirror: boolean;
 };
 
 const briefSchema = z.object({
@@ -47,47 +97,31 @@ const briefSchema = z.object({
       scene: z
         .string()
         .describe(
-          "La escena para el generador de imágenes, en inglés: encuadre, lo que hace el presentador, su expresión, el producto, la luz y el fondo. Sin texto en la imagen.",
+          "Lo propio de esta miniatura para el generador de imágenes, en inglés: qué producto y cómo se ve, el escenario, la ropa y la luz, el gesto del presentador si aparece. Sin texto en la imagen y sin repetir la composición fija del esquema.",
         ),
-      lines: z
-        .array(z.string())
-        .describe("El texto de la miniatura repartido en 2 líneas, con sus palabras exactas."),
-      accent: z
-        .string()
-        .describe("La única palabra que va en naranja, tal como aparece en las líneas."),
-      text_side: z
-        .enum(["left", "right"])
-        .describe("El lado donde va el texto; el presentador y el producto quedan del otro lado."),
+      mirror: z
+        .boolean()
+        .describe(
+          "Solo A y C: true si el producto o la mirada piden el texto del otro lado. En los demás, false.",
+        ),
     }),
   ),
 });
 
-const words = (s: string) => s.split(/\s+/).filter(Boolean);
-
-/** Dos líneas como máximo y una palabra en naranja que sí esté en el texto. */
-export function normalizeText(lines: readonly string[], accent: string): ThumbnailText {
-  const all = lines.flatMap(words);
-  const clean =
-    all.length === 0
-      ? []
-      : lines.length === 2 && lines.every((l) => words(l).length)
-        ? lines.map((l) => words(l).join(" "))
-        : [
-            all.slice(0, Math.ceil(all.length / 2)).join(" "),
-            all.slice(Math.ceil(all.length / 2)).join(" "),
-          ].filter(Boolean);
-  const bare = (w: string) => w.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
-  const found = all.find((w) => bare(w) && bare(w) === bare(accent));
-  return { lines: clean, accent: found ?? all.at(-1) ?? "" };
-}
-
 export interface BriefInput {
-  designs: { idx: number; design: ThumbnailDesign; note?: string | null }[];
+  items: BriefItem[];
   kit: ThumbnailKit;
   episodeTitle: string;
   verdict: string;
   presenter: string;
-  productRefs: number;
+  /** Lo que muestra cada foto del producto, en orden («Product photo 1», «2»…). */
+  productRefs: string[];
+}
+
+/** Lo que dice la guía de cada esquema, para Claude. */
+function schemeGuide(id: SchemeId) {
+  const s = THUMBNAIL_SCHEMES[id];
+  return `${id} · ${s.name}. Úsalo cuando: ${s.when} No lo uses si: ${s.avoid}`;
 }
 
 /** El brief de varias miniaturas en una sola llamada. */
@@ -97,33 +131,35 @@ export async function thumbnailBriefs(
   input: BriefInput,
 ): Promise<{ briefs: ThumbnailBrief[]; usage: UsageTotals; model: string }> {
   const system = [
-    "Diriges el arte de las miniaturas de YouTube de un canal de tecnología. Para cada miniatura escribes el brief de la imagen y repartes el texto.",
-    "La imagen la genera otro modelo a partir de fotos reales del presentador; el texto lo pone después la app con la tipografía de la marca. Por eso la escena nunca lleva letras, números, logos, flechas, emojis ni marcos.",
-    "Las tres miniaturas son tres ángulos totalmente distintos de la idea central del episodio (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…). Cada ángulo cambia la motivación, la emoción, la escena y el texto, pero las tres hablan del mismo tema central y se entienden sin el título. Ningún ángulo contradice el veredicto ni promete lo que el video no entrega.",
-    "Estilo de la marca: fondo oscuro, luz cálida lateral y un halo naranja detrás; expresión natural, nunca cara de asombro; el presentador de medio cuerpo en al menos una de las tres; el producto real, grande e idéntico a sus fotos si las hay.",
-    "En las tres el presentador sale con la cara grande y reconocible (de frente o en tres cuartos, nunca de espaldas ni chiquito al fondo), aunque el producto sea el protagonista: la imagen se genera desde sus fotos y una cara pequeña sale como otra persona.",
-    "La escena deja libre casi la mitad del ancho del lado del texto, con fondo oscuro y limpio para que se lea. Las tres miniaturas no repiten la misma distribución.",
-    "El texto usa exactamente las palabras del campo «texto» de la miniatura, en 2 líneas, y una sola palabra en naranja: la que carga la emoción o el dato.",
+    "Diriges el arte de las miniaturas de YouTube de un canal de tecnología con la guía de miniaturas del canal. Para cada miniatura escribes la escena para el generador de imágenes.",
+    "Cada miniatura ya tiene su esquema de composición, su texto y su escenario. La composición del esquema (dónde va el presentador, el producto y el hueco del texto, y su expresión) ya está fija: tú escribes lo propio de esta miniatura dentro de ese esquema, sin cambiarlo.",
+    "La imagen la genera otro modelo a partir de fotos reales del presentador y del producto; el texto lo pone después la app. La escena nunca lleva letras, números, logos, flechas, círculos, emojis ni marcos.",
+    "El producto siempre es el real de sus fotos: nombra cuál es (Product photo 1, 2…). En el duelo (D), el producto 1 va a la izquierda y el 2 a la derecha. En el detalle (E), di qué pieza, función o defecto lleva el foco. En el veredicto (C), media sonrisa si el veredicto recomienda y ceño leve si no.",
+    "Expresión natural siempre: duda, seguridad o concentración. Nunca asombro, boca abierta, señalar ni pulgares.",
+    "Nunca azul, neón, RGB, amarillo, madera ni dorado como color dominante; escenarios sin marcas visibles ni gente de fondo; los exteriores se gradúan a la paleta (sombras profundas, luz cálida, acento naranja).",
+    "Espejo: solo A y C pueden invertirse, y solo si el producto o la mirada lo piden.",
   ].join("\n");
   const user = [
     `Tema central del episodio: ${input.episodeTitle}`,
     `Veredicto del guion: ${input.verdict || "(sin veredicto)"}`,
     `Presentador: ${input.presenter}`,
-    `Fotos del producto disponibles: ${input.productRefs}`,
+    input.productRefs.length
+      ? `Fotos del producto: ${input.productRefs.map((l, i) => `Product photo ${i + 1}: ${l}`).join(" · ")}`
+      : "Fotos del producto: ninguna",
     `Estilo de miniaturas del canal: ${input.kit.thumbnailStyle}`,
     "",
-    ...input.designs.map(({ idx, design, note }) =>
+    ...input.items.map((it) =>
       [
-        `## Miniatura ${thumbnailLetter(idx)} (idx ${idx})`,
-        ...(design.angulo?.trim() ? [`ángulo: ${design.angulo.trim()}`] : []),
-        `texto: ${design.texto}`,
-        `escena: ${design.escena}`,
-        `expresión: ${design.expresion}`,
-        `protagonista: ${design.protagonista}`,
-        `composición: ${design.composicion}`,
-        `ayuda visual: ${design.ayuda_visual}`,
-        `emoción: ${design.emocion}`,
-        ...(note?.trim() ? [`Indicación del presentador para esta versión: ${note.trim()}`] : []),
+        `## Miniatura ${thumbnailLetter(it.idx)} (idx ${it.idx})`,
+        `esquema: ${schemeGuide(it.scheme)}`,
+        `escenario: ${it.scenario}`,
+        `texto: ${it.text} (en naranja: ${it.accent})`,
+        `ángulo: ${it.angle}`,
+        `emoción: ${it.emotion}`,
+        ...(it.idea.trim() ? [`idea de escena: ${it.idea.trim()}`] : []),
+        ...(it.note?.trim()
+          ? [`Indicación del presentador para esta versión: ${it.note.trim()}`]
+          : []),
       ].join("\n"),
     ),
   ].join("\n");
@@ -145,65 +181,120 @@ export async function thumbnailBriefs(
   }
   const parsed = res.parsed_output;
   if (!parsed) throw new Error("El brief de las miniaturas llegó incompleto");
-  const briefs = input.designs.map(({ idx, design }, i) => {
-    const b = parsed.briefs.find((x) => x.idx === idx) ?? parsed.briefs[i];
-    const text = normalizeText(b?.lines ?? [design.texto], b?.accent ?? "");
+  const briefs = input.items.map((it, i) => {
+    const b = parsed.briefs.find((x) => x.idx === it.idx) ?? parsed.briefs[i];
     return {
-      idx,
-      scene: b?.scene?.trim() || design.escena,
-      textSide: b?.text_side ?? (i % 2 ? "left" : "right"),
-      ...text,
+      idx: it.idx,
+      scene: b?.scene?.trim() || it.idea,
+      mirror: THUMBNAIL_SCHEMES[it.scheme].mirror && Boolean(b?.mirror),
     } satisfies ThumbnailBrief;
   });
   return { briefs, usage: addUsage(emptyUsage(), res.usage), model: res.model };
 }
 
+/** La composición fija de cada esquema (guía v1.0), en inglés para Gemini. */
+function schemeComposition(scheme: SchemeId, mirror: boolean, scenario: Scenario) {
+  const near = mirror ? "left" : "right";
+  const far = mirror ? "right" : "left";
+  switch (scheme) {
+    case "A":
+      return [
+        `On the ${near} (40% of the width), the presenter from the waist up, eyes in the upper third, looking at the camera with a calm, honest expression of doubt: one eyebrow slightly raised, hand on the chin.`,
+        `The product is optional: in his hand or behind him, never between him and the ${far} side.`,
+        `The ${far} 50% of the frame stays as empty dark brand background for the headline.`,
+      ];
+    case "B":
+      return [
+        "No people at all.",
+        "On the right (40% of the width), the real product from Product photo 1, large and sharp, rotated 5–10°, with an orange rim reflection on its edge and nothing around it.",
+        "The left 55% of the frame stays as empty dark brand background for a big figure and its words.",
+      ];
+    case "C":
+      return [
+        `On the ${far} (45% of the width), the presenter from the waist up, holding the real product toward the camera, with the product between him and the ${near} side.`,
+        "Calm confidence: a slight smile if he recommends it, a slight frown if not (as the scene says). No thumbs, no exaggerated gestures.",
+        `The ${near} 40% of the frame stays as empty dark brand background for the answer.`,
+      ];
+    case "D":
+      return [
+        "Real product 1 (Product photo 1) on the left and real product 2 (Product photo 2) on the right, the same size, angle and light. Only these two products.",
+        "In the center, the presenter small (about 25% of the width), from the chest up, looking at product 2 with a thoughtful gesture that hints at the winner without revealing it.",
+        "The top 30% of the frame stays as empty dark background for a one-line headline. No dividing lines, lightning bolts or versus signs.",
+      ];
+    case "E":
+      return [
+        "No people.",
+        "A macro close-up of the real product (Product photo 1) filling the upper-right two thirds and bleeding off the frame, a single point of focus on the detail, shallow depth of field.",
+        "The lower-left area fades to black and stays empty for the headline; the detail is never there.",
+      ];
+    case "F":
+      return [
+        `A real full-bleed scene in ${SCENARIO_EN[scenario]}, graded to the brand palette: the presenter on the right, using the real product, focused, not looking at the camera.`,
+        "The upper-left area fades to black and stays empty for the headline.",
+        "No visible brands, no people in the background, no cold or blue light.",
+      ];
+  }
+}
+
 /**
- * La instrucción completa para Gemini: qué son las referencias, la escena y
- * las reglas fijas de la marca (que no dependen de lo que escriba el brief).
+ * La instrucción completa para Gemini: el prompt base de la guía, qué son las
+ * referencias, la composición del esquema y la escena. Lo único adaptado de la
+ * guía: el texto no lo pinta Gemini, deja libre su zona y lo pone la app.
  */
-export function imagePrompt(input: {
+export function schemeImagePrompt(input: {
+  scheme: SchemeId;
   scene: string;
-  textSide: TextSide;
+  scenario: Scenario;
+  mirror?: boolean;
   presenterRefs: number;
   productRefs: number;
-  kit: Pick<ThumbnailKit, "canvas" | "glow" | "amberDeep">;
+  kit: Pick<ThumbnailKit, "canvas" | "glow" | "amberDeep" | "accent" | "cream" | "grid">;
 }): string {
-  const free = input.textSide === "left" ? "left" : "right";
-  const subject = input.textSide === "left" ? "right" : "left";
+  const s = THUMBNAIL_SCHEMES[input.scheme];
+  const mirror = s.mirror && Boolean(input.mirror);
+  const face = hasFace(input.scheme) && input.presenterRefs > 0;
+  const k = input.kit;
+  const background = s.grid
+    ? `Gartechs identity: near-black background ${k.canvas} with a very faint orange grid (${k.grid} at 10% opacity), a radial orange glow (${k.glow} at the center falling to ${k.amberDeep}) behind the main subject, vignette to black.`
+    : `Gartechs identity without the grid: the real scene graded to the brand palette, a warm orange glow (${k.glow} to ${k.amberDeep}) behind the main subject, vignette to black.`;
   const refs = [
-    input.presenterRefs
-      ? `The ${input.presenterRefs} images labeled "Reference photo of the presenter" all show the same real person. That exact person must appear in the thumbnail: keep the face shape, eyes, nose, beard, hairline and skin tone identical; do not beautify them, change their age or replace them with a generic or different person.`
+    face
+      ? `The ${input.presenterRefs} images labeled "Reference photo of the presenter" all show the same real person. That exact person must appear in the thumbnail: the same face shape, eyes, nose, beard, hair, hairline, skin tone and clothes; do not beautify them, change their age or replace them with a generic or different person.`
       : "",
     input.productRefs
-      ? `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself).`
+      ? `The images labeled "Product photo" show the real product: reproduce it exactly (shape, color, ports, logos on the device itself). Never invent products or logos.`
       : "",
   ].filter(Boolean);
   return [
-    "Create a photorealistic YouTube thumbnail photograph, 16:9.",
+    "Photorealistic YouTube thumbnail, 16:9, 1280×720.",
+    background,
+    `Warm side light. Palette: black, white, cream ${k.cream} and orange ${k.accent}.`,
     ...refs,
+    `Composition (scheme ${input.scheme} · ${s.name}):`,
+    ...schemeComposition(input.scheme, mirror, input.scenario),
     `Scene: ${input.scene}`,
-    ...(input.presenterRefs
+    ...(face && input.scheme !== "F"
       ? [
-          "The presenter's face is always clearly visible and recognizable: large (at least a quarter of the frame height), facing the camera or in three-quarter view, well lit, nothing covering it, never from behind, never small in the background — even when the product is the main subject.",
+          "The presenter's face is clearly visible and recognizable, well lit, nothing covering it. Natural expression: never surprised, never an open mouth, never pointing.",
         ]
       : []),
-    `Composition: the presenter and the product occupy the ${subject} half; keep the ${free} ~45% of the frame as clean dark background for a headline that will be added later.`,
-    `Look: dark background close to ${input.kit.canvas}, warm side light on the face, a soft radial orange glow (${input.kit.glow} fading to ${input.kit.amberDeep}) behind the subject, natural expression, sharp focus on face and product.`,
-    "Strictly no text, letters, numbers, captions, logos, watermarks, arrows, emojis, frames or borders anywhere in the image. No surprised face, no exaggerated expression, no neon, RGB or blue lighting.",
+    "Keep a 64 px safe margin on every side for the important parts. The bottom-right corner (220×90 px) stays empty: no face, product or detail there, because the video duration goes there.",
+    "The headline is added later by the app: leave its area empty and do not draw any text.",
+    "Strictly no text, letters, numbers, captions, logos, watermarks, arrows, red circles, emojis, frames or borders anywhere, including on screens and objects. No blue, neon, RGB, yellow, wood or gold as a dominant color.",
   ].join("\n");
 }
 
 export const SCORE_CRITERIA = [
-  "angle",
-  "scroll",
-  "product",
+  "scheme",
   "text",
-  "emotion",
+  "title",
   "face",
-  "contrast",
+  "product",
+  "separation",
+  "corner",
+  "prohibited",
+  "mobile",
   "verdict",
-  "clean",
 ] as const;
 export type ScoreCriterion = (typeof SCORE_CRITERIA)[number];
 
@@ -221,35 +312,62 @@ const scoreSchema = z.object({
 
 export type ThumbnailScore = z.infer<typeof scoreSchema>;
 
-/** Claude mira la miniatura terminada y la califica con la sección 14. */
+/** Qué pide la guía de la imagen de cada esquema, para la calificación. */
+const SCHEME_CHECK: Record<SchemeId, string> = {
+  A: "Pregunta con ¿? en el 50 % izquierdo (derecho en espejo); el presentador en el 40 % del otro lado, de la cintura hacia arriba, mirando a cámara con duda honesta (ceja levantada, mano al mentón); el producto nunca entre él y el texto.",
+  B: "Sin personas. La cifra enorme en naranja y 1–2 palabras debajo a la izquierda; el producto real en el 40 % derecho, girado 5–10°, sin objetos alrededor.",
+  C: "La respuesta sin signos de pregunta en el 40 % derecho (izquierdo en espejo); el presentador en el 45 % del otro lado sosteniendo el producto hacia la cámara, entre él y el texto, con seguridad tranquila.",
+  D: "Una línea centrada arriba; dos productos reales a izquierda y derecha con la misma escala, ángulo y luz; el presentador pequeño al centro, pensativo, mirando a uno sin revelar el ganador. Sin VS, rayos ni líneas divisorias.",
+  E: "Sin personas (salvo una mano para dar escala). Macro real del producto arriba a la derecha que sale del cuadro, un solo punto de foco; el texto abajo a la izquierda sobre degradado negro, nunca encima del detalle.",
+  F: "Escena real a sangre, sin retícula, graduada a la paleta; el presentador a la derecha usando el producto, concentrado y sin mirar a cámara; el texto arriba a la izquierda sobre degradado negro. Sin marcas visibles, gente de fondo ni luz fría.",
+};
+
+/** Claude mira la miniatura terminada (y reducida para el móvil) y la califica con la guía. */
 export async function scoreThumbnail(
   client: StreamClient,
   config: AiConfig,
   input: {
     image: Buffer;
+    /** La misma miniatura a 168 × 94 px (prueba de móvil). */
+    mobile: Buffer;
     mime: string;
-    design: ThumbnailDesign;
+    scheme: SchemeId;
     text: ThumbnailText;
     topic: string;
+    titles: string[];
     verdict: string;
+    /** Lo que la app ya midió: la separación del texto y la esquina de la duración. */
+    warnings: string[];
     /** Una foto del presentador, para comparar la cara. */
     reference?: { data: Buffer; mime: string } | null;
   },
 ): Promise<{ score: ThumbnailScore; usage: UsageTotals; model: string }> {
+  const s = THUMBNAIL_SCHEMES[input.scheme];
+  const text = input.text.lines.join(" ");
+  const ruleErrors = validateSchemeText(input.scheme, text, input.text.accent);
   const system = [
-    "Calificas miniaturas de YouTube de un canal de tecnología con las reglas del canal. Respondes en español.",
+    "Calificas miniaturas de YouTube de un canal de tecnología con la guía de miniaturas del canal. Respondes en español.",
     "Criterios (uno por clave):",
-    "- angle: cuenta su ángulo con claridad y sin perder el foco en el tema central del episodio.",
-    "- scroll: vista sola en el celular, sin el título, dice en un segundo de qué se habla.",
-    "- product: el producto real se ve grande y reconocible.",
-    "- text: 2 a 4 palabras legibles que nombran algo concreto (producto, componente, cifra o precio), una sola palabra en naranja y nunca amarillo.",
-    "- emotion: despierta una emoción por lo que está en juego (pagar de más, quedarse corto, una sorpresa o un permiso).",
-    "- face: es la misma persona de la foto de referencia (si la hay), con la cara clara, de frente o en tres cuartos, bien iluminada y con expresión natural. Si parece otra persona, va en falso y la nota no pasa de 4.",
-    "- contrast: el texto se lee y no tapa la cara ni el producto; el sujeto se separa bien del fondo oscuro.",
-    "- verdict: no contradice el veredicto del episodio ni promete lo que el video no entrega.",
-    "- clean: sin flechas, emojis, marcos, logos inventados ni letras raras dentro de la imagen.",
+    "- scheme: la imagen sigue la composición de su esquema (abajo).",
+    "- text: 2–4 palabras, máximo 22 caracteres y 2 líneas, tipo oración con tildes y ¿? ¡! de apertura, una sola palabra naranja (la que carga la emoción o la decisión); sin superlativos vacíos, marcas, precios sin moneda, emojis ni clickbait que el video no cumpla.",
+    "- title: completa el título del video sin repetirlo; juntos forman una idea completa.",
+    "- face: si el esquema lleva cara, es la misma persona de la foto de referencia (mismo rostro, barba, pelo y ropa) con la expresión del esquema y natural: nunca asombro, boca abierta ni señalar. Si parece otra persona, va en falso y la nota no pasa de 4. Si el esquema no lleva cara, no aparece ninguna persona.",
+    "- product: el producto es el real de sus fotos; nada de productos o logos inventados.",
+    "- separation: el texto y la cara no se tocan (40 px de separación mínima). La app ya lo midió: usa ese dato.",
+    "- corner: la esquina inferior derecha (220 × 90 px) queda vacía para la duración; la app ya comprobó el texto, tú miras que no haya cara, producto ni detalle importante ahí.",
+    "- prohibited: sin flechas, círculos rojos, emojis, marcos, texto adicional en pantallas u objetos, ni azul, neón, RGB, amarillo, madera o dorado como color dominante.",
+    "- mobile: en la versión de 168 × 94 px el texto se lee y la cara (si la hay) se reconoce. Si no, hay que simplificar.",
+    "- verdict: parte del veredicto del guion, no lo contradice ni promete lo que el video no entrega.",
     "La nota es de 0 a 10; 8 o más significa lista para publicar.",
   ].join("\n");
+  const image = (data: Buffer, mime: string) => ({
+    type: "image" as const,
+    source: {
+      type: "base64" as const,
+      media_type: mime as "image/jpeg",
+      data: data.toString("base64"),
+    },
+  });
   const res = await client.beta.messages.parse({
     model: config.model,
     max_tokens: 2_000,
@@ -258,37 +376,32 @@ export async function scoreThumbnail(
       {
         role: "user",
         content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: input.mime as "image/jpeg",
-              data: input.image.toString("base64"),
-            },
-          },
-          ...(input.reference
+          image(input.image, input.mime),
+          { type: "text" as const, text: "La misma miniatura a 168 × 94 px (prueba de móvil):" },
+          image(input.mobile, "image/jpeg"),
+          ...(input.reference && hasFace(input.scheme)
             ? [
                 { type: "text" as const, text: "Foto de referencia del presentador:" },
-                {
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: input.reference.mime as "image/jpeg",
-                    data: input.reference.data.toString("base64"),
-                  },
-                },
+                image(input.reference.data, input.reference.mime),
               ]
             : []),
           {
             type: "text",
             text: [
               `Tema central del episodio: ${input.topic}`,
-              `Ángulo de esta miniatura: ${input.design.angulo || "(sin nombre)"}`,
-              `Texto de la miniatura: ${input.text.lines.join(" / ")} (en naranja: ${input.text.accent})`,
-              `Escena pedida: ${input.design.escena}`,
-              `Emoción buscada: ${input.design.emocion}`,
+              input.titles.length ? `Títulos del video: ${input.titles.join(" | ")}` : "",
+              `Esquema: ${input.scheme} · ${s.name}. ${SCHEME_CHECK[input.scheme]}`,
+              `Texto de la miniatura: ${text} (en naranja: ${input.text.accent})`,
+              ruleErrors.length
+                ? `Reglas de texto que no cumple: ${ruleErrors.join(" ")}`
+                : "Reglas de texto medibles: cumple.",
+              input.warnings.length
+                ? `Medido por la app: ${input.warnings.join(" ")}`
+                : `Medido por la app: el texto deja ${FACE_GAP} px o más a la cara, está dentro del margen y no toca la esquina de la duración.`,
               `Veredicto del episodio: ${input.verdict || "(sin veredicto)"}`,
-            ].join("\n"),
+            ]
+              .filter(Boolean)
+              .join("\n"),
           },
         ],
       },
@@ -385,4 +498,141 @@ export async function locateSubjects(
     })
     .filter((b) => b.w > 0 && b.h > 0);
   return { boxes, usage: addUsage(emptyUsage(), res.usage), model: res.model };
+}
+
+/** Un texto propuesto para una miniatura, con su esquema y su ángulo. */
+export type ThumbnailIdea = {
+  scheme: SchemeId;
+  angle: string;
+  text: string;
+  accent: string;
+  scene: string;
+  emotion: string;
+};
+
+export const THUMBNAIL_IDEAS_COUNT = 30;
+/** Textos mínimos por esquema disponible. */
+export const IDEAS_PER_SCHEME = 3;
+
+const ideasSchema = z.object({
+  ideas: z.array(
+    z.object({
+      scheme: z.enum(SCHEME_IDS).describe("El esquema de composición: A, B, C, D, E o F."),
+      angle: z
+        .string()
+        .describe("El ángulo en 1 a 4 palabras: el dinero, el error, la comparación, el mito…"),
+      text: z.string().describe("El texto de la miniatura, con las reglas de su esquema."),
+      accent: z
+        .string()
+        .describe("La única palabra del texto que va en naranja (en B, la cifra tal cual)."),
+      scene: z.string().describe("La escena de la imagen en una frase, según su esquema."),
+      emotion: z.string().describe("La emoción que despierta, en 1 a 3 palabras."),
+    }),
+  ),
+});
+
+/** Las reglas de texto de cada esquema, para Claude. */
+const SCHEME_TEXT: Record<SchemeId, string> = {
+  A: "una pregunta de 2–4 palabras con ¿?; la palabra naranja es la que duda. No repite el título como pregunta.",
+  B: "una cifra verificada de la ficha (máx. 4 caracteres: 40%, 3×, $199, 20 h; sin decimales, rangos ni dos cifras) y 1–2 palabras después. La cifra es la palabra naranja.",
+  C: "la respuesta en 2–3 palabras, sin signos de pregunta (Sí lo compro, Espera un año, No lo compres, Me quedo con este).",
+  D: "2–3 palabras en una línea, sin «VS» ni marcas (¿Cuál gana?, ¿Vale el cambio?, Solo uno).",
+  E: "2–3 palabras sobre el detalle (Nadie lo nota, El fallo, Lo mejor está aquí).",
+  F: "2–3 palabras que suelen hablar de tiempo o resultado (Un mes después, Mi setup real, Así lo uso).",
+};
+
+export interface IdeasInput {
+  episodeTitle: string;
+  verdict: string;
+  /** La ficha del episodio (paso «sheet»); manda sobre las cifras. */
+  sheet: string;
+  titles: string[];
+  keywords: string[];
+  thumbnailStyle: string;
+  presenter: string;
+  /** Los esquemas que se pueden usar (según las fotos del producto). */
+  schemes: SchemeId[];
+  /** El set recomendado para el tipo de episodio. */
+  recommended: SchemeId[];
+}
+
+/**
+ * 30 textos de ángulos distintos alrededor del tema central del episodio, cada
+ * uno con su esquema de la guía, para elegir los 3 de «Probar y comparar».
+ * Los que no cumplen las reglas de texto de su esquema se descartan.
+ */
+export async function thumbnailIdeas(
+  client: StreamClient,
+  config: AiConfig,
+  input: IdeasInput,
+): Promise<{ ideas: ThumbnailIdea[]; usage: UsageTotals; model: string }> {
+  const schemes = SCHEME_IDS.filter((id) => input.schemes.includes(id));
+  const recommended = input.recommended.filter((id) => schemes.includes(id));
+  const system = [
+    `Propones ${THUMBNAIL_IDEAS_COUNT} textos para miniaturas de YouTube de un canal de tecnología, en español, con la guía de miniaturas del canal.`,
+    "Todos parten de «el punto»: el veredicto del guion. Giran alrededor del tema central del episodio desde ángulos distintos (el dinero, el error, la comparación, el mito, el uso real, para quién sí, para quién no, la sorpresa, el riesgo…).",
+    "Cada texto lleva uno de estos esquemas de composición, y cumple sus reglas:",
+    ...schemes.map(
+      (id) =>
+        `- ${id} · ${THUMBNAIL_SCHEMES[id].name}. Úsalo cuando: ${THUMBNAIL_SCHEMES[id].when} No lo uses si: ${THUMBNAIL_SCHEMES[id].avoid} Texto: ${SCHEME_TEXT[id]}`,
+    ),
+    `Reparte los textos entre esos esquemas: al menos ${IDEAS_PER_SCHEME} por esquema${recommended.length ? `, y más en el set recomendado para este episodio (${recommended.join("+")})` : ""}.`,
+    "Reglas de todos los textos: máximo 22 caracteres con espacios y 2 líneas; tipo oración (nunca TODO MAYÚSCULAS), con tildes y ¿? ¡! de apertura; una sola palabra en naranja, la que carga la emoción o la decisión; sin superlativos vacíos (increíble, brutal), sin marcas (ya van en el título), sin precios sin moneda, sin emojis y sin clickbait que el video no cumpla.",
+    "El texto completa el título, no lo repite: juntos forman una idea completa. Las cifras solo pueden salir de la ficha del episodio. Ningún texto contradice el veredicto. No repitas textos.",
+    "Por cada texto: el esquema, el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase según su esquema y la emoción.",
+  ].join("\n");
+  const user = [
+    `Tema central del episodio: ${input.episodeTitle}`,
+    `Veredicto («el punto»): ${input.verdict || "(sin veredicto)"}`,
+    `Presentador: ${input.presenter}`,
+    input.titles.length ? `Títulos del video: ${input.titles.join(" | ")}` : "",
+    input.keywords.length ? `Keywords: ${input.keywords.join(", ")}` : "",
+    `Estilo de miniaturas del canal: ${input.thumbnailStyle}`,
+    "",
+    "## Ficha del episodio",
+    input.sheet.trim().slice(0, 12_000) || "(sin ficha)",
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+
+  const res = await client.beta.messages.parse({
+    model: config.model,
+    max_tokens: 8_000,
+    system,
+    messages: [{ role: "user", content: user }],
+    output_config: { effort: "low", format: betaZodOutputFormat(ideasSchema) },
+    ...(config.fallbacks && {
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+    }),
+  });
+  if (res.stop_reason === "refusal") {
+    const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
+    throw new AiRefusalError(details?.category ?? null);
+  }
+  const parsed = res.parsed_output;
+  if (!parsed?.ideas.length) throw new Error("Los textos de las miniaturas llegaron vacíos");
+  const seen = new Set<string>();
+  const ideas: ThumbnailIdea[] = [];
+  for (const i of parsed.ideas) {
+    const text = i.text.trim().replace(/\s+/g, " ");
+    const key = text.toLowerCase();
+    if (!text || seen.has(key) || !schemes.includes(i.scheme)) continue;
+    const accent = findAccent(text, i.accent);
+    if (validateSchemeText(i.scheme, text, accent).length) continue;
+    seen.add(key);
+    ideas.push({
+      scheme: i.scheme,
+      angle: i.angle.trim().slice(0, 60) || "Otro",
+      text,
+      accent: accent.slice(0, 40),
+      scene: i.scene.trim().slice(0, 400),
+      emotion: i.emotion.trim().slice(0, 80),
+    });
+  }
+  return {
+    ideas: ideas.slice(0, THUMBNAIL_IDEAS_COUNT),
+    usage: addUsage(emptyUsage(), res.usage),
+    model: res.model,
+  };
 }

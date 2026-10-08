@@ -52,5 +52,8 @@ export const FIX_REDO_ESTIMATE_CREDITS = 100;
 /** Una miniatura: brief, imagen de Gemini Pro (~US$0,13) y calificación. */
 export const THUMBNAIL_ESTIMATE_CREDITS = 18;
 
+/** Los 30 textos para elegir los ángulos de las miniaturas. */
+export const THUMBNAIL_IDEAS_ESTIMATE_CREDITS = 6;
+
 /** Cambiar el texto de una miniatura: solo se recompone y se califica. */
 export const THUMBNAIL_TEXT_ESTIMATE_CREDITS = 2;

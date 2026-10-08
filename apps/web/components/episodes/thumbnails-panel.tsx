@@ -12,7 +12,6 @@ import {
   Loader2,
   PencilLine,
   RefreshCw,
-  Sparkles,
   Star,
   Trash2,
   X,
@@ -21,6 +20,8 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
+import { THUMBNAIL_SCHEMES, validateSchemeText, type SchemeId } from "@planificador/core";
+import { ThumbnailIdeas } from "./thumbnail-ideas";
 import {
   addEpisodeRef,
   chooseThumbnail,
@@ -51,9 +52,7 @@ export function ThumbnailsPanel({
   canEdit: boolean;
 }) {
   const t = useTranslations("thumbnails");
-  const errorText = useActionError();
   const router = useRouter();
-  const [pending, start] = useTransition();
 
   // Mientras hay una tarea en marcha se consulta el estado; si cambia, se recarga.
   const supabase = useMemo(() => createClient(), []);
@@ -100,45 +99,22 @@ export function ThumbnailsPanel({
     );
   }
 
-  const generateAll = () =>
-    start(async () => {
-      const res = await generateThumbnails(episodeId, {
-        designs: view.designs.map((d) => d.idx),
-      });
-      if (res.ok) router.refresh();
-      else toast.error(errorText(res.error));
-    });
-
   return (
     <div className="space-y-6">
+      <ThumbnailIdeas
+        episodeId={episodeId}
+        view={view}
+        canEdit={canEdit}
+        canGenerate={view.presenterPhotos > 0 && !view.active}
+      />
       <Card>
-        <CardHeader
-          title={t("title")}
-          description={t("description")}
-          action={
-            canEdit ? (
-              <div className="flex flex-col items-end gap-1">
-                <Button
-                  onClick={generateAll}
-                  disabled={pending || view.active || view.presenterPhotos === 0}
-                >
-                  {pending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  {t("generateAll")}
-                </Button>
-                <span className="text-xs text-muted">
-                  {t("estimate", {
-                    cost: usd(THUMBNAIL_ESTIMATE_CREDITS * view.designs.length),
-                  })}
-                </span>
-              </div>
-            ) : null
-          }
-        />
+        <CardHeader title={t("title")} description={t("description")} />
         <CardBody className="space-y-4">
+          {!view.verdict ? (
+            <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
+              {t("noVerdict")}
+            </p>
+          ) : null}
           {view.presenterPhotos === 0 ? (
             <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
               {t("noPresenterPhotos")}{" "}
@@ -169,7 +145,7 @@ export function ThumbnailsPanel({
             design={d}
             canEdit={canEdit}
             busy={view.active}
-            canGenerate={view.presenterPhotos > 0}
+            canGenerate={view.presenterPhotos > 0 && view.verdict}
           />
         ))}
       </div>
@@ -321,6 +297,9 @@ function DesignCard({
       design.versions.find((v) => v.id === selected?.id)) ||
     latest;
   const working = current ? ACTIVE.has(current.status) : false;
+  // El esquema y el texto: los de la versión que se ve o, sin versiones, los del texto elegido.
+  const scheme = current?.scheme ?? design.idea?.scheme ?? null;
+  const text = current?.text?.lines.join(" ") ?? design.idea?.text ?? "";
 
   const regenerate = () =>
     start(async () => {
@@ -349,9 +328,10 @@ function DesignCard({
     >
       <CardHeader
         title={
-          <span className="flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-2">
             <Badge tone="accent">{design.letter}</Badge>
-            {design.angle || t("thumbnail", { letter: design.letter })}
+            {scheme ? THUMBNAIL_SCHEMES[scheme].name : t("thumbnail", { letter: design.letter })}
+            {scheme ? <Badge>{t("scheme", { id: scheme })}</Badge> : null}
             {current?.chosen ? (
               <Badge tone="ok">
                 <Star className="size-3 fill-current" /> {t("chosen")}
@@ -359,15 +339,20 @@ function DesignCard({
             ) : null}
           </span>
         }
-        description={design.title}
+        description={design.idea?.angle}
       />
       <CardBody className="space-y-3 text-sm">
-        <p>
-          <span className="text-muted">{t("text")}:</span> «{design.text}»
-        </p>
-        <p className="line-clamp-3 text-xs text-muted" title={design.scene}>
-          {design.scene}
-        </p>
+        {text ? (
+          <p>
+            <span className="text-muted">{t("text")}:</span> «{text}»
+          </p>
+        ) : null}
+        {design.idea?.scene ? (
+          <p className="line-clamp-3 text-xs text-muted" title={design.idea.scene}>
+            {design.idea.scene}
+          </p>
+        ) : null}
+        {!design.idea ? <p className="text-xs text-muted">{t("pickFirst")}</p> : null}
 
         <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-surface-muted">
           {current?.url ? (
@@ -399,6 +384,29 @@ function DesignCard({
           <p className="text-xs text-muted">
             {t("noteLabel")}: {current.note}
           </p>
+        ) : null}
+        {current?.scenario || current?.mirror ? (
+          <p className="flex flex-wrap gap-1.5 text-xs text-muted">
+            {current.scenario ? <span>{t("scenario", { scenario: current.scenario })}</span> : null}
+            {current.mirror ? <Badge>{t("mirrored")}</Badge> : null}
+          </p>
+        ) : null}
+        {current?.warnings.length ? (
+          <div
+            role="status"
+            className="rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn"
+            data-testid="layout-warnings"
+          >
+            <p className="font-medium">{t("warnings")}</p>
+            <ul className="list-disc pl-4">
+              {current.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {current?.status === "ready" && !current.scheme ? (
+          <p className="text-xs text-muted">{t("legacy")}</p>
         ) : null}
 
         {current?.score ? <ScoreBox score={current.score} /> : null}
@@ -432,7 +440,7 @@ function DesignCard({
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          {canEdit ? (
+          {canEdit && design.idea ? (
             <Button
               size="sm"
               variant={current ? "secondary" : "primary"}
@@ -446,14 +454,16 @@ function DesignCard({
           ) : null}
           {canEdit && current?.status === "ready" ? (
             <>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setMode(mode === "text" ? "none" : "text")}
-                disabled={pending || busy}
-              >
-                <PencilLine className="size-3.5" /> {t("editText")}
-              </Button>
+              {current.scheme ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setMode(mode === "text" ? "none" : "text")}
+                  disabled={pending || busy}
+                >
+                  <PencilLine className="size-3.5" /> {t("editText")}
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant={current.chosen ? "primary" : "secondary"}
@@ -504,8 +514,8 @@ function DesignCard({
             </div>
           </div>
         ) : null}
-        {mode === "text" && current?.text ? (
-          <TextEditor version={current} onDone={() => setMode("none")} />
+        {mode === "text" && current?.text && current.scheme ? (
+          <TextEditor version={current} scheme={current.scheme} onDone={() => setMode("none")} />
         ) : null}
       </CardBody>
     </Card>
@@ -538,26 +548,33 @@ function ScoreBox({ score }: { score: NonNullable<ThumbnailVersion["score"]> }) 
   );
 }
 
-function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: () => void }) {
+function TextEditor({
+  version,
+  scheme,
+  onDone,
+}: {
+  version: ThumbnailVersion;
+  scheme: SchemeId;
+  onDone: () => void;
+}) {
   const t = useTranslations("thumbnails");
   const errorText = useActionError();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [line1, setLine1] = useState(version.text?.lines[0] ?? "");
-  const [line2, setLine2] = useState(version.text?.lines[1] ?? "");
+  const [text, setText] = useState(version.text?.lines.join(" ") ?? "");
   const [accent, setAccent] = useState(version.text?.accent ?? "");
-  const [side, setSide] = useState<string>(version.side ?? "auto");
-  const [vertical, setVertical] = useState<string>(version.vertical ?? "auto");
-  const words = [line1, line2].flatMap((l) => l.split(/\s+/)).filter(Boolean);
+  const [mirror, setMirror] = useState(version.mirror);
+  const words = text.split(/\s+/).filter(Boolean);
   const accentValue = words.includes(accent) ? accent : (words.at(-1) ?? "");
+  // Las reglas de texto del esquema, en vivo.
+  const errors = words.length ? validateSchemeText(scheme, text, accentValue) : [];
 
   const save = () =>
     start(async () => {
       const res = await editThumbnailText(version.id, {
-        lines: [line1, line2].map((l) => l.trim()).filter(Boolean),
+        text: text.trim(),
         accent: accentValue,
-        side,
-        vertical,
+        mirror,
       });
       if (res.ok) {
         onDone();
@@ -567,23 +584,15 @@ function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: ()
 
   return (
     <div className="space-y-2 rounded-lg bg-surface-muted p-3">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Input
-          value={line1}
-          onChange={(e) => setLine1(e.target.value)}
-          maxLength={40}
-          aria-label={t("line", { n: 1 })}
-          className="h-8"
-        />
-        <Input
-          value={line2}
-          onChange={(e) => setLine2(e.target.value)}
-          maxLength={40}
-          aria-label={t("line", { n: 2 })}
-          className="h-8"
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      <Input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        maxLength={40}
+        aria-label={t("textLabel")}
+        placeholder={t("textLabel")}
+        className="h-8"
+      />
+      <div className="flex flex-wrap items-center gap-3 text-xs">
         <label className="flex items-center gap-1">
           {t("accentWord")}
           <Select
@@ -598,31 +607,24 @@ function TextEditor({ version, onDone }: { version: ThumbnailVersion; onDone: ()
             ))}
           </Select>
         </label>
-        <label className="flex items-center gap-1">
-          {t("side")}
-          <Select value={side} onChange={(e) => setSide(e.target.value)} className="h-8 w-auto">
-            <option value="auto">{t("auto")}</option>
-            <option value="left">{t("sideLeft")}</option>
-            <option value="right">{t("sideRight")}</option>
-          </Select>
-        </label>
-        <label className="flex items-center gap-1">
-          {t("vertical")}
-          <Select
-            value={vertical}
-            onChange={(e) => setVertical(e.target.value)}
-            className="h-8 w-auto"
-          >
-            <option value="auto">{t("auto")}</option>
-            <option value="top">{t("top")}</option>
-            <option value="middle">{t("middle")}</option>
-            <option value="bottom">{t("bottom")}</option>
-          </Select>
-        </label>
+        {THUMBNAIL_SCHEMES[scheme].mirror ? (
+          <label className="flex items-center gap-1">
+            <input type="checkbox" checked={mirror} onChange={(e) => setMirror(e.target.checked)} />
+            {t("mirror")}
+          </label>
+        ) : null}
       </div>
-      <p className="text-xs text-muted">{t("autoHint")}</p>
+      {errors.length ? (
+        <ul role="alert" className="text-xs text-critical" data-testid="text-errors">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted">{t("textHint")}</p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={save} disabled={pending || !words.length}>
+        <Button size="sm" onClick={save} disabled={pending || !words.length || errors.length > 0}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
           {t("applyText")}
         </Button>
