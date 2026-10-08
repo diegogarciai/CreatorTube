@@ -1,7 +1,15 @@
 import "server-only";
-import type { AidElement, AidKind, AidPiece, AidScores, AidStatus } from "@planificador/core";
+import type {
+  AidElement,
+  AidKind,
+  AidPiece,
+  AidScores,
+  AidStatus,
+  DroppedAid,
+} from "@planificador/core";
 import { RENDER_VERSION } from "@planificador/motion";
 import { getSupabase } from "../auth";
+import { createAdminClient } from "../supabase/admin";
 import { MEDIA_BUCKET, SIGNED_URL_SECONDS } from "../media";
 import { aidFileName } from "../resources";
 
@@ -49,6 +57,8 @@ export type VisualAidsView = {
   error: string | null;
   /** Hay un render en marcha. */
   rendering: boolean;
+  /** Lo que Claude propuso y las reglas de la sección 12 descartaron (último plan). */
+  dropped: DroppedAid[];
 };
 
 /** El plan de ayudas visuales del episodio, en orden de guion. */
@@ -62,7 +72,7 @@ export async function loadVisualAidsView(episode: {
     supabase.from("visual_aids").select("*").eq("episode_id", episode.id).order("position"),
     supabase
       .from("tasks")
-      .select("status, error")
+      .select("id, status, error")
       .eq("episode_id", episode.id)
       .eq("kind", "visual_plan")
       .order("created_at", { ascending: false })
@@ -121,6 +131,25 @@ export async function loadVisualAidsView(episode: {
       };
     }),
   );
+  // Lo que las reglas descartaron en el último plan: va en la meta del consumo
+  // de esa tarea (la tabla solo la leen los administradores; la página ya
+  // comprobó que el usuario puede ver el canal).
+  const { data: ledger } = task?.id
+    ? await createAdminClient()
+        .from("usage_ledger")
+        .select("meta")
+        .eq("task_id", task.id)
+        .eq("kind", "visual_plan")
+        .maybeSingle()
+    : { data: null };
+  const rawDropped = ((ledger?.meta as { dropped?: DroppedAid[] } | null)?.dropped ?? []).filter(
+    (d) => d && typeof d.code === "string" && Array.isArray(d.reasons),
+  );
+  // Planes viejos guardaban solo el código: el tipo sale de su letra.
+  const dropped = rawDropped.map((d) => ({
+    ...d,
+    kind: d.kind ?? (d.code[0] as AidKind),
+  }));
   const runs = [...new Set((aids ?? []).map((a) => a.script_run_id).filter(Boolean))] as string[];
   const { data: rows } = runs.length
     ? await supabase.from("verification_items").select("run_id, idx, status").in("run_id", runs)
@@ -161,5 +190,6 @@ export async function loadVisualAidsView(episode: {
     active: task?.status === "queued" || task?.status === "running",
     error: task?.status === "failed" ? (task.error ?? "errors.unknown") : null,
     rendering: renderViews.some((r) => r.view.status === "queued" || r.view.status === "rendering"),
+    dropped,
   };
 }

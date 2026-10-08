@@ -1237,7 +1237,16 @@
     "deleteRenders": "Borrar renders",
     "deleteRendersConfirm": "Se borran los renders de todas las ayudas (los videos). ¿Continuar?",
     "deleteRender": "Borrar render",
-    "deleteRenderConfirm": "Se borran los renders de esta ayuda. ¿Continuar?"
+    "deleteRenderConfirm": "Se borran los renders de esta ayuda. ¿Continuar?",
+    "noMotion": "Este plan no tiene motion graphics (M).",
+    "noMotionDropped": "{count, plural, one {Claude propuso # M, pero las reglas de la sección 12 la descartaron (abajo dice por qué).} other {Claude propuso # M, pero las reglas de la sección 12 las descartaron (abajo dice por qué).}}",
+    "noMotionNone": "Claude no propuso ninguna: según la sección 12, una M solo va cuando la escena cumple uno de los seis casos de 12.1 y suma 15/20. Si el guion tiene cifras o comparaciones que la merecen, rehaz el plan.",
+    "droppedTitle": "{count, plural, one {# ayuda descartada por las reglas} other {# ayudas descartadas por las reglas}}",
+    "droppedKind": {
+      "M": "Motion graphic",
+      "C": "Concepto",
+      "L": "Lista"
+    }
   },
   "resources": {
     "title": "Recursos del episodio",

@@ -114,6 +114,7 @@ export function VisualAidsPanel({
   const count = (k: VisualAidView["kind"]) =>
     view.aids.filter((a) => a.kind === k && a.status !== "discarded").length;
   const approved = view.aids.filter((a) => a.status === "approved");
+  const droppedMotion = view.dropped.filter((d) => d.kind === "M");
 
   const propose = () => {
     if (view.aids.length && !confirm(t("reproposeConfirm"))) return;
@@ -261,6 +262,20 @@ export function VisualAidsPanel({
                 <Loader2 className="size-3.5 animate-spin text-accent" /> {t("rendering")}
               </p>
             ) : null}
+            {count("M") === 0 ? (
+              <div
+                role="status"
+                className="space-y-1 rounded-lg bg-warn-soft px-3 py-2 text-warn"
+                data-testid="no-motion"
+              >
+                <p className="font-medium">{t("noMotion")}</p>
+                <p className="text-xs">
+                  {droppedMotion.length
+                    ? t("noMotionDropped", { count: droppedMotion.length })
+                    : t("noMotionNone")}
+                </p>
+              </div>
+            ) : null}
             <ol className="space-y-2">
               {view.aids.map((aid) => (
                 <AidItem
@@ -272,6 +287,27 @@ export function VisualAidsPanel({
                 />
               ))}
             </ol>
+            {view.dropped.length ? (
+              <details className="text-xs" data-testid="dropped-aids" open={count("M") === 0}>
+                <summary className="cursor-pointer text-muted">
+                  {t("droppedTitle", { count: view.dropped.length })}
+                </summary>
+                <ul className="mt-2 space-y-1.5">
+                  {view.dropped.map((d, i) => (
+                    <li
+                      key={`${d.code}-${i}`}
+                      className="rounded-md border border-border px-2 py-1.5"
+                    >
+                      <span className="font-medium">
+                        {t(`droppedKind.${d.kind ?? "M"}`)}
+                        {d.title ? `: ${d.title}` : ""}
+                      </span>
+                      <span className="text-muted"> · {d.reasons.join(" ")}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </>
         ) : !view.active ? (
           <p className="text-muted">{t("empty")}</p>
