@@ -21,6 +21,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
+import { ThumbnailIdeas } from "./thumbnail-ideas";
 import {
   addEpisodeRef,
   chooseThumbnail,
@@ -111,6 +112,12 @@ export function ThumbnailsPanel({
 
   return (
     <div className="space-y-6">
+      <ThumbnailIdeas
+        episodeId={episodeId}
+        view={view}
+        canEdit={canEdit}
+        canGenerate={view.presenterPhotos > 0 && !view.active}
+      />
       <Card>
         <CardHeader
           title={t("title")}
@@ -352,6 +359,7 @@ function DesignCard({
           <span className="flex items-center gap-2">
             <Badge tone="accent">{design.letter}</Badge>
             {design.angle || t("thumbnail", { letter: design.letter })}
+            {design.fromIdea ? <Badge>{t("fromIdea")}</Badge> : null}
             {current?.chosen ? (
               <Badge tone="ok">
                 <Star className="size-3 fill-current" /> {t("chosen")}

@@ -28,6 +28,8 @@ export type ThumbnailVersion = {
 
 export type ThumbnailDesignView = {
   idx: number;
+  /** El diseño sale de un texto elegido de la lista (y no del JSON). */
+  fromIdea: boolean;
   letter: string;
   /** El ángulo de la miniatura (el dinero, el error…); vacío en JSON viejos. */
   angle: string;
@@ -38,7 +40,24 @@ export type ThumbnailDesignView = {
   versions: ThumbnailVersion[];
 };
 
+export type ThumbnailIdeaView = {
+  id: string;
+  angle: string;
+  text: string;
+  accent: string;
+  scene: string;
+  emotion: string;
+  /** La tarjeta donde está (0 a 2), o null. */
+  slot: number | null;
+};
+
 export type ThumbnailsView = {
+  /** Los textos propuestos para elegir los 3 ángulos. */
+  ideas: ThumbnailIdeaView[];
+  /** La tarea que propone los textos está en marcha. */
+  ideasActive: boolean;
+  /** La última propuesta falló (mensaje), si es la más reciente. */
+  ideasError: string | null;
   /** Sin el JSON de Publicación no hay diseños que generar. */
   missingAssets: boolean;
   designs: ThumbnailDesignView[];
@@ -58,36 +77,55 @@ export async function loadThumbnailsView(episode: {
   currentScriptRunId: string | null;
 }): Promise<ThumbnailsView> {
   const supabase = await getSupabase();
-  const [{ data: json }, { data: rows }, { data: refs }, { count: presenterPhotos }] =
-    await Promise.all([
-      episode.currentScriptRunId
-        ? supabase
-            .from("script_step_runs")
-            .select("body")
-            .eq("run_id", episode.currentScriptRunId)
-            .eq("step", "assets_json")
-            .eq("status", "succeeded")
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("episode_assets")
-        .select(
-          "id, design_idx, status, path, text, text_side, text_v, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
-        )
-        .eq("episode_id", episode.id)
-        .eq("kind", "thumbnail")
-        .order("created_at", { ascending: false })
-        .limit(60),
-      supabase
-        .from("episode_refs")
-        .select("id, path, label")
-        .eq("episode_id", episode.id)
-        .order("created_at"),
-      supabase
-        .from("presenter_photos")
-        .select("id", { count: "exact", head: true })
-        .eq("channel_id", episode.channelId),
-    ]);
+  const [
+    { data: json },
+    { data: rows },
+    { data: refs },
+    { count: presenterPhotos },
+    { data: ideas },
+    { data: ideasTask },
+  ] = await Promise.all([
+    episode.currentScriptRunId
+      ? supabase
+          .from("script_step_runs")
+          .select("body")
+          .eq("run_id", episode.currentScriptRunId)
+          .eq("step", "assets_json")
+          .eq("status", "succeeded")
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("episode_assets")
+      .select(
+        "id, design_idx, status, path, text, text_side, text_v, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
+      )
+      .eq("episode_id", episode.id)
+      .eq("kind", "thumbnail")
+      .order("created_at", { ascending: false })
+      .limit(60),
+    supabase
+      .from("episode_refs")
+      .select("id, path, label")
+      .eq("episode_id", episode.id)
+      .order("created_at"),
+    supabase
+      .from("presenter_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("channel_id", episode.channelId),
+    supabase
+      .from("thumbnail_ideas")
+      .select("id, angle, text, accent, scene, emotion, slot, position")
+      .eq("episode_id", episode.id)
+      .order("position"),
+    supabase
+      .from("tasks")
+      .select("status, error")
+      .eq("episode_id", episode.id)
+      .eq("kind", "thumbnail_ideas")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const assets = parseAssets(json?.body);
   const storage = supabase.storage.from(MEDIA_BUCKET);
@@ -144,16 +182,35 @@ export async function loadThumbnailsView(episode: {
 
   return {
     missingAssets: !assets?.miniaturas.length,
-    designs: (assets?.miniaturas ?? []).slice(0, 3).map((d, idx) => ({
-      idx,
-      letter: thumbnailLetter(idx),
-      angle: d.angulo,
-      title: d.titulo,
-      text: d.texto,
-      scene: d.escena,
-      emotion: d.emocion,
-      versions: versions.filter((v) => v.idx === idx).map((v) => v.version),
-    })),
+    designs: (assets?.miniaturas ?? []).slice(0, 3).map((d, idx) => {
+      // Un texto elegido de la lista manda sobre la miniatura del JSON.
+      const idea = ideas?.find((i) => i.slot === idx);
+      return {
+        idx,
+        fromIdea: Boolean(idea),
+        letter: thumbnailLetter(idx),
+        angle: idea?.angle ?? d.angulo,
+        title: idea ? "" : d.titulo,
+        text: idea?.text ?? d.texto,
+        scene: idea?.scene ?? d.escena,
+        emotion: idea?.emotion ?? d.emocion,
+        versions: versions.filter((v) => v.idx === idx).map((v) => v.version),
+      };
+    }),
+    // Primero los que están en las tarjetas (A, B, C); después la tanda nueva.
+    ideas: [...(ideas ?? [])]
+      .sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9) || a.position - b.position)
+      .map((i) => ({
+        id: i.id,
+        angle: i.angle,
+        text: i.text,
+        accent: i.accent,
+        scene: i.scene,
+        emotion: i.emotion,
+        slot: i.slot,
+      })),
+    ideasActive: ideasTask?.status === "queued" || ideasTask?.status === "running",
+    ideasError: ideasTask?.status === "failed" ? (ideasTask.error ?? "errors.unknown") : null,
     refs: (refs ?? []).map((r) => ({ id: r.id, label: r.label, url: urls.get(r.path) ?? null })),
     presenterPhotos: presenterPhotos ?? 0,
     active,

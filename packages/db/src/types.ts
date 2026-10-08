@@ -452,6 +452,7 @@ export type Database = {
           created_at: string;
           updated_at: string;
           text_v: string | null;
+          idea_id: string | null;
         };
         Insert: {
           id?: string;
@@ -478,6 +479,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           text_v?: string | null;
+          idea_id?: string | null;
         };
         Update: {
           id?: string;
@@ -504,6 +506,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           text_v?: string | null;
+          idea_id?: string | null;
         };
         Relationships: [
           {
@@ -525,6 +528,13 @@ export type Database = {
             columns: ["episode_id"];
             isOneToOne: true;
             referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_assets_idea_id_fkey";
+            columns: ["idea_id"];
+            isOneToOne: false;
+            referencedRelation: "thumbnail_ideas";
             referencedColumns: ["id"];
           },
           {
@@ -1689,6 +1699,83 @@ export type Database = {
           },
           {
             foreignKeyName: "tasks_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      thumbnail_ideas: {
+        Row: {
+          id: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          task_id: string | null;
+          position: number;
+          angle: string;
+          text: string;
+          accent: string;
+          scene: string;
+          emotion: string;
+          slot: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          position?: number;
+          angle: string;
+          text: string;
+          accent?: string;
+          scene?: string;
+          emotion?: string;
+          slot?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          task_id?: string | null;
+          position?: number;
+          angle?: string;
+          text?: string;
+          accent?: string;
+          scene?: string;
+          emotion?: string;
+          slot?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "thumbnail_ideas_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "thumbnail_ideas_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "thumbnail_ideas_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "thumbnail_ideas_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";

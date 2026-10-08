@@ -85,7 +85,14 @@ Para el paso 4 (piezas animadas) también cuentan, del manual:
 
 ## 7. Miniaturas con Gemini (paso 2)
 
-Viven en la pestaña **Producción** del episodio. Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
+Viven en la pestaña **Producción** del episodio.
+
+**Elegir los ángulos.** Antes de las tarjetas está **«Textos para las miniaturas»**:
+
+- La tarea `thumbnail_ideas` le pide a Claude 30 textos de 2 a 4 palabras de al menos 8 ángulos distintos alrededor del tema central. Usa el título, el veredicto, la ficha (las cifras solo salen de ahí), los títulos, las keywords y el estilo del kit.
+- Diego marca 3 y genera: van a las tarjetas A, B y C en el orden en que los marcó (`thumbnail_ideas.slot`), y cada versión guarda de qué texto salió (`episode_assets.idea_id`).
+- «Proponer otros 30» reemplaza la lista y conserva los que están en uso.
+- Sin textos elegidos, las tarjetas usan las 3 miniaturas del JSON de Publicación. Cada miniatura pasa por cuatro pasos dentro de la tarea `thumbnails` (Trigger.dev):
 
 1. **Brief (Claude).** Una llamada para todas las que se generan, con el tema central del episodio y el ángulo de cada una: la escena en inglés para Gemini, el texto del campo «texto» repartido en dos líneas, la palabra en naranja y el lado del texto. La nota de Diego al regenerar entra aquí.
 2. **Imagen (Gemini).** `generateContent` con las fotos del presentador (hasta 5 con Pro) y del producto (hasta 3) como referencia, cada una con su etiqueta, 16:9 en 2K con Pro y **sin texto**. La cara del presentador va siempre grande y reconocible, también cuando el producto es el protagonista. La instrucción fija (`imagePrompt`) añade la marca: fondo oscuro, luz cálida lateral, halo naranja, el lado del texto libre y nada de letras, logos, flechas, emojis ni marcos.

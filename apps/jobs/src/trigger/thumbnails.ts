@@ -6,6 +6,7 @@ import {
   geminiConfigFromEnv,
   generateImage,
   imageCostUsd,
+  designFromIdea,
   imagePrompt,
   locateSubjects,
   maxPresenterRefs,
@@ -18,6 +19,7 @@ import {
   type StreamClient,
   type SubjectBox,
   type TextSide,
+  type ThumbnailDesign,
   type ThumbnailText,
 } from "@planificador/ai";
 import { parseBrandKit } from "@planificador/core";
@@ -62,6 +64,7 @@ type AssetRow = {
   text: Json | null;
   text_side: string | null;
   text_v: string | null;
+  idea_id: string | null;
   prompt: string | null;
   note: string | null;
   score: Json | null;
@@ -93,7 +96,7 @@ export async function runThumbnails(
           db
             .from("episode_assets")
             .select(
-              "id, design_idx, status, base_path, path, text, text_side, text_v, prompt, note, score, credits",
+              "id, design_idx, status, base_path, path, text, text_side, text_v, idea_id, prompt, note, score, credits",
             )
             .eq("task_id", taskId)
             .order("design_idx"),
@@ -152,6 +155,22 @@ export async function runThumbnails(
         );
         return { ready: 0 };
       }
+
+      // El diseño de cada fila: el texto elegido de la lista, o la miniatura
+      // del JSON de Publicación en esa posición.
+      const ideaIds = pending.flatMap((r) => (r.idea_id ? [r.idea_id] : []));
+      const { data: ideas } = ideaIds.length
+        ? await db
+            .from("thumbnail_ideas")
+            .select("id, angle, text, accent, scene, emotion")
+            .in("id", ideaIds)
+        : { data: [] };
+      const designFor = (r: AssetRow): ThumbnailDesign => {
+        const idea = ideas?.find((i) => i.id === r.idea_id);
+        return idea
+          ? designFromIdea(idea)
+          : (assets.miniaturas[r.design_idx] ?? assets.miniaturas[0]!);
+      };
 
       const kit = parseBrandKit(kitRow);
       const ai = await loadAiSettings(db, task.workspace_id);
@@ -216,7 +235,7 @@ export async function runThumbnails(
         const out = await thumbnailBriefs(anthropic, claude, {
           designs: needBrief.map((r) => ({
             idx: r.design_idx,
-            design: assets.miniaturas[r.design_idx] ?? assets.miniaturas[0]!,
+            design: designFor(r),
             note: r.note,
           })),
           kit: {
@@ -262,7 +281,7 @@ export async function runThumbnails(
           const text = row.text as ThumbnailText;
           const side = row.text_side as TextSide | null;
           const vertical = row.text_v as TextVertical | null;
-          const design = assets.miniaturas[row.design_idx] ?? assets.miniaturas[0]!;
+          const design = designFor(row);
           let base: Buffer | null = null;
 
           if (!row.base_path) {

@@ -7,7 +7,11 @@ import { getChannelContext, getSupabase, PermissionError, requireUser } from "..
 import { startJob } from "../jobs";
 import { MEDIA_BUCKET } from "../media";
 import { createAdminClient } from "../supabase/admin";
-import { THUMBNAIL_ESTIMATE_CREDITS, THUMBNAIL_TEXT_ESTIMATE_CREDITS } from "../tasks";
+import {
+  THUMBNAIL_ESTIMATE_CREDITS,
+  THUMBNAIL_IDEAS_ESTIMATE_CREDITS,
+  THUMBNAIL_TEXT_ESTIMATE_CREDITS,
+} from "../tasks";
 import { errorMessage, type ActionResult } from "../utils";
 
 /**
@@ -73,11 +77,18 @@ export async function generateThumbnails(episodeId: string, input: unknown): Pro
         requestedBy: user.id,
       },
       async (taskId) => {
+        // Si la tarjeta tiene un texto elegido de la lista, la versión sale de él.
+        const { data: slotted } = await admin
+          .from("thumbnail_ideas")
+          .select("id, slot")
+          .eq("episode_id", episodeId)
+          .in("slot", unique);
         const { error } = await admin.from("episode_assets").insert(
           unique.map((idx) => ({
             episode_id: episodeId,
             channel_id: row.channel_id,
             design_idx: idx,
+            idea_id: slotted?.find((i) => i.slot === idx)?.id ?? null,
             note: note || null,
             task_id: taskId,
             created_by: user.id,
@@ -111,7 +122,7 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
     const admin = createAdminClient();
     const { data: source } = await admin
       .from("episode_assets")
-      .select("episode_id, design_idx, base_path, prompt, status")
+      .select("episode_id, design_idx, base_path, prompt, status, idea_id")
       .eq("id", assetId)
       .single();
     if (!source?.base_path) return { ok: false, error: "errors.not_found" };
@@ -133,6 +144,7 @@ export async function editThumbnailText(assetId: string, input: unknown): Promis
           channel_id: row.channel_id,
           design_idx: source.design_idx,
           source_id: assetId,
+          idea_id: source.idea_id,
           base_path: source.base_path,
           prompt: source.prompt,
           text: { lines, accent: text.accent },
@@ -224,6 +236,91 @@ export async function deleteEpisodeRef(episodeId: string, id: string): Promise<A
     if (error) throw error;
     if (!ref) return { ok: false, error: "errors.not_found" };
     await supabase.storage.from(MEDIA_BUCKET).remove([ref.path]);
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Lanza la tarea que propone 30 textos de ángulos distintos para las miniaturas. */
+export async function proposeThumbnailIdeas(episodeId: string): Promise<ActionResult> {
+  try {
+    const { user, supabase, row } = await loadEpisode(episodeId);
+    if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_IDEAS_ESTIMATE_CREDITS)))
+      return { ok: false, error: "errors.no_credits" };
+    await startJob("thumbnail_ideas", {
+      workspaceId: row.workspace_id,
+      channelId: row.channel_id,
+      episodeId,
+      requestedBy: user.id,
+    });
+    revalidate(row.channel_id, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+const fromIdeasSchema = z.object({ ideaIds: z.array(z.uuid()).length(3) });
+
+/**
+ * Pone los 3 textos elegidos en las tarjetas A, B y C (en el orden en que se
+ * marcaron) y genera sus miniaturas.
+ */
+export async function generateFromIdeas(episodeId: string, input: unknown): Promise<ActionResult> {
+  try {
+    const { ideaIds } = fromIdeasSchema.parse(input);
+    if (new Set(ideaIds).size !== 3) return { ok: false, error: "errors.invalid_input" };
+    const { user, supabase, row } = await loadEpisode(episodeId);
+    if (!(await hasCredits(supabase, row.workspace_id, THUMBNAIL_ESTIMATE_CREDITS * 3)))
+      return { ok: false, error: "errors.no_credits" };
+
+    const admin = createAdminClient();
+    const [{ count }, { data: ideas }] = await Promise.all([
+      admin
+        .from("presenter_photos")
+        .select("id", { count: "exact", head: true })
+        .eq("channel_id", row.channel_id),
+      admin.from("thumbnail_ideas").select("id").eq("episode_id", episodeId).in("id", ideaIds),
+    ]);
+    if (!count) return { ok: false, error: "errors.no_presenter_photos" };
+    if ((ideas ?? []).length !== 3) return { ok: false, error: "errors.not_found" };
+
+    // Primero se sueltan las tarjetas y después se asignan, por el único (episodio, tarjeta).
+    const { error: clearError } = await admin
+      .from("thumbnail_ideas")
+      .update({ slot: null })
+      .eq("episode_id", episodeId)
+      .not("slot", "is", null);
+    if (clearError) throw clearError;
+    for (const [slot, id] of ideaIds.entries()) {
+      const { error } = await admin.from("thumbnail_ideas").update({ slot }).eq("id", id);
+      if (error) throw error;
+    }
+
+    await startJob(
+      "thumbnails",
+      {
+        workspaceId: row.workspace_id,
+        channelId: row.channel_id,
+        episodeId,
+        requestedBy: user.id,
+      },
+      async (taskId) => {
+        const { error } = await admin.from("episode_assets").insert(
+          ideaIds.map((id, slot) => ({
+            episode_id: episodeId,
+            channel_id: row.channel_id,
+            design_idx: slot,
+            idea_id: id,
+            task_id: taskId,
+            created_by: user.id,
+          })),
+        );
+        if (error) throw error;
+      },
+    );
     revalidate(row.channel_id, episodeId);
     return { ok: true };
   } catch (err) {

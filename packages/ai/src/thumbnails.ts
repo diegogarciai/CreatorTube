@@ -386,3 +386,125 @@ export async function locateSubjects(
     .filter((b) => b.w > 0 && b.h > 0);
   return { boxes, usage: addUsage(emptyUsage(), res.usage), model: res.model };
 }
+
+/** Un texto propuesto para una miniatura, con su ángulo. */
+export type ThumbnailIdea = {
+  angle: string;
+  text: string;
+  accent: string;
+  scene: string;
+  emotion: string;
+};
+
+export const THUMBNAIL_IDEAS_COUNT = 30;
+
+const ideasSchema = z.object({
+  ideas: z.array(
+    z.object({
+      angle: z
+        .string()
+        .describe("El ángulo en 1 a 4 palabras: el dinero, el error, la comparación, el mito…"),
+      text: z.string().describe("El texto de la miniatura: de 2 a 4 palabras."),
+      accent: z.string().describe("La única palabra del texto que va en naranja."),
+      scene: z.string().describe("La escena de la imagen en una frase."),
+      emotion: z.string().describe("La emoción que despierta, en 1 a 3 palabras."),
+    }),
+  ),
+});
+
+export interface IdeasInput {
+  episodeTitle: string;
+  verdict: string;
+  /** La ficha del episodio (paso «sheet»); manda sobre las cifras. */
+  sheet: string;
+  titles: string[];
+  keywords: string[];
+  thumbnailStyle: string;
+  presenter: string;
+}
+
+/**
+ * 30 textos de ángulos distintos alrededor del tema central del episodio, para
+ * que el presentador elija los 3 de «Probar y comparar».
+ */
+export async function thumbnailIdeas(
+  client: StreamClient,
+  config: AiConfig,
+  input: IdeasInput,
+): Promise<{ ideas: ThumbnailIdea[]; usage: UsageTotals; model: string }> {
+  const system = [
+    `Propones ${THUMBNAIL_IDEAS_COUNT} textos para miniaturas de YouTube de un canal de tecnología, en español.`,
+    "Todos giran alrededor del tema central del episodio, desde ángulos totalmente distintos: el dinero, el error, la comparación, el mito, el uso real, para quién sí, para quién no, el veredicto, la sorpresa, el riesgo, el permiso… Usa al menos 8 ángulos y reparte los textos entre ellos.",
+    "Cada texto tiene de 2 a 4 palabras y nombra algo concreto (el producto, un componente, una cifra o un precio); nunca «tu número», «el uso» ni «según tu oficio».",
+    "Una sola palabra del texto va en naranja: la que carga la emoción o el dato.",
+    "Las cifras solo pueden salir de la ficha del episodio. Ningún texto contradice el veredicto ni promete lo que el video no entrega. No repitas textos.",
+    "Por cada texto: el ángulo, el texto, la palabra en naranja, la escena de la imagen en una frase (el presentador con la cara grande y el producto real) y la emoción.",
+  ].join("\n");
+  const user = [
+    `Tema central del episodio: ${input.episodeTitle}`,
+    `Veredicto: ${input.verdict || "(sin veredicto)"}`,
+    `Presentador: ${input.presenter}`,
+    input.titles.length ? `Títulos del video: ${input.titles.join(" | ")}` : "",
+    input.keywords.length ? `Keywords: ${input.keywords.join(", ")}` : "",
+    `Estilo de miniaturas del canal: ${input.thumbnailStyle}`,
+    "",
+    "## Ficha del episodio",
+    input.sheet.trim().slice(0, 12_000) || "(sin ficha)",
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
+
+  const res = await client.beta.messages.parse({
+    model: config.model,
+    max_tokens: 6_000,
+    system,
+    messages: [{ role: "user", content: user }],
+    output_config: { effort: "low", format: betaZodOutputFormat(ideasSchema) },
+    ...(config.fallbacks && {
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+    }),
+  });
+  if (res.stop_reason === "refusal") {
+    const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
+    throw new AiRefusalError(details?.category ?? null);
+  }
+  const parsed = res.parsed_output;
+  if (!parsed?.ideas.length) throw new Error("Los textos de las miniaturas llegaron vacíos");
+  const seen = new Set<string>();
+  const ideas: ThumbnailIdea[] = [];
+  for (const i of parsed.ideas) {
+    const text = i.text.trim().replace(/\s+/g, " ");
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) continue;
+    seen.add(key);
+    ideas.push({
+      angle: i.angle.trim().slice(0, 60) || "Otro",
+      text: text.slice(0, 80),
+      accent: normalizeText([text], i.accent).accent.slice(0, 40),
+      scene: i.scene.trim().slice(0, 400),
+      emotion: i.emotion.trim().slice(0, 80),
+    });
+  }
+  return {
+    ideas: ideas.slice(0, THUMBNAIL_IDEAS_COUNT),
+    usage: addUsage(emptyUsage(), res.usage),
+    model: res.model,
+  };
+}
+
+/** Un texto elegido como diseño de miniatura, para el brief y la calificación. */
+export function designFromIdea(idea: ThumbnailIdea): ThumbnailDesign {
+  return {
+    angulo: idea.angle,
+    texto: idea.text,
+    escena: idea.scene,
+    expresion: "",
+    protagonista: "",
+    composicion: "",
+    ayuda_visual: "",
+    emocion: idea.emotion,
+    titulo: "",
+    texto_alternativo: idea.text,
+  };
+}

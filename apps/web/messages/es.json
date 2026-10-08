@@ -594,7 +594,8 @@
       "script": "Guion",
       "youtube_import": "Importar videos de YouTube",
       "ai_models_refresh": "Actualizar modelos de IA",
-      "thumbnails": "Miniaturas"
+      "thumbnails": "Miniaturas",
+      "thumbnail_ideas": "Textos para miniaturas"
     },
     "status": {
       "queued": "En cola",
@@ -1028,6 +1029,25 @@
     "top": "Arriba",
     "middle": "Centro",
     "bottom": "Abajo",
-    "autoHint": "Automático: la app pone el texto donde la imagen tiene menos detalle."
+    "autoHint": "Automático: la app pone el texto donde la imagen tiene menos detalle.",
+    "fromIdea": "De la lista"
+  },
+  "thumbnailIdeas": {
+    "title": "Textos para las miniaturas",
+    "description": "30 textos de ángulos distintos alrededor del tema central del episodio. Marca los 3 que más te interesen y genera sus miniaturas.",
+    "propose": "Proponer 30 textos",
+    "repropose": "Proponer otros 30",
+    "reproposeConfirm": "Se reemplaza la lista; los textos que están en las tarjetas se conservan. ¿Continuar?",
+    "estimate": "Costo estimado: {cost}",
+    "working": "Proponiendo los textos… puedes salir de esta página.",
+    "failed": "No se pudieron proponer los textos.",
+    "empty": "Todavía no hay textos. Propón 30 y elige los 3 de las miniaturas.",
+    "filters": "Filtrar por ángulo",
+    "all": "Todos",
+    "inUse": "En la tarjeta {letter}",
+    "picked": "{count} de 3 elegidos",
+    "generate": "Generar miniaturas con estas 3",
+    "generateEstimate": "Costo estimado: {cost}",
+    "generating": "Generando las 3 miniaturas…"
   }
 }

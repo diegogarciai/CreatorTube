@@ -6,6 +6,7 @@ import type {
   JobKind,
   pingTask,
   scriptTask,
+  thumbnailIdeasTask,
   thumbnailsTask,
   youtubeImportTask,
 } from "@planificador/jobs";
@@ -21,6 +22,7 @@ interface JobPayloads {
   youtube_import: typeof youtubeImportTask;
   ai_models_refresh: typeof aiModelsRefreshTask;
   thumbnails: typeof thumbnailsTask;
+  thumbnail_ideas: typeof thumbnailIdeasTask;
 }
 
 export interface JobScope {

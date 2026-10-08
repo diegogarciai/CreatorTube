@@ -7,6 +7,8 @@ import {
   maxPresenterRefs,
   imagePrompt,
   locateSubjects,
+  thumbnailIdeas,
+  designFromIdea,
   normalizeText,
   scoreThumbnail,
   thumbnailBriefs,
@@ -344,5 +346,86 @@ describe("ubicar la cara y el producto", () => {
       { label: "product", x: 0.9, y: 0.8, w: expect.closeTo(0.1), h: expect.closeTo(0.2) },
     ]);
     expect(String(calls[0]!.system)).toContain("para que un titular no los tape");
+  });
+});
+
+describe("textos para miniaturas", () => {
+  it("pide 30 textos de ángulos distintos con la ficha y limpia la salida", async () => {
+    const { client, calls } = fakeClient({
+      ideas: [
+        {
+          angle: "El dinero",
+          text: "¿Pagar  más por RAM?",
+          accent: "ram",
+          scene: "s",
+          emotion: "pagar de más",
+        },
+        {
+          angle: "El dinero",
+          text: "¿pagar más por ram?",
+          accent: "RAM",
+          scene: "s",
+          emotion: "x",
+        },
+        {
+          angle: "El mito",
+          text: "8 GB alcanzan",
+          accent: "nada",
+          scene: "s2",
+          emotion: "sorpresa",
+        },
+      ],
+    });
+    const out = await thumbnailIdeas(
+      client,
+      { model: "m" },
+      {
+        episodeTitle: "¿Vale la pena 16 GB?",
+        verdict: "16 GB para trabajar",
+        sheet: "Ficha con cifras: 23 % más.",
+        titles: ["No compres 8 GB"],
+        keywords: ["16 gb ram"],
+        thumbnailStyle: "Tres ángulos",
+        presenter: "Diego",
+      },
+    );
+    expect(out.ideas).toEqual([
+      {
+        angle: "El dinero",
+        text: "¿Pagar más por RAM?",
+        accent: "RAM?",
+        scene: "s",
+        emotion: "pagar de más",
+      },
+      {
+        angle: "El mito",
+        text: "8 GB alcanzan",
+        accent: "alcanzan",
+        scene: "s2",
+        emotion: "sorpresa",
+      },
+    ]);
+    const user = (calls[0]!.messages as { content: string }[])[0]!.content;
+    expect(user).toContain("Tema central del episodio: ¿Vale la pena 16 GB?");
+    expect(user).toContain("Ficha con cifras: 23 % más.");
+    expect(String(calls[0]!.system)).toContain("al menos 8 ángulos");
+    expect(String(calls[0]!.system)).toContain("Las cifras solo pueden salir de la ficha");
+  });
+
+  it("un texto elegido sirve como diseño de miniatura", () => {
+    expect(
+      designFromIdea({
+        angle: "El error",
+        text: "No compres 8 GB",
+        accent: "GB",
+        scene: "e",
+        emotion: "miedo",
+      }),
+    ).toMatchObject({
+      angulo: "El error",
+      texto: "No compres 8 GB",
+      escena: "e",
+      emocion: "miedo",
+    });
   });
 });
