@@ -12,6 +12,7 @@ export function LoginForm({ next, disabled }: { next: string; disabled: boolean 
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   const callback = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
@@ -36,12 +37,79 @@ export function LoginForm({ next, disabled }: { next: string; disabled: boolean 
       options: { emailRedirectTo: callback() },
     });
     setBusy(false);
-    if (error) setError(/invit/i.test(error.message) ? t("signupBlocked") : error.message);
-    else setSent(true);
+    if (error) {
+      setError(
+        /invit/i.test(error.message)
+          ? t("signupBlocked")
+          : /security purposes|rate limit|after \d+ seconds/i.test(error.message)
+            ? t("rateLimited")
+            : error.message,
+      );
+    } else setSent(true);
+  }
+
+  /**
+   * Código de un solo uso del mismo correo: sirve en cualquier navegador o
+   * dispositivo y no lo gastan los escáneres de enlaces de los correos.
+   */
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const { error } = await createClient().auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: "email",
+    });
+    if (error) {
+      setBusy(false);
+      setError(t("codeInvalid"));
+      return;
+    }
+    window.location.assign(next);
   }
 
   if (sent) {
-    return <p className="mt-6 rounded-lg bg-ok-soft px-3 py-3 text-sm text-ok">{t("linkSent")}</p>;
+    return (
+      <div className="mt-6 space-y-4">
+        <p className="rounded-lg bg-ok-soft px-3 py-3 text-sm text-ok">{t("linkSent")}</p>
+        <form onSubmit={verifyCode} className="space-y-3">
+          <div>
+            <Label htmlFor="code">{t("codeLabel")}</Label>
+            <Input
+              id="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,10}"
+              maxLength={10}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              className="text-center font-mono text-lg tracking-widest"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={busy || code.length < 6}>
+            {t("verify")}
+          </Button>
+        </form>
+        {error ? (
+          <p role="alert" className="text-sm text-critical">
+            {error}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          className="text-sm text-muted hover:text-text"
+          onClick={() => {
+            setSent(false);
+            setCode("");
+            setError(null);
+          }}
+        >
+          {t("useOtherEmail")}
+        </button>
+      </div>
+    );
   }
 
   return (

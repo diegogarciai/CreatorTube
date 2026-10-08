@@ -141,11 +141,18 @@
     "or": "o",
     "email": "Correo",
     "sendLink": "Enviarme un enlace",
-    "linkSent": "Revisa tu correo: te enviamos un enlace para entrar.",
+    "linkSent": "Revisa tu correo: te enviamos un enlace y un código para entrar.",
     "inviteOnly": "Solo pueden entrar personas invitadas.",
     "configMissing": "Falta configurar Supabase (NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY).",
     "callbackError": "No pudimos completar el inicio de sesión. Intenta de nuevo.",
-    "signupBlocked": "Este correo no tiene invitación. Pide un enlace de invitación a quien administra la plataforma."
+    "signupBlocked": "Este correo no tiene invitación. Pide un enlace de invitación a quien administra la plataforma.",
+    "codeLabel": "Código del correo",
+    "verify": "Entrar con el código",
+    "codeInvalid": "El código no es válido o ya venció. Pide uno nuevo.",
+    "useOtherEmail": "Usar otro correo o pedir otro código",
+    "callbackExpired": "El enlace venció o ya se usó. Algunos correos lo abren al revisarlo antes de que llegue a ti. Pide uno nuevo y entra con el código del correo.",
+    "callbackBrowser": "Abre el enlace en el mismo navegador donde lo pediste, o entra con el código del correo.",
+    "rateLimited": "Ya te enviamos un correo hace poco. Espera un minuto antes de pedir otro."
   },
   "invite": {
     "title": "Invitación",
