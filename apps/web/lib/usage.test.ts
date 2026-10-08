@@ -11,6 +11,8 @@ describe("panel de consumo", () => {
     expect(stageOfKind("script_reels")).toBe("verification");
     expect(stageOfKind("script_assets_json")).toBe("publication");
     expect(stageOfKind("script_podcast_desc")).toBe("podcast");
+    expect(stageOfKind("thumbnail_image")).toBe("thumbnails");
+    expect(stageOfKind("thumbnail_score")).toBe("thumbnails");
     expect(stageOfKind("otra_cosa")).toBe("other");
   });
 
@@ -18,6 +20,7 @@ describe("panel de consumo", () => {
     expect(splitCost({ cost_usd: 1, search_usd: 0.2, legacy_searches: 0 })).toEqual({
       aiUsd: 0.8,
       searchUsd: 0.2,
+      imageUsd: 0,
     });
     const legacy = splitCost({ cost_usd: 0.5, search_usd: 0, legacy_searches: 10 });
     expect(legacy.searchUsd).toBeCloseTo(0.05);
@@ -26,7 +29,12 @@ describe("panel de consumo", () => {
     expect(splitCost({ cost_usd: 0.01, search_usd: 0, legacy_searches: 10 })).toEqual({
       aiUsd: 0,
       searchUsd: 0.01,
+      imageUsd: 0,
     });
+    // Las imágenes de Gemini van aparte.
+    expect(
+      splitCost({ cost_usd: 0.07, search_usd: 0, legacy_searches: 0, image_usd: 0.07 }),
+    ).toEqual({ aiUsd: 0, searchUsd: 0, imageUsd: 0.07 });
   });
 
   it("avisa al 80 % y marca al superar el presupuesto", () => {

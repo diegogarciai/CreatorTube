@@ -205,3 +205,23 @@ export function isMediaPathOf(path: string, channelId: string, folder: MediaFold
     /^[\w-]+\.(png|jpg|webp|svg)$/.test(parts[2]!)
   );
 }
+
+/** Ruta nueva de una foto del producto: `{canal}/episodes/{episodio}/refs/{id}.{ext}`. */
+export function episodeRefPath(channelId: string, episodeId: string, mime: string, id: string) {
+  const ext = EXT[mime as keyof typeof EXT];
+  if (!ext || ext === "svg") throw new Error("errors.invalid_file_type");
+  return `${channelId}/episodes/${episodeId}/refs/${id}.${ext}`;
+}
+
+/** ¿La ruta es una foto del producto de ese episodio? (lo revisa también la base). */
+export function isEpisodeRefPath(path: string, channelId: string, episodeId: string) {
+  const parts = path.split("/");
+  return (
+    parts.length === 5 &&
+    parts[0] === channelId &&
+    parts[1] === "episodes" &&
+    parts[2] === episodeId &&
+    parts[3] === "refs" &&
+    /^[\w-]+\.(png|jpg|webp)$/.test(parts[4]!)
+  );
+}

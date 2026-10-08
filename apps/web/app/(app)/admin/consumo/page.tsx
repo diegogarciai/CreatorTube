@@ -18,6 +18,7 @@ export const metadata: Metadata = { title: "Consumo de servicios" };
 const CONSOLES = {
   ai: "https://console.anthropic.com/settings/usage",
   parallel: "https://platform.parallel.ai",
+  gemini: "https://aistudio.google.com/usage",
   youtube: "https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas",
   jobs: "https://cloud.trigger.dev",
   artlist: "https://artlist.io",
@@ -72,9 +73,11 @@ export default async function UsagePage({
   const wsName = (id: string) => view.workspaces.find((w) => w.id === id)?.name ?? id;
   const n = new Intl.NumberFormat("es-CO");
 
-  // IA y Parallel.
+  // IA, Parallel y Gemini.
   const aiUsd = view.rows.reduce((s, r) => s + r.aiUsd, 0);
   const searchUsd = view.rows.reduce((s, r) => s + r.searchUsd, 0);
+  const imageUsd = view.rows.reduce((s, r) => s + r.imageUsd, 0);
+  const images = view.rows.reduce((s, r) => s + r.images, 0);
   const calls = view.rows.reduce((s, r) => s + r.calls, 0);
   const tokensIn = view.rows.reduce((s, r) => s + r.input_tokens + r.cache_tokens, 0);
   const tokensOut = view.rows.reduce((s, r) => s + r.output_tokens, 0);
@@ -99,7 +102,18 @@ export default async function UsagePage({
     (r) => r.workspace_id,
     (r) => r.searchUsd,
   );
+  const imageByWorkspace = sumBy(
+    view.rows.filter((r) => r.images > 0),
+    (r) => r.workspace_id,
+    (r) => r.imageUsd,
+  );
+  const imageByModel = sumBy(
+    view.rows.filter((r) => r.images > 0),
+    (r) => r.model || "—",
+    (r) => r.imageUsd,
+  );
   const aiState = budgetState(aiUsd, view.budgets.ai);
+  const imageState = budgetState(imageUsd, view.budgets.gemini);
   const searchState = budgetState(searchUsd, view.budgets.parallel);
 
   // YouTube: cuota de hoy, compartida por todos los canales.
@@ -176,8 +190,8 @@ export default async function UsagePage({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label={t("totalMonth")} value={dollars(aiUsd + searchUsd)} />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Stat label={t("totalMonth")} value={dollars(aiUsd + searchUsd + imageUsd)} />
           <Stat
             label={t("ai")}
             value={dollars(aiUsd)}
@@ -189,6 +203,12 @@ export default async function UsagePage({
             value={dollars(searchUsd)}
             state={searchState}
             stateLabel={t(`state.${searchState}`)}
+          />
+          <Stat
+            label={t("gemini")}
+            value={dollars(imageUsd)}
+            state={imageState}
+            stateLabel={t(`state.${imageState}`)}
           />
           <Stat
             label={t("youtubeToday")}
@@ -266,6 +286,36 @@ export default async function UsagePage({
             rows={searchByWorkspace.map(([k, v]) => [wsName(k), dollars(v)])}
             empty={t("empty")}
           />
+        </ServiceCard>
+
+        <ServiceCard
+          title={t("gemini")}
+          description={t("geminiDesc")}
+          href={CONSOLES.gemini}
+          console={t("console")}
+          state={imageState}
+          stateLabel={t(`state.${imageState}`)}
+          spent={imageUsd}
+          budget={view.budgets.gemini ?? null}
+          budgetForm={<BudgetForm service="gemini" value={view.budgets.gemini ?? null} />}
+          budgetLabel={(spent, budget) =>
+            t("budgetOf", { spent: dollars(spent), budget: dollars(budget) })
+          }
+        >
+          <p className="text-sm text-muted">{t("images", { count: images })}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Breakdown
+              title={t("byWorkspace")}
+              rows={imageByWorkspace.map(([k, v]) => [wsName(k), dollars(v)])}
+              empty={t("empty")}
+            />
+            <Breakdown
+              title={t("byModel")}
+              rows={imageByModel.map(([k, v]) => [k, dollars(v)])}
+              empty={t("empty")}
+              mono
+            />
+          </div>
         </ServiceCard>
 
         <ServiceCard

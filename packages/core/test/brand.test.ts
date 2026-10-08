@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { brandKitSchema, DEFAULT_BRAND_KIT, isMediaPathOf, mediaPath, parseBrandKit } from "../src";
+import {
+  brandKitSchema,
+  DEFAULT_BRAND_KIT,
+  episodeRefPath,
+  isEpisodeRefPath,
+  isMediaPathOf,
+  mediaPath,
+  parseBrandKit,
+} from "../src";
 
 const CH = "3f0c2b8e-1a2b-4c3d-8e9f-001122334455";
 
@@ -61,5 +69,15 @@ describe("rutas del bucket", () => {
     expect(isMediaPathOf(`${CH}/presenter/../x.jpg`, CH, "presenter")).toBe(false);
     expect(isMediaPathOf(`otro/presenter/a.jpg`, CH, "presenter")).toBe(false);
     expect(() => mediaPath(CH, "brand", "application/pdf", "x")).toThrow(/invalid_file_type/);
+  });
+
+  it("arma y revisa las fotos del producto de un episodio", () => {
+    const ep = "9a0c2b8e-1a2b-4c3d-8e9f-001122334455";
+    const p = episodeRefPath(CH, ep, "image/png", "x1");
+    expect(p).toBe(`${CH}/episodes/${ep}/refs/x1.png`);
+    expect(isEpisodeRefPath(p, CH, ep)).toBe(true);
+    expect(isEpisodeRefPath(p, CH, CH)).toBe(false);
+    expect(isEpisodeRefPath(`${CH}/episodes/${ep}/thumbnails/x1.png`, CH, ep)).toBe(false);
+    expect(() => episodeRefPath(CH, ep, "image/svg+xml", "x")).toThrow(/invalid_file_type/);
   });
 });

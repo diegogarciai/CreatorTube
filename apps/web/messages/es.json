@@ -533,7 +533,11 @@
     "invalid_file_type": "Solo se aceptan imágenes PNG, JPG, WebP o SVG.",
     "file_too_large": "El archivo pesa más de 10 MB.",
     "too_many_photos": "Ya hay 8 fotos: borra una para subir otra.",
-    "upload_failed": "No se pudo subir el archivo. Inténtalo de nuevo."
+    "upload_failed": "No se pudo subir el archivo. Inténtalo de nuevo.",
+    "no_presenter_photos": "Faltan las fotos del presentador: súbelas en Ajustes del canal.",
+    "no_publication_assets": "Falta el JSON de Publicación del guion actual.",
+    "image_blocked": "Gemini no devolvió la imagen (la bloqueó su filtro). Prueba con otra indicación.",
+    "too_many_refs": "Ya hay 3 fotos del producto: borra una para subir otra."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -589,7 +593,8 @@
       "direction": "Preguntas de dirección",
       "script": "Guion",
       "youtube_import": "Importar videos de YouTube",
-      "ai_models_refresh": "Actualizar modelos de IA"
+      "ai_models_refresh": "Actualizar modelos de IA",
+      "thumbnails": "Miniaturas"
     },
     "status": {
       "queued": "En cola",
@@ -803,7 +808,8 @@
       "verification": "Verificación",
       "publication": "Publicación",
       "podcast": "Podcast",
-      "youtube_import": "Importación de YouTube"
+      "youtube_import": "Importación de YouTube",
+      "thumbnails": "Miniaturas (brief y calificación)"
     }
   },
   "usage": {
@@ -827,7 +833,7 @@
     "chartLabel": "Consumo de IA y Parallel en los últimos meses",
     "lastMonths": "Últimos 6 meses",
     "lastMonthsHint": "IA y Parallel de toda la plataforma, mes a mes.",
-    "aiDesc": "Preguntas de dirección, guion, verificación, publicación, podcast e importación de YouTube.",
+    "aiDesc": "Preguntas de dirección, guion, verificación, publicación, podcast, importación de YouTube y brief y calificación de miniaturas.",
     "aiTotals": "{calls} llamadas · {input} mil tokens de entrada · {output} mil de salida",
     "byWorkspace": "Por espacio",
     "byStage": "Por etapa",
@@ -842,7 +848,8 @@
       "publication": "Publicación",
       "podcast": "Podcast",
       "youtube_import": "Importación de YouTube",
-      "other": "Otros"
+      "other": "Otros",
+      "thumbnails": "Miniaturas"
     },
     "parallelDesc": "Búsquedas web de la verificación.",
     "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",
@@ -859,7 +866,7 @@
     "jobsTotals": "{total, plural, one {# tarea} other {# tareas}} este mes · {failed, plural, one {# falló} other {# fallaron}}",
     "lastFailed": "Últimas que fallaron",
     "noFailed": "Ninguna falló este mes.",
-    "artlistDesc": "Generación de miniaturas y material visual.",
+    "artlistDesc": "Sin API para servidores: las miniaturas se generan con Gemini.",
     "notConnected": "Sin conectar: llega en la Fase 3",
     "budgetUsd": "Presupuesto mensual (US$)",
     "budgetPercent": "Aviso de cuota diaria (%)",
@@ -871,7 +878,10 @@
       "ok": "En presupuesto",
       "warn": "Cerca del tope",
       "over": "Sobre el tope"
-    }
+    },
+    "gemini": "Imágenes (Gemini)",
+    "geminiDesc": "Imágenes de las miniaturas con Nano Banana.",
+    "images": "{count, plural, one {# imagen} other {# imágenes}} este mes"
   },
   "brand": {
     "title": "Kit de marca",
@@ -951,5 +961,70 @@
     "haloCenter": "Resplandor al centro",
     "haloEdge": "Ámbar en la caída",
     "minTextOnHalo": "Texto sobre el halo desde (px)"
+  },
+  "thumbnails": {
+    "title": "Miniaturas",
+    "description": "Tres miniaturas para «Probar y comparar»: Gemini pinta la imagen con tus fotos, la app pone el texto de la marca y Claude la califica.",
+    "missingAssets": "Las miniaturas salen del JSON de Publicación. Genera primero el guion hasta Publicación.",
+    "goToScript": "Ir al guion",
+    "generateAll": "Generar las tres",
+    "estimate": "Costo estimado: {cost}",
+    "textEstimate": "Sin imagen nueva: {cost}",
+    "noPresenterPhotos": "Sube las fotos del presentador para que las miniaturas se parezcan a ti.",
+    "goToSettings": "Ir a Ajustes",
+    "working": "Generando… puedes salir de esta página: el trabajo sigue en segundo plano.",
+    "productRefs": "Fotos del producto",
+    "productRefsHint": "Opcional, hasta 3: fotos tuyas o de prensa oficial para que el producto salga idéntico.",
+    "productRef": "Foto del producto",
+    "uploadRefs": "Subir fotos del producto",
+    "deleteRef": "Borrar foto del producto",
+    "deleteRefConfirm": "¿Borrar esta foto del producto?",
+    "noRefs": "Sin fotos del producto.",
+    "angle": {
+      "A": "La pregunta",
+      "B": "El dato",
+      "C": "El veredicto"
+    },
+    "text": "Texto",
+    "imageAlt": "Miniatura {letter}",
+    "notGenerated": "Sin generar",
+    "status": {
+      "queued": "En cola",
+      "generating": "Generando la imagen",
+      "composing": "Poniendo el texto",
+      "scoring": "Calificando",
+      "ready": "Lista",
+      "failed": "Falló"
+    },
+    "failed": "No se pudo generar.",
+    "noteLabel": "Indicación",
+    "notePlaceholder": "Qué cambiar en esta versión (opcional): p. ej. el producto más grande, mirando a cámara…",
+    "versions": "Versiones",
+    "version": "Versión {n}",
+    "generate": "Generar",
+    "regenerate": "Regenerar",
+    "regenerateConfirm": "Generar otra versión",
+    "editText": "Editar texto",
+    "line": "Línea {n}",
+    "accentWord": "En naranja",
+    "side": "Lado del texto",
+    "sideLeft": "Izquierda",
+    "sideRight": "Derecha",
+    "applyText": "Aplicar texto",
+    "choose": "Elegir",
+    "unchoose": "Elegida",
+    "chosen": "Elegida",
+    "download": "Descargar",
+    "score": "{score}/10",
+    "criteria": {
+      "scroll": "Prueba del scroll",
+      "product": "Producto",
+      "text": "Texto",
+      "emotion": "Emoción",
+      "face": "Cara",
+      "contrast": "Contraste",
+      "verdict": "Veredicto",
+      "clean": "Limpia"
+    }
   }
 }

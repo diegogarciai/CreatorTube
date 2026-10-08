@@ -129,7 +129,7 @@ export async function setServiceBudget(service: unknown, value: unknown): Promis
   try {
     const user = await requireUser();
     if (!(await isPlatformAdmin())) return { ok: false, error: "errors.forbidden" };
-    const name = z.enum(["ai", "parallel", "youtube"]).parse(service);
+    const name = z.enum(["ai", "parallel", "youtube", "gemini"]).parse(service);
     const amount = z
       .preprocess(
         (v) => (v === "" || v === null || v === undefined ? null : v),

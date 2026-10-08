@@ -7,3 +7,5 @@ export * from "./verification";
 export * from "./publication";
 export * from "./catalog";
 export * from "./models";
+export * from "./gemini";
+export * from "./thumbnails";
