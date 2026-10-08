@@ -14,6 +14,7 @@ import { Page } from "@/components/page-header";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ThumbnailsPanel } from "@/components/episodes/thumbnails-panel";
+import { PublicationTitles } from "@/components/episodes/publication-titles";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChecklistPanel } from "@/components/episodes/checklist-panel";
 import { DirectionPanel, type DirectionState } from "@/components/episodes/direction-panel";
@@ -28,6 +29,7 @@ import { getChannelContext, getSupabase } from "@/lib/auth";
 import { toPlannedEpisode } from "@/lib/data/episodes";
 import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
+import { loadTitleOptions } from "@/lib/data/titles";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -66,58 +68,72 @@ export default async function EpisodePage({
     .maybeSingle();
   if (!row) notFound();
 
-  const [steps, pillars, doneRows, activity, video, idea, direction, guide, script, thumbnails] =
-    await Promise.all([
-      getChecklistSteps(channelId),
-      getPillars(channelId),
-      supabase.from("episode_checklist_items").select("step_id").eq("episode_id", episodeId),
-      supabase
-        .from("activity_log")
-        .select("id, action, details, created_at, actor:profiles(full_name, email)")
-        .eq("episode_id", episodeId)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      row.youtube_video_id
-        ? supabase
-            .from("youtube_videos")
-            .select("*")
-            .eq("channel_id", channelId)
-            .eq("video_id", row.youtube_video_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      row.idea_id
-        ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-      tab === "script"
-        ? supabase
-            .from("episode_direction")
-            .select("status, reading, questions, answers, extra, task:tasks(status, error)")
-            .eq("episode_id", episodeId)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      tab === "script"
-        ? supabase
-            .from("writer_guides")
-            .select("current_version_id")
-            .eq("channel_id", channelId)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      tab === "script"
-        ? loadScriptView(episodeId, row.current_script_run_id, {
-            channelId,
-            keywords: row.keywords,
-            pillarId: row.pillar_id,
-          })
-        : null,
-      tab === "production"
-        ? loadThumbnailsView({
-            id: episodeId,
-            channelId,
-            code: row.code,
-            currentScriptRunId: row.current_script_run_id,
-          })
-        : null,
-    ]);
+  const [
+    steps,
+    pillars,
+    doneRows,
+    activity,
+    video,
+    idea,
+    direction,
+    guide,
+    script,
+    thumbnails,
+    titles,
+  ] = await Promise.all([
+    getChecklistSteps(channelId),
+    getPillars(channelId),
+    supabase.from("episode_checklist_items").select("step_id").eq("episode_id", episodeId),
+    supabase
+      .from("activity_log")
+      .select("id, action, details, created_at, actor:profiles(full_name, email)")
+      .eq("episode_id", episodeId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    row.youtube_video_id
+      ? supabase
+          .from("youtube_videos")
+          .select("*")
+          .eq("channel_id", channelId)
+          .eq("video_id", row.youtube_video_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    row.idea_id
+      ? supabase.from("ideas").select("title").eq("id", row.idea_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    tab === "script"
+      ? supabase
+          .from("episode_direction")
+          .select("status, reading, questions, answers, extra, task:tasks(status, error)")
+          .eq("episode_id", episodeId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    tab === "script"
+      ? supabase
+          .from("writer_guides")
+          .select("current_version_id")
+          .eq("channel_id", channelId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    tab === "script"
+      ? loadScriptView(episodeId, row.current_script_run_id, {
+          channelId,
+          keywords: row.keywords,
+          pillarId: row.pillar_id,
+        })
+      : null,
+    tab === "production"
+      ? loadThumbnailsView({
+          id: episodeId,
+          channelId,
+          code: row.code,
+          currentScriptRunId: row.current_script_run_id,
+        })
+      : null,
+    tab === "publication"
+      ? loadTitleOptions({ id: episodeId, currentScriptRunId: row.current_script_run_id })
+      : null,
+  ]);
   const directionState: DirectionState | null = direction.data
     ? {
         status: direction.data.status,
@@ -374,38 +390,41 @@ export default async function EpisodePage({
             canEdit={ctx.can("write_script")}
           />
         ) : tab === "publication" ? (
-          <Card>
-            <CardHeader title={t("episode.linkVideo")} />
-            <CardBody className="space-y-4">
-              <VideoLink episodeId={row.id} videoId={row.youtube_video_id} canEdit={canManage} />
-              {video.data ? (
-                <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                  <div>
-                    <dt className="text-muted">YouTube</dt>
-                    <dd>{video.data.title ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t("episode.status")}</dt>
-                    <dd>
-                      {video.data.privacy_status
-                        ? t(`episode.youtubePrivacy.${video.data.privacy_status as "public"}`)
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted">{t("episode.fetchedLabel")}</dt>
-                    <dd>
-                      {new Intl.DateTimeFormat("es", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: tz,
-                      }).format(new Date(video.data.fetched_at))}
-                    </dd>
-                  </div>
-                </dl>
-              ) : null}
-            </CardBody>
-          </Card>
+          <div className="space-y-6">
+            <PublicationTitles titles={titles ?? []} />
+            <Card>
+              <CardHeader title={t("episode.linkVideo")} />
+              <CardBody className="space-y-4">
+                <VideoLink episodeId={row.id} videoId={row.youtube_video_id} canEdit={canManage} />
+                {video.data ? (
+                  <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt className="text-muted">YouTube</dt>
+                      <dd>{video.data.title ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">{t("episode.status")}</dt>
+                      <dd>
+                        {video.data.privacy_status
+                          ? t(`episode.youtubePrivacy.${video.data.privacy_status as "public"}`)
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">{t("episode.fetchedLabel")}</dt>
+                      <dd>
+                        {new Intl.DateTimeFormat("es", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: tz,
+                        }).format(new Date(video.data.fetched_at))}
+                      </dd>
+                    </div>
+                  </dl>
+                ) : null}
+              </CardBody>
+            </Card>
+          </div>
         ) : tab === "distribution" ? (
           <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
             <Card>

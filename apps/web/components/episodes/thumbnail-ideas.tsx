@@ -7,11 +7,15 @@ import { toast } from "sonner";
 import { Lightbulb, Loader2, Lock, Sparkles } from "lucide-react";
 import {
   availableSchemes,
+  NO_OPTIONS,
+  productPhotosFor,
   SCHEME_IDS,
   THUMBNAIL_SCHEMES,
   validateSchemeSet,
   type SchemeId,
+  type ThumbnailOptions,
 } from "@planificador/core";
+import { CopyButton } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -21,6 +25,7 @@ import { createClient } from "@/lib/supabase/browser";
 import { THUMBNAIL_ESTIMATE_CREDITS, THUMBNAIL_IDEAS_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
 import { cn, usd } from "@/lib/utils";
+import { ThumbnailOptionChecks } from "./thumbnail-options";
 
 const PICK = 3;
 const LETTERS = ["A", "B", "C"];
@@ -76,6 +81,8 @@ export function ThumbnailIdeas({
     [view.ideas],
   );
   const [picked, setPicked] = useState<string[]>(inUse);
+  // Sin texto, sin persona o sin producto, por texto elegido (mandan sobre la guía).
+  const [options, setOptions] = useState<Record<string, ThumbnailOptions>>({});
   const [scheme, setScheme] = useState<SchemeId | null>(null);
 
   // Mientras se proponen los textos, se consulta la tarea; al terminar, se recarga.
@@ -112,8 +119,13 @@ export function ThumbnailIdeas({
 
   const pickedIdeas = picked.flatMap((id) => view.ideas.filter((i) => i.id === id));
   const pickedSchemes = pickedIdeas.map((i) => i.scheme);
-  const setErrors = picked.length === PICK ? validateSchemeSet(pickedSchemes) : [];
-  const pickedLocked = pickedSchemes.some(locked);
+  const optionsOf = (id: string) => options[id] ?? NO_OPTIONS;
+  const pickedOptions = pickedIdeas.map((i) => optionsOf(i.id));
+  const setErrors = picked.length === PICK ? validateSchemeSet(pickedSchemes, pickedOptions) : [];
+  // Un esquema sin las fotos del producto que pide se usa marcando «Sin producto».
+  const needsProduct = (i: ThumbnailIdeaView) =>
+    productPhotosFor(i.scheme, optionsOf(i.id)) > view.refs.length;
+  const pickedLocked = pickedIdeas.some(needsProduct);
   const full = picked.length >= PICK;
 
   const propose = () => {
@@ -127,7 +139,10 @@ export function ThumbnailIdeas({
 
   const generate = () =>
     start(async () => {
-      const res = await generateFromIdeas(episodeId, { ideaIds: picked });
+      const res = await generateFromIdeas(episodeId, {
+        ideaIds: picked,
+        options: picked.map(optionsOf),
+      });
       if (res.ok) {
         toast.success(t("generating"));
         router.refresh();
@@ -234,7 +249,7 @@ export function ThumbnailIdeas({
                     {g.ideas.map((idea) => {
                       const pos = picked.indexOf(idea.id);
                       const checked = pos >= 0;
-                      const disabled = !checked && (full || isLocked);
+                      const disabled = !checked && full;
                       const body = (
                         <>
                           <span className="flex flex-wrap items-center gap-1.5">
@@ -245,6 +260,14 @@ export function ThumbnailIdeas({
                               </Badge>
                             ) : null}
                           </span>
+                          {idea.title ? (
+                            <span className="mt-0.5 flex items-start gap-1.5 text-xs">
+                              <span className="min-w-0 flex-1" data-testid="idea-title">
+                                {t("ideaTitle", { title: idea.title })}
+                              </span>
+                              <CopyButton value={idea.title} />
+                            </span>
+                          ) : null}
                           <span className="block text-xs text-muted">
                             <Badge className="mr-1">{idea.angle}</Badge>
                             {idea.emotion}
@@ -328,6 +351,28 @@ export function ThumbnailIdeas({
                     {t("generateEstimate", { cost: usd(THUMBNAIL_ESTIMATE_CREDITS * PICK) })}
                   </span>
                 </div>
+                {pickedIdeas.length ? (
+                  <div className="space-y-1.5 border-t border-border pt-2">
+                    <p className="text-xs text-muted">{t("optionsHint")}</p>
+                    {pickedIdeas.map((idea, i) => (
+                      <div key={idea.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                          <Badge tone="accent">{LETTERS[i]}</Badge>
+                          <span className="font-medium">{idea.scheme}</span>
+                          <span className="truncate">{idea.text}</span>
+                        </span>
+                        <ThumbnailOptionChecks
+                          letter={LETTERS[i]!}
+                          value={optionsOf(idea.id)}
+                          onChange={(next) => setOptions((o) => ({ ...o, [idea.id]: next }))}
+                        />
+                        {needsProduct(idea) ? (
+                          <span className="text-xs text-warn">{t("unlockHint")}</span>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {setErrors.length ? (
                   <ul role="alert" className="text-xs text-critical" data-testid="set-errors">
                     {setErrors.map((e) => (

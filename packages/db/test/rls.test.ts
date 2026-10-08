@@ -1341,6 +1341,24 @@ describe("Fase 3 · textos para miniaturas", () => {
       mirror: true,
       layout_warnings: ["El texto queda a menos de 40 px de la cara."],
     });
+    // Las opciones de la miniatura y el título del texto.
+    const [opts] = await sql(
+      "select no_text, no_person, no_product from public.episode_assets where id = $1",
+      [asset.id],
+    );
+    expect(opts).toEqual({ no_text: false, no_person: false, no_product: false });
+    const [titled] = await sql(
+      "insert into public.thumbnail_ideas (episode_id, channel_id, scheme, angle, text, title) values ($1, $2, 'B', 'x', '40% más barato', 'MacBook Air M4: lo que no te dicen') returning title",
+      [ep, ch],
+    );
+    expect(titled.title).toBe("MacBook Air M4: lo que no te dicen");
+    await sql("delete from public.thumbnail_ideas where title <> ''");
+    await expect(
+      sql(
+        "insert into public.thumbnail_ideas (episode_id, channel_id, scheme, angle, text, title) values ($1, $2, 'B', 'x', 'y', $3)",
+        [ep, ch, "t".repeat(101)],
+      ),
+    ).rejects.toThrow(/check constraint/);
     await expect(
       sql(
         "insert into public.episode_assets (episode_id, channel_id, design_idx, scheme) values ($1, $2, 1, 'Z')",

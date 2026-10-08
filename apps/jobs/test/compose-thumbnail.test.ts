@@ -231,6 +231,25 @@ describe("composición de la miniatura", () => {
     expect(await px(900, 200)).toBeGreaterThan(80);
   }, 30_000);
 
+  it("sin texto: ni letras ni degradado, solo la foto con el viñeteado", async () => {
+    const res = await composeScheme(await gray(), {
+      scheme: "E",
+      ...SAMPLE.E,
+      colors,
+      noText: true,
+    });
+    expect(res.lines).toEqual([]);
+    expect(res.warnings).toEqual([]);
+    expect((await orangeBox(res.jpg)).n).toBe(0);
+    // Sin el degradado de E, la esquina de abajo a la izquierda no queda negra.
+    const { data } = await sharp(res.jpg)
+      .extract({ left: 120, top: 560, width: 8, height: 8 })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(data[0]!).toBeGreaterThan(60);
+    expect(overlaySvg([], "E", { gradient: false })).not.toContain("data-gradient");
+  }, 30_000);
+
   it("la prueba de móvil es de 168 × 94", async () => {
     const res = await composeScheme(await gray(), { scheme: "A", ...SAMPLE.A, colors });
     const meta = await sharp(await mobilePreview(res.jpg)).metadata();

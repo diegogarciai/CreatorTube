@@ -20,8 +20,16 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
-import { THUMBNAIL_SCHEMES, validateSchemeText, type SchemeId } from "@planificador/core";
+import {
+  NO_OPTIONS,
+  THUMBNAIL_SCHEMES,
+  validateSchemeText,
+  type SchemeId,
+  type ThumbnailOptions,
+} from "@planificador/core";
+import { CopyButton } from "@/components/copy-button";
 import { ThumbnailIdeas } from "./thumbnail-ideas";
+import { optionLabels, ThumbnailOptionChecks } from "./thumbnail-options";
 import {
   addEpisodeRef,
   chooseThumbnail,
@@ -290,6 +298,7 @@ function DesignCard({
   const [selected, setSelected] = useState<{ latest: string | null; id: string } | null>(null);
   const [mode, setMode] = useState<"none" | "regenerate" | "text">("none");
   const [note, setNote] = useState("");
+  const [options, setOptions] = useState<ThumbnailOptions>(NO_OPTIONS);
 
   const latest = design.versions[0] ?? null;
   const current =
@@ -306,6 +315,7 @@ function DesignCard({
       const res = await generateThumbnails(episodeId, {
         designs: [design.idx],
         note: note.trim() || undefined,
+        options,
       });
       if (res.ok) {
         setMode("none");
@@ -352,6 +362,14 @@ function DesignCard({
             {design.idea.scene}
           </p>
         ) : null}
+        {design.idea?.title ? (
+          <p className="flex items-start gap-1.5 text-xs">
+            <span className="min-w-0 flex-1">
+              <span className="text-muted">{t("titleLabel")}:</span> {design.idea.title}
+            </span>
+            <CopyButton value={design.idea.title} />
+          </p>
+        ) : null}
         {!design.idea ? <p className="text-xs text-muted">{t("pickFirst")}</p> : null}
 
         <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-surface-muted">
@@ -385,10 +403,19 @@ function DesignCard({
             {t("noteLabel")}: {current.note}
           </p>
         ) : null}
-        {current?.scenario || current?.mirror ? (
-          <p className="flex flex-wrap gap-1.5 text-xs text-muted">
-            {current.scenario ? <span>{t("scenario", { scenario: current.scenario })}</span> : null}
-            {current.mirror ? <Badge>{t("mirrored")}</Badge> : null}
+        {current?.scenario ||
+        current?.mirror ||
+        optionLabels(current?.options ?? NO_OPTIONS).length ? (
+          <p className="flex flex-wrap gap-1.5 text-xs text-muted" data-testid="version-tags">
+            {current?.scenario ? (
+              <span>{t("scenario", { scenario: current.scenario })}</span>
+            ) : null}
+            {current?.mirror ? <Badge>{t("mirrored")}</Badge> : null}
+            {optionLabels(current?.options ?? NO_OPTIONS).map((k) => (
+              <Badge key={k} tone="warn">
+                {t(`options.${k}`)}
+              </Badge>
+            ))}
           </p>
         ) : null}
         {current?.warnings.length ? (
@@ -444,9 +471,12 @@ function DesignCard({
             <Button
               size="sm"
               variant={current ? "secondary" : "primary"}
-              onClick={() =>
-                current ? setMode(mode === "regenerate" ? "none" : "regenerate") : regenerate()
-              }
+              onClick={() => {
+                if (!current) return regenerate();
+                // Los checks parten de los de la versión que se ve.
+                setOptions(current.options);
+                setMode(mode === "regenerate" ? "none" : "regenerate");
+              }}
               disabled={pending || busy || !canGenerate}
             >
               <RefreshCw className="size-3.5" /> {current ? t("regenerate") : t("generate")}
@@ -496,6 +526,8 @@ function DesignCard({
               aria-label={t("noteLabel")}
               className="min-h-16"
             />
+            <ThumbnailOptionChecks letter={design.letter} value={options} onChange={setOptions} />
+            <p className="text-xs text-muted">{t("options.hint")}</p>
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={regenerate} disabled={pending}>
                 {pending ? (

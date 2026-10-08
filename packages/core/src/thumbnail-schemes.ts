@@ -296,17 +296,34 @@ export function validateSchemeText(scheme: SchemeId, text: string, accent: strin
   return out;
 }
 
+/** Lo que el presentador decide quitar de una miniatura (manda sobre la guía). */
+export type ThumbnailOptions = { noText: boolean; noPerson: boolean; noProduct: boolean };
+export const NO_OPTIONS: ThumbnailOptions = { noText: false, noPerson: false, noProduct: false };
+
+/** El esquema lleva cara, salvo que se haya elegido «sin persona». */
+export const effectiveFace = (id: SchemeId, opts: Partial<ThumbnailOptions> = {}) =>
+  hasFace(id) && !opts.noPerson;
+
+/** Fotos del producto que hacen falta (ninguna si va «sin producto»). */
+export const productPhotosFor = (id: SchemeId, opts: Partial<ThumbnailOptions> = {}) =>
+  opts.noProduct ? 0 : THUMBNAIL_SCHEMES[id].productPhotos;
+
 /**
  * ¿Sirven estos tres esquemas para «Probar y comparar»? Tres distintos, al
- * menos uno con cara y uno sin cara. Devuelve las razones si no.
+ * menos uno con cara y uno sin cara (una miniatura «sin persona» cuenta como
+ * sin cara). Devuelve las razones si no.
  */
-export function validateSchemeSet(schemes: readonly SchemeId[]): string[] {
+export function validateSchemeSet(
+  schemes: readonly SchemeId[],
+  options: readonly Partial<ThumbnailOptions>[] = [],
+): string[] {
   const out: string[] = [];
+  const face = schemes.map((s, i) => effectiveFace(s, options[i]));
   if (schemes.length !== 3) out.push("Elige 3 miniaturas.");
   if (new Set(schemes).size !== schemes.length)
     out.push("Los 3 esquemas tienen que ser distintos.");
-  if (!schemes.some(hasFace)) out.push("Falta una con cara (A, C, D o F).");
-  if (!schemes.some((s) => !hasFace(s))) out.push("Falta una sin cara (B o E).");
+  if (!face.some(Boolean)) out.push("Falta una con cara (A, C, D o F, sin marcar «Sin persona»).");
+  if (!face.some((f) => !f)) out.push("Falta una sin cara (B, E o una marcada «Sin persona»).");
   return out;
 }
 

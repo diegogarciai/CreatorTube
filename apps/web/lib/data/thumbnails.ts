@@ -12,6 +12,7 @@ import {
   RECOMMENDED_SETS,
   type EpisodeKind,
   type SchemeId,
+  type ThumbnailOptions,
 } from "@planificador/core";
 import { getSupabase } from "../auth";
 import { MEDIA_BUCKET, SIGNED_URL_SECONDS } from "../media";
@@ -29,6 +30,8 @@ export type ThumbnailVersion = {
   scenario: string | null;
   /** Lo que no se pudo cumplir de la composición. */
   warnings: string[];
+  /** Lo que el presentador quitó de esta versión. */
+  options: ThumbnailOptions;
   score: ThumbnailScore | null;
   chosen: boolean;
   error: string | null;
@@ -49,6 +52,8 @@ export type ThumbnailDesignView = {
 export type ThumbnailIdeaView = {
   id: string;
   scheme: SchemeId;
+  /** El título del video que acompaña a este texto (vacío en tandas viejas). */
+  title: string;
   angle: string;
   text: string;
   accent: string;
@@ -109,7 +114,7 @@ export async function loadThumbnailsView(episode: {
     supabase
       .from("episode_assets")
       .select(
-        "id, design_idx, status, path, text, scheme, mirror, scenario, layout_warnings, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
+        "id, design_idx, status, path, text, scheme, mirror, scenario, layout_warnings, no_text, no_person, no_product, score, chosen, error, note, source_id, created_at, task:tasks(status, error)",
       )
       .eq("episode_id", episode.id)
       .eq("kind", "thumbnail")
@@ -126,7 +131,7 @@ export async function loadThumbnailsView(episode: {
       .eq("channel_id", episode.channelId),
     supabase
       .from("thumbnail_ideas")
-      .select("id, scheme, angle, text, accent, scene, emotion, slot, position")
+      .select("id, scheme, title, angle, text, accent, scene, emotion, slot, position")
       .eq("episode_id", episode.id)
       .order("position"),
     supabase
@@ -182,6 +187,7 @@ export async function loadThumbnailsView(episode: {
           mirror: r.mirror,
           scenario: r.scenario,
           warnings: r.layout_warnings ?? [],
+          options: { noText: r.no_text, noPerson: r.no_person, noProduct: r.no_product },
           score: (r.score as unknown as ThumbnailScore | null) ?? null,
           chosen: r.chosen,
           error,
@@ -200,6 +206,7 @@ export async function loadThumbnailsView(episode: {
     .map((i) => ({
       id: i.id,
       scheme: i.scheme as SchemeId,
+      title: i.title,
       angle: i.angle,
       text: i.text,
       accent: i.accent,

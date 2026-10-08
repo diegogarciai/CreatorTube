@@ -23,15 +23,15 @@ import {
 } from "@planificador/ai";
 import {
   assignScenarios,
-  hasFace,
+  effectiveFace,
   hasVerdict,
   IDENTITY_ATTEMPTS,
   IDENTITY_WARNINGS,
   isIdentityWarning,
   isSchemeId,
   parseBrandKit,
+  productPhotosFor,
   SCENARIOS,
-  THUMBNAIL_SCHEMES,
   type Scenario,
   type SchemeId,
 } from "@planificador/core";
@@ -81,6 +81,9 @@ type AssetRow = {
   scenario: string | null;
   mirror: boolean;
   layout_warnings: string[];
+  no_text: boolean;
+  no_person: boolean;
+  no_product: boolean;
   prompt: string | null;
   note: string | null;
   score: Json | null;
@@ -115,7 +118,7 @@ export async function runThumbnails(
           db
             .from("episode_assets")
             .select(
-              "id, design_idx, status, base_path, path, text, idea_id, scheme, scenario, mirror, layout_warnings, prompt, note, score, credits",
+              "id, design_idx, status, base_path, path, text, idea_id, scheme, scenario, mirror, layout_warnings, no_text, no_person, no_product, prompt, note, score, credits",
             )
             .eq("task_id", taskId)
             .order("design_idx"),
@@ -204,6 +207,13 @@ export async function runThumbnails(
         );
       const schemed = pending.filter((r) => r.scheme);
       const schemeOf = (r: AssetRow) => r.scheme as SchemeId;
+      /** Lo que el presentador quitó de esta miniatura (manda sobre la guía). */
+      const optionsOf = (r: AssetRow) => ({
+        noText: r.no_text,
+        noPerson: r.no_person,
+        noProduct: r.no_product,
+      });
+      const faceOf = (r: AssetRow) => effectiveFace(schemeOf(r), optionsOf(r));
 
       const kit = parseBrandKit(kitRow);
       const ai = await loadAiSettings(db, task.workspace_id);
@@ -257,23 +267,23 @@ export async function runThumbnails(
         // Sin las fotos que pide su esquema, la miniatura no se puede generar.
         const missing = toGenerate.filter(
           (r) =>
-            (hasFace(schemeOf(r)) && !presenterRefs.length) ||
-            THUMBNAIL_SCHEMES[schemeOf(r)].productPhotos > productRefs.length,
+            (faceOf(r) && !presenterRefs.length) ||
+            productPhotosFor(schemeOf(r), optionsOf(r)) > productRefs.length,
         );
         for (const r of missing)
           await fail(
             [r.id],
-            hasFace(schemeOf(r)) && !presenterRefs.length
+            faceOf(r) && !presenterRefs.length
               ? "errors.no_presenter_photos"
               : "errors.scheme_needs_product",
           );
         for (const r of missing) r.status = "failed";
       }
       const work = schemed.filter((r) => r.status !== "failed");
-      /** Las referencias que van a Gemini según el esquema. */
-      const refsFor = (scheme: SchemeId) => ({
-        presenter: hasFace(scheme) ? presenterRefs : [],
-        product: scheme === "D" ? productRefs.slice(0, 2) : productRefs,
+      /** Las referencias que van a Gemini según el esquema y lo que se quitó. */
+      const refsFor = (r: AssetRow) => ({
+        presenter: faceOf(r) ? presenterRefs : [],
+        product: r.no_product ? [] : schemeOf(r) === "D" ? productRefs.slice(0, 2) : productRefs,
       });
 
       // Brief de las que todavía no tienen escena, en una llamada.
@@ -330,6 +340,7 @@ export async function runThumbnails(
               emotion: idea?.emotion ?? "",
               idea: idea?.scene ?? "",
               note: r.note,
+              options: optionsOf(r),
             };
           }),
           kit: {
@@ -355,7 +366,7 @@ export async function runThumbnails(
         for (const [i, row] of needBrief.entries()) {
           const b = out.briefs[i]!;
           const scheme = schemeOf(row);
-          const refs = refsFor(scheme);
+          const refs = refsFor(row);
           row.mirror = b.mirror;
           row.prompt = schemeImagePrompt({
             scheme,
@@ -365,6 +376,7 @@ export async function runThumbnails(
             presenterRefs: refs.presenter.length,
             productRefs: refs.product.length,
             kit: kit.colors,
+            options: optionsOf(row),
           });
           const idea = ideaOf(row);
           // El texto es el elegido tal cual: la app lo parte en líneas.
@@ -394,7 +406,7 @@ export async function runThumbnails(
           if (!row.base_path) {
             await report.progress(step(0), `${label}: generando la imagen`);
             await update(row.id, { status: "generating" });
-            const refs = refsFor(scheme);
+            const refs = refsFor(row);
             // Hasta que la persona sea el presentador (o, sin cara, que no haya
             // nadie): cada intento fallido vuelve a Gemini con lo que salió mal.
             type Attempt = { bytes: Buffer; mime: string; ok: boolean; likeness: number };
@@ -406,7 +418,7 @@ export async function runThumbnails(
               const prompt =
                 attempt === 1
                   ? (row.prompt ?? "")
-                  : `${row.prompt ?? ""}\n${identityCorrection(scheme, notes)}`;
+                  : `${row.prompt ?? ""}\n${identityCorrection(scheme, notes, optionsOf(row))}`;
               let image: Awaited<ReturnType<typeof generateImage>>;
               try {
                 image = await generateImage(
@@ -438,6 +450,7 @@ export async function runThumbnails(
                   mime: "image/jpeg",
                   scheme,
                   references: refs.presenter.slice(0, 2),
+                  noPerson: row.no_person,
                 });
                 check = out.check;
                 const checkUsd = ai.costUsd(out.usage, out.model);
@@ -464,7 +477,7 @@ export async function runThumbnails(
             base = chosen.bytes;
             if (!chosen.ok) {
               row.layout_warnings = [
-                hasFace(scheme) ? IDENTITY_WARNINGS.face : IDENTITY_WARNINGS.person,
+                faceOf(row) ? IDENTITY_WARNINGS.face : IDENTITY_WARNINGS.person,
               ];
             }
             const ext = chosen.mime === "image/jpeg" ? "jpg" : "png";
@@ -496,7 +509,7 @@ export async function runThumbnails(
             // Claude ubica la cara y el producto: el texto no tapa el producto y
             // deja 40 px a la cara (si no cabe todo, manda el producto).
             let avoid: SubjectBox[] = [];
-            {
+            if (!row.no_text) {
               const preview = await sharp(base)
                 .resize(1024, 576, { fit: "cover" })
                 .jpeg({ quality: 80 })
@@ -522,6 +535,7 @@ export async function runThumbnails(
               mirror: row.mirror,
               text: text.lines.join(" "),
               accent: text.accent,
+              noText: row.no_text,
               avoid,
               colors: { text: kit.colors.text, accent: kit.colors.accent },
             });
@@ -534,7 +548,8 @@ export async function runThumbnails(
               .upload(path, jpg, { contentType: "image/jpeg", upsert: true });
             if (upError) throw upError;
             row.path = path;
-            row.text = { lines: composed.lines, accent: text.accent };
+            // Sin texto, se guarda el elegido para poder agregarlo después.
+            if (!row.no_text) row.text = { lines: composed.lines, accent: text.accent };
             await update(row.id, {
               path,
               text: row.text,
@@ -570,6 +585,7 @@ export async function runThumbnails(
               verdict: assets.postura,
               warnings,
               reference: presenterRefs[0] ?? null,
+              options: optionsOf(row),
             });
             const usd = ai.costUsd(out.usage, out.model);
             row.credits += await charge("thumbnail_score", usd, {
