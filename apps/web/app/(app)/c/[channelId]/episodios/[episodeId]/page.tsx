@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
 import {
@@ -33,6 +33,13 @@ import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { loadTitleOptions } from "@/lib/data/titles";
 import { loadVisualAidsView } from "@/lib/data/visual-aids";
+import {
+  defaultProductionTab,
+  episodeResources,
+  PRODUCTION_TABS,
+  productionStates,
+  type ProductionTab,
+} from "@/lib/resources";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -53,7 +60,7 @@ export default async function EpisodePage({
   searchParams,
 }: {
   params: Promise<{ channelId: string; episodeId: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; sub?: string }>;
 }) {
   const { channelId, episodeId } = await params;
   const tab: Tab = (TABS as readonly string[]).includes((await searchParams).tab ?? "")
@@ -174,6 +181,22 @@ export default async function EpisodePage({
     distribution: !published ? "notApplicable" : afterProgress.ratio >= 1 ? "ready" : "missing",
     metrics: !published ? "notApplicable" : video.data ? "ready" : "missing",
   };
+  // Subpestañas de Producción: por defecto, la primera fase sin terminar.
+  const productionState =
+    tab === "production" && thumbnails
+      ? productionStates(episodeResources(row.code, visualAids?.aids ?? [], thumbnails.designs))
+      : null;
+  const requestedSub = (await searchParams).sub ?? "";
+  const sub: ProductionTab = (PRODUCTION_TABS as readonly string[]).includes(requestedSub)
+    ? (requestedSub as ProductionTab)
+    : productionState
+      ? defaultProductionTab(productionState)
+      : "aids";
+  // Se fija en la URL: si no, al refrescar (p. ej. cuando termina un render) saltaría a otra.
+  if (productionState && requestedSub !== sub) {
+    redirect(`/c/${channelId}/episodios/${episodeId}?tab=production&sub=${sub}`);
+  }
+
   const stateLabel: Record<TabState, string> = {
     ready: t("common.ready"),
     missing: t("common.missing"),
@@ -393,26 +416,53 @@ export default async function EpisodePage({
               />
             ) : null}
           </div>
-        ) : tab === "production" && thumbnails ? (
+        ) : tab === "production" && thumbnails && productionState ? (
           <div className="space-y-6">
-            <EpisodeResources
-              episodeCode={row.code}
-              aids={visualAids?.aids ?? []}
-              designs={thumbnails.designs}
-            />
-            {visualAids ? (
+            <nav
+              className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-border bg-surface p-1"
+              aria-label={t("episode.productionTabs.label")}
+            >
+              {PRODUCTION_TABS.map((id) => (
+                <Link
+                  key={id}
+                  href={`?tab=production&sub=${id}`}
+                  scroll={false}
+                  aria-current={sub === id ? "page" : undefined}
+                  data-testid={`production-tab-${id}`}
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm",
+                    sub === id
+                      ? "bg-surface-muted font-medium"
+                      : "text-muted hover:bg-surface-muted hover:text-text",
+                  )}
+                >
+                  {t(`episode.productionTabs.${id}`)}
+                  <Badge tone={TAB_TONE[productionState[id]]} className="hidden sm:inline-flex">
+                    {stateLabel[productionState[id]]}
+                  </Badge>
+                </Link>
+              ))}
+            </nav>
+            {sub === "aids" && visualAids ? (
               <VisualAidsPanel
                 episodeId={row.id}
                 view={visualAids}
                 canEdit={ctx.can("write_script")}
               />
-            ) : null}
-            <ThumbnailsPanel
-              episodeId={row.id}
-              channelId={channelId}
-              view={thumbnails}
-              canEdit={ctx.can("write_script")}
-            />
+            ) : sub === "thumbnails" ? (
+              <ThumbnailsPanel
+                episodeId={row.id}
+                channelId={channelId}
+                view={thumbnails}
+                canEdit={ctx.can("write_script")}
+              />
+            ) : (
+              <EpisodeResources
+                episodeCode={row.code}
+                aids={visualAids?.aids ?? []}
+                designs={thumbnails.designs}
+              />
+            )}
           </div>
         ) : tab === "publication" ? (
           <div className="space-y-6">

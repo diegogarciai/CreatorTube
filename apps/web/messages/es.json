@@ -354,7 +354,13 @@
     "ownMeasurements": "Mediciones propias",
     "ownMeasurementsPlaceholder": "Qué mediste, con qué equipo, cómo y cuándo. Vacío = no hay medición propia.",
     "fromIdeaDirection": "Al crearlo pasa a Guion y se preparan las preguntas de dirección (cerca de {cost}).",
-    "directionNotPrepared": "El episodio se creó, pero las preguntas de dirección no se prepararon: {reason}"
+    "directionNotPrepared": "El episodio se creó, pero las preguntas de dirección no se prepararon: {reason}",
+    "productionTabs": {
+      "label": "Fases de producción",
+      "aids": "Ayudas visuales",
+      "thumbnails": "Miniaturas",
+      "resources": "Recursos"
+    }
   },
   "calendar": {
     "title": "Calendario",

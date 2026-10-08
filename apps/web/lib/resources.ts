@@ -161,3 +161,26 @@ export function zipEntries(episodeCode: string, rows: EpisodeResource[]) {
       url: r.downloadUrl!,
     }));
 }
+
+/** Las subpestañas de Producción, en el orden en que se trabaja. */
+export const PRODUCTION_TABS = ["aids", "thumbnails", "resources"] as const;
+export type ProductionTab = (typeof PRODUCTION_TABS)[number];
+
+/** Si cada subpestaña está lista: ayudas renderizadas, miniatura elegida y todo para bajar. */
+export function productionStates(
+  rows: EpisodeResource[],
+): Record<ProductionTab, "ready" | "missing"> {
+  const aidRows = rows.filter((r) => r.type !== "thumbnail");
+  const aids = aidRows.length > 0 && aidRows.every((r) => r.status === "ready");
+  const thumbnail = rows.some((r) => r.type === "thumbnail" && r.status === "ready");
+  return {
+    aids: aids ? "ready" : "missing",
+    thumbnails: thumbnail ? "ready" : "missing",
+    resources: aids && thumbnail ? "ready" : "missing",
+  };
+}
+
+/** La subpestaña que se abre por defecto: la primera fase sin terminar, o los recursos. */
+export function defaultProductionTab(states: Record<ProductionTab, "ready" | "missing">) {
+  return PRODUCTION_TABS.find((t) => states[t] !== "ready") ?? "resources";
+}
