@@ -8,6 +8,7 @@ export type { pingTask } from "./trigger/ping";
 export type { scriptTask } from "./trigger/script";
 export type { thumbnailIdeasTask } from "./trigger/thumbnail-ideas";
 export type { thumbnailsTask } from "./trigger/thumbnails";
+export type { visualPlanTask } from "./trigger/visual-plan";
 export type { youtubeImportTask } from "./trigger/youtube-import";
 
 /** Tareas que la web puede disparar (id de Trigger.dev = `tasks.kind`). */
@@ -19,5 +20,6 @@ export const JOB_KINDS = [
   "ai_models_refresh",
   "thumbnails",
   "thumbnail_ideas",
+  "visual_plan",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];

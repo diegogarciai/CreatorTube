@@ -23,7 +23,7 @@ Fuentes:
 
 - **Miniaturas solo con Gemini (Nano Banana) por ahora.** Artlist solo ofrece un MCP para personas, no una API para servidores. Cuando la tenga, se agrega como otro proveedor.
 - **Miniaturas generadas a partir de las fotos de referencia (reglas v4.1).** El manual v3.0 (sección 05) dice «nunca imágenes generadas»; Diego decidió que para las miniaturas mandan las reglas v4.1 y actualiza su manual. En todo lo demás la miniatura sigue el manual: fondo oscuro con luz cálida y halo naranja, expresión natural, sin flechas, emojis, marcos ni logos inventados.
-- **Tres ángulos de la idea central, no pregunta, dato y veredicto.** El sistema A/B/C del manual no dio resultado. Cada miniatura es un ángulo totalmente distinto (el dinero, el error, la comparación, el mito, el uso real, para quién sí y para quién no…) que cambia la motivación, la emoción, la escena y el texto, sin perder el foco en el tema central del episodio (reglas v4.1, sección 14). El JSON de Publicación trae el ángulo de cada una (`angulo`); las letras A, B y C solo sirven para «Probar y comparar».
+- **Miniaturas con la guía de miniaturas v1.0 del diseñador.** Seis esquemas de composición (A la pregunta, B el dato, C el veredicto, D el duelo, E el detalle, F en uso), tres distintos por video, al menos uno con cara y uno sin cara (sección 7). Reemplaza las versiones anteriores (pregunta, dato y veredicto; después, tres ángulos).
 - **Gemini genera la imagen sin texto.** El texto (2 a 4 palabras en dos líneas, una en naranja) lo pone la app con la tipografía y los colores del kit, así nunca se sale del manual.
 - **Motion graphics con piezas de marca.** Claude arma cada escena (regla 12.2) con piezas animadas ya hechas (barras, anillos, línea de tiempo, cifras que cuentan, matriz de puntos…) y sus datos. No se genera código: lo que se renderiza siempre es código revisado.
 - **Render en Trigger.dev, sin AWS.** Remotion corre con sus APIs de servidor (`@remotion/bundler` y `@remotion/renderer`) y la extensión de ffmpeg. La licencia de Remotion es gratis para equipos de hasta 3 personas.
@@ -35,7 +35,7 @@ Fuentes:
 | ---- | ----------------------------------------------------------------------------------------- | --------- |
 | 1    | Este documento; almacenamiento de archivos; kit de marca por canal; fotos del presentador | Hecho     |
 | 2    | Miniaturas con Gemini: generar, poner el texto, calificar con Claude, elegir y descargar  | Hecho     |
-| 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Pendiente |
+| 3    | Plan de ayudas visuales (C, L y M) como datos                                             | Hecho     |
 | 4    | Render con Remotion en Trigger.dev                                                        | Pendiente |
 | 5    | Recursos del episodio en Producción                                                       | Pendiente |
 | 6    | Un episodio de Gartechs producido de punta a punta (prueba de salida)                     | Pendiente |
@@ -177,7 +177,33 @@ Además:
   - `thumbnail_ideas`: los 30 textos con `scheme`, `angle`, `text`, `accent`, `scene`, `emotion` y `slot`.
   - `episode_refs`: las fotos del producto.
 
-## 8. Costos estimados por episodio
+## 8. Plan de ayudas visuales (paso 3)
+
+Vive en la pestaña **Producción**, arriba de las miniaturas. Aplica la sección 12 de las reglas v4.1: «el panel arma el plan de ayudas visuales con estos criterios, Diego aprueba cuáles se hacen».
+
+- **Tipos:**
+  - **M**, motion graphic a pantalla completa (ficha 12.5);
+  - **C**, etiqueta de concepto (12.8);
+  - **L**, lista (12.8).
+
+  Se guardan en `visual_aids` con su código (M1, C1, L1… en orden de guion), su ancla (las primeras palabras exactas del párrafo) y los campos de su ficha. Una M lleva idea visual, título, elementos, filas de verificación, pie, duración, pieza de marca, puntaje 12.1 y si va también en vertical.
+
+- **La tarea `visual_plan`:**
+  - Le pide a Claude el plan del guion verificado (paso `fix`). Le pasa la tabla de verificación, las fichas 12.5 del paso `motion` y la sección 12 de la guía del run.
+  - El modelo es la etapa «Ayudas visuales» de Administración.
+  - Reemplaza las propuestas y descartadas, y conserva las aprobadas si su ancla sigue en el guion.
+- **Lo que valida el código** (`packages/core/src/visual-aids.ts`; lo que no cumple se descarta y queda en el registro de consumo):
+  - **Textos (12.4):** título de M de 1 a 6 palabras; elementos de 2 a 6; definición de C de 14 o menos; título de L de 4 o menos; L con 3 elementos o más, cada uno con dónde empieza.
+  - **Pie de M:** gartechs.com, y la fuente y la fecha si hay cifras.
+  - **Cifras (12.3):** salen de filas Verificado o Con matiz, y la ficha las nombra.
+  - **Ancla:** aparece en el guion verificado.
+  - **M (12.1 y 12.2):** suma 15/20 o más; hay 6 como mucho, nunca en el mismo párrafo ni en párrafos seguidos, y sin repetir pieza de marca. Solo una va también en vertical (12.7).
+  - **12.8:** un párrafo con M no lleva C ni L, y hay una C por término.
+- **Lo que decide Diego:** aprobar, descartar o volver a propuesta cada ayuda, y corregir sus textos con las mismas reglas en vivo (en una M, el servidor revisa además las filas).
+- **«Copiar plan aprobado»:** el plan en orden, con ID, dónde entra y el texto en pantalla, para pegarlo en la edición.
+- **Plan desactualizado:** si el plan salió de otro guion que el actual, se avisa para rehacerlo.
+
+## 9. Costos estimados por episodio
 
 | Qué                                        | Estimado                                          |
 | ------------------------------------------ | ------------------------------------------------- |

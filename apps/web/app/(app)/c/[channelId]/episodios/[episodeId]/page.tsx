@@ -15,6 +15,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ThumbnailsPanel } from "@/components/episodes/thumbnails-panel";
 import { PublicationTitles } from "@/components/episodes/publication-titles";
+import { VisualAidsPanel } from "@/components/episodes/visual-aids-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChecklistPanel } from "@/components/episodes/checklist-panel";
 import { DirectionPanel, type DirectionState } from "@/components/episodes/direction-panel";
@@ -30,6 +31,7 @@ import { toPlannedEpisode } from "@/lib/data/episodes";
 import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { loadTitleOptions } from "@/lib/data/titles";
+import { loadVisualAidsView } from "@/lib/data/visual-aids";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -80,6 +82,7 @@ export default async function EpisodePage({
     script,
     thumbnails,
     titles,
+    visualAids,
   ] = await Promise.all([
     getChecklistSteps(channelId),
     getPillars(channelId),
@@ -132,6 +135,9 @@ export default async function EpisodePage({
       : null,
     tab === "publication"
       ? loadTitleOptions({ id: episodeId, currentScriptRunId: row.current_script_run_id })
+      : null,
+    tab === "production"
+      ? loadVisualAidsView({ id: episodeId, currentScriptRunId: row.current_script_run_id })
       : null,
   ]);
   const directionState: DirectionState | null = direction.data
@@ -383,12 +389,21 @@ export default async function EpisodePage({
             ) : null}
           </div>
         ) : tab === "production" && thumbnails ? (
-          <ThumbnailsPanel
-            episodeId={row.id}
-            channelId={channelId}
-            view={thumbnails}
-            canEdit={ctx.can("write_script")}
-          />
+          <div className="space-y-6">
+            {visualAids ? (
+              <VisualAidsPanel
+                episodeId={row.id}
+                view={visualAids}
+                canEdit={ctx.can("write_script")}
+              />
+            ) : null}
+            <ThumbnailsPanel
+              episodeId={row.id}
+              channelId={channelId}
+              view={thumbnails}
+              canEdit={ctx.can("write_script")}
+            />
+          </div>
         ) : tab === "publication" ? (
           <div className="space-y-6">
             <PublicationTitles titles={titles ?? []} />

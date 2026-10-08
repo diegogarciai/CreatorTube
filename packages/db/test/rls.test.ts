@@ -1391,3 +1391,47 @@ describe("Fase 3 · textos para miniaturas", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("Fase 3 · plan de ayudas visuales", () => {
+  it("lo escribe el servidor, lo lee quien ve el canal y valida tipo, código y pieza", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch);
+    const insert = (kind: string, code: string, piece: string | null = null) =>
+      sql(
+        "insert into public.visual_aids (episode_id, channel_id, kind, code, anchor, title, piece, claim_rows, elements) values ($1, $2, $3, $4, 'En las pruebas', 'Batería', $5, '{1,2}', '[{\"text\":\"Horas de batería\",\"value\":\"18\"}]') returning id, workspace_id, status, claim_rows",
+        [ep, ch, kind, code, piece],
+      );
+    const [m] = await insert("M", "M1", "bars");
+    expect(m).toMatchObject({ workspace_id: ws, status: "proposed", claim_rows: [1, 2] });
+    await insert("C", "C1");
+    await expect(insert("X", "X1")).rejects.toThrow(/check constraint/);
+    await expect(insert("M", "M-1")).rejects.toThrow(/check constraint/);
+    await expect(insert("M", "M2", "sparkles")).rejects.toThrow(/check constraint/);
+    await expect(
+      sql("update public.visual_aids set status = 'done' where id = $1", [m.id]),
+    ).rejects.toThrow(/check constraint/);
+
+    expect(
+      await as(owner.id, (q) =>
+        q("select code from public.visual_aids where episode_id = $1 order by code", [ep]),
+      ),
+    ).toEqual([{ code: "C1" }, { code: "M1" }]);
+    expect(
+      await as(outsider.id, (q) =>
+        q("select code from public.visual_aids where episode_id = $1", [ep]),
+      ),
+    ).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.visual_aids (episode_id, channel_id, kind, code, anchor, title) values ($1, $2, 'C', 'C2', 'x', 'y')",
+          [ep, ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+});

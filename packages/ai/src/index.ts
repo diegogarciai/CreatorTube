@@ -9,3 +9,4 @@ export * from "./catalog";
 export * from "./models";
 export * from "./gemini";
 export * from "./thumbnails";
+export * from "./visual-aids";
