@@ -1,0 +1,30 @@
+{
+  "name": "@planificador/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "trigger dev",
+    "deploy": "trigger deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@planificador/core": "workspace:*",
+    "@planificador/db": "workspace:*",
+    "@supabase/supabase-js": "2.117.3",
+    "@trigger.dev/sdk": "4.6.4",
+    "zod": "4.1.13"
+  },
+  "devDependencies": {
+    "@planificador/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "trigger.dev": "4.6.4",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

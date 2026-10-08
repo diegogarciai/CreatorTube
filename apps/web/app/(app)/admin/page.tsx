@@ -6,6 +6,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { InviteForm } from "@/components/workspace/invite-form";
 import { CreateOwnWorkspaceCard } from "@/components/workspace/no-workspace";
 import { CreditsQuotaForm } from "@/components/workspace/credits";
+import { JobTestButton } from "@/components/workspace/job-test";
+import { JOBS_CONFIGURED } from "@/lib/jobs";
 import { RevokeInvitationButton } from "@/components/workspace/member-row";
 import { isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -61,6 +63,13 @@ export default async function AdminPage({
           </CardBody>
         </Card>
         <CreateOwnWorkspaceCard from="/admin" />
+        <Card>
+          <CardHeader title={t("jobs")} description={t("jobsDesc")} />
+          <CardBody className="space-y-2">
+            {JOBS_CONFIGURED() ? null : <p className="text-sm text-warn">{t("jobsMissing")}</p>}
+            <JobTestButton disabled={!JOBS_CONFIGURED()} />
+          </CardBody>
+        </Card>
         <Card>
           <CardHeader title={t("invitations")} />
           <ul className="divide-y divide-border">

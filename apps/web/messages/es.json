@@ -466,7 +466,12 @@
     "invitations": "Invitaciones de plataforma",
     "channels": "{count, plural, one {# canal} other {# canales}}",
     "members": "{count, plural, one {# miembro} other {# miembros}}",
-    "creditsUsed": "IA este mes: {used}"
+    "creditsUsed": "IA este mes: {used}",
+    "jobs": "Motor de tareas",
+    "jobsDesc": "Las tareas largas (guion, verificación) corren en Trigger.dev y su avance se ve en vivo en la barra lateral.",
+    "jobsTest": "Probar el motor",
+    "jobsStarted": "Tarea de prueba lanzada: mira la barra lateral.",
+    "jobsMissing": "Falta TRIGGER_SECRET_KEY en las variables de entorno de Vercel."
   },
   "command": {
     "placeholder": "Busca un episodio, una sección o una acción…",
@@ -506,7 +511,9 @@
     "youtube_db": "No pudimos guardar el canal.",
     "youtube_error": "Algo salió mal al conectar el canal. Intenta de nuevo.",
     "guide_no_sections": "No encontramos secciones numeradas en el texto (por ejemplo «0. PRIORIDADES»).",
-    "guide_missing_sections": "Faltan secciones que usan las etapas del guion."
+    "guide_missing_sections": "Faltan secciones que usan las etapas del guion.",
+    "jobs_not_configured": "El motor de tareas no está configurado: falta TRIGGER_SECRET_KEY en Vercel.",
+    "jobs_no_workspace": "Necesitas un espacio propio para probar el motor."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -554,5 +561,18 @@
     "usedOf": "Usado este mes: {used} de {monthly}",
     "remaining": "quedan {remaining}",
     "quota": "Cupo mensual (US$)"
+  },
+  "tasks": {
+    "title": "Tareas en curso",
+    "kind": {
+      "ping": "Prueba del motor de tareas"
+    },
+    "status": {
+      "queued": "En cola",
+      "running": "En curso",
+      "succeeded": "Lista",
+      "failed": "Falló",
+      "canceled": "Cancelada"
+    }
   }
 }

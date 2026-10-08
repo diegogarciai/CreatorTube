@@ -19,6 +19,7 @@ Los trámites de la Fase 0 con Google (verificación, cuota, dominio) están en 
 
 ```
 apps/web             Next.js 16 (App Router) + React 19 + Tailwind v4 + next-intl (es)
+apps/jobs            Tareas largas en Trigger.dev (guion, verificación); avance en la tabla tasks
 packages/core        Lógica de negocio pura en TypeScript (la reutilizará la app móvil)
 packages/youtube     OAuth de Google, cifrado de tokens, cliente de la Data API y sincronización
 packages/db          Migraciones de Supabase, tipos generados y pruebas de RLS
@@ -71,7 +72,8 @@ Las pruebas de `packages/db` necesitan Postgres: usan `DATABASE_URL` si existe (
 
 1. **Supabase:** sigue [`docs/configurar-supabase.md`](docs/configurar-supabase.md): secreto `SUPABASE_DB_URL` y workflow **Supabase migrations**, hook **Before User Created**, URL Configuration, proveedor Google, SMTP con Resend y plantillas de correo con enlace y código.
 2. **Google Cloud:** crea el cliente OAuth web con la redirección `https://tu-dominio/api/youtube/callback` y habilita YouTube Data API v3 y YouTube Analytics API (paso a paso en [`docs/configurar-google.md`](docs/configurar-google.md)).
-3. **Vercel:** importa el repo con raíz `apps/web`, configura las variables de `.env.example` y despliega. `apps/web/vercel.json` registra los cron jobs; Vercel envía `CRON_SECRET` automáticamente.
+3. **Trigger.dev:** proyecto conectado a GitHub y variables de entorno, en [`docs/configurar-trigger.md`](docs/configurar-trigger.md).
+4. **Vercel:** importa el repo con raíz `apps/web`, configura las variables de `.env.example` y despliega. `apps/web/vercel.json` registra los cron jobs; Vercel envía `CRON_SECRET` automáticamente.
 
 ## Calidad
 

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { BRAND } from "@planificador/config";
 import { Logo } from "@/components/logo";
+import { TaskTray } from "@/components/shell/task-tray";
 import { cn } from "@/lib/utils";
 
 export interface ShellChannel {
@@ -165,7 +166,10 @@ export function Sidebar({
           : null}
       </div>
 
-      <div className="mt-auto space-y-0.5 border-t border-border pt-3">
+      <div className="mt-auto pb-3 empty:pb-0">
+        <TaskTray />
+      </div>
+      <div className="space-y-0.5 border-t border-border pt-3">
         {channelId ? (
           <Link
             href={`/c/${channelId}/ajustes`}
