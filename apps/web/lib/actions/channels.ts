@@ -10,6 +10,7 @@ import {
   DEFAULT_STAGE_SECTIONS,
   parseGuide,
   pillarSchema,
+  motionSeconds,
   reorderSteps,
   validateGuide,
   writerGuideSchema,
@@ -86,7 +87,7 @@ export async function updateChannelProfile(
     const supabase = await getSupabase();
     const { data: current } = await supabase
       .from("channels")
-      .select("profile")
+      .select("profile, speech_wpm")
       .eq("id", channelId)
       .single();
     const { error } = await supabase
@@ -96,6 +97,7 @@ export async function updateChannelProfile(
         language: p.language,
         timezone: p.timezone,
         code_prefix: p.codePrefix,
+        ...(p.speechWpm ? { speech_wpm: p.speechWpm } : {}),
         profile: {
           ...((current?.profile as object) ?? {}),
           hosts: p.hosts,
@@ -105,8 +107,31 @@ export async function updateChannelProfile(
       })
       .eq("id", channelId);
     if (error) throw error;
+    // Con otro ritmo, las M con guion de animación duran otra cosa.
+    if (p.speechWpm && p.speechWpm !== current?.speech_wpm)
+      await retimeMotionAids(channelId, p.speechWpm);
     revalidatePath("/", "layout");
   });
+}
+
+/** Recalcula la duración de las M con guion de animación del canal (segmento dicho al ritmo nuevo). */
+async function retimeMotionAids(channelId: string, wpm: number) {
+  const admin = createAdminClient();
+  const { data: aids } = await admin
+    .from("visual_aids")
+    .select("id, segment, duration_s")
+    .eq("channel_id", channelId)
+    .eq("kind", "M")
+    .not("segment", "is", null);
+  for (const a of aids ?? []) {
+    const seconds = motionSeconds(a.segment, wpm);
+    if (seconds === a.duration_s) continue;
+    const { error } = await admin
+      .from("visual_aids")
+      .update({ duration_s: seconds })
+      .eq("id", a.id);
+    if (error) throw error;
+  }
 }
 
 export async function updateChannelRhythm(

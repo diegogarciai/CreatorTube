@@ -1,14 +1,28 @@
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import {
+  AID_CASES,
+  AID_ICON_GROUPS,
+  AID_ICONS,
+  isAidIcon,
   AID_FOOTER_SITE,
   AID_PIECES,
+  BEAT_ACTIONS,
   checkPlan,
+  DEFAULT_SPEECH_WPM,
+  elementsFromBeats,
   MAX_MOTION,
   MIN_MOTION_SCORE,
+  MOTION_MAX_SECONDS,
+  MOTION_MIN_SECONDS,
   paragraphOf,
+  PIECE_ACTIONS,
+  pieceLabel,
+  rowsFromBeats,
   scriptParagraphs,
+  motionSeconds,
   validateAidText,
+  type AidBeat,
   type PlanCheck,
   type VisualAid,
 } from "@planificador/core";
@@ -45,30 +59,67 @@ const planSchema = z.object({
         .array(
           z.object({
             text: z.string().describe("De 2 a 6 palabras."),
-            value: z.string().describe("M: la cifra exacta de su fila, si la hay. Si no, vacío."),
-            unit: z.string().describe("M: la unidad de la cifra, si la hay. Si no, vacío."),
             anchor: z
               .string()
+              .describe("Las primeras palabras exactas donde empieza ese elemento."),
+          }),
+        )
+        .describe("L: los elementos. M y C: ninguno (los de la M salen de sus momentos)."),
+      segment: z
+        .string()
+        .describe(
+          "M: el texto exacto del guion que la M explica, copiado tal cual: empieza en el párrafo del ancla y puede seguir al siguiente si explican lo mismo. Su duración es la de ese texto dicho. C y L: vacío.",
+        ),
+      case: z.enum(AID_CASES).describe("M: el caso de 12.1. C y L: cualquiera, se ignora."),
+      beats: z
+        .array(
+          z.object({
+            phrase: z
+              .string()
               .describe(
-                "L: las primeras palabras exactas donde empieza ese elemento. Si no, vacío.",
+                "Las palabras exactas de una frase del segmento, en orden. Juntas, las frases cubren todo el segmento.",
+              ),
+            action: z
+              .enum(BEAT_ACTIONS)
+              .describe(
+                "Qué pasa en pantalla mientras se dice la frase: enter (entra el elemento que crea, con su animación: la barra crece, la cifra cuenta, el nodo se conecta), highlight (un elemento se pinta en naranja: lo que importa o la conclusión), zoom (la cámara se acerca a un elemento), travel (un dato viaja hasta un elemento), strike (se tacha un elemento: el mito), change (un elemento cambia de estado: toma una cifra nueva, un ícono nuevo o ambos).",
+              ),
+            target: z
+              .number()
+              .int()
+              .describe(
+                "Si no crea un elemento: el elemento sobre el que actúa (0 es el primero que entró). Si lo crea: -1.",
+              ),
+            text: z
+              .string()
+              .describe(
+                "Si crea un elemento: su texto en pantalla, de 2 a 6 palabras, que resume y nunca lee la frase. Si no: vacío.",
+              ),
+            value: z
+              .string()
+              .describe(
+                "La cifra exacta de su fila (al crear con cifra o en un change). Si no hay, vacío.",
+              ),
+            unit: z.string().describe("La unidad de la cifra. Si no hay, vacío."),
+            row: z
+              .number()
+              .int()
+              .describe("El # de la fila de verificación de la cifra. Sin cifra: 0."),
+            icon: z
+              .enum(["ninguno", ...AID_ICONS] as [string, ...string[]])
+              .describe(
+                "El ícono de la biblioteca que representa el elemento que crea (el objeto: chip, bateria, nube, usuario…), o el nuevo ícono en un change (bateria_baja → bateria_llena). Si ninguno ayuda: ninguno.",
               ),
           }),
         )
-        .describe("M: los elementos exactos que se animan. L: los elementos. C: ninguno."),
-      rows: z
-        .array(z.number().int())
         .describe(
-          "M: los # de las filas de verificación de donde sale cada cifra. Si no hay cifras, vacío.",
+          "M: el guion de animación, de 2 a 8 momentos, uno por frase: algo se mueve en cada frase (12.6). El primero hace entrar un elemento. C y L: ninguno.",
         ),
       footer: z
         .string()
         .describe(
           `M: el pie: ${AID_FOOTER_SITE} siempre, y fuente y fecha si hay cifras. C y L: vacío.`,
         ),
-      duration_s: z
-        .number()
-        .int()
-        .describe("M: duración en segundos, de 2 a 30 (6 si no sabes). C y L: 0."),
       piece: z
         .enum(AID_PIECES)
         .describe("M: la pieza de marca que la anima. C y L: cualquiera, se ignora."),
@@ -87,6 +138,8 @@ const planSchema = z.object({
 
 export interface VisualPlanInput {
   episodeTitle: string;
+  /** Ritmo de lectura del canal (palabras por minuto): de ahí sale la duración de cada M. */
+  speechWpm?: number;
   /** El teleprompter verificado (paso «fix»). */
   script: string;
   claims: Claim[];
@@ -109,13 +162,24 @@ export async function visualAidPlan(
     "Armas el plan de ayudas visuales de un video de YouTube de un canal de tecnología, con la sección 12 de la guía del guionista (abajo). Respondes en español.",
     "Tres tipos: M, motion graphic a pantalla completa (fichas 12.5); C, etiqueta de concepto, y L, lista (12.8). Las C y L no tapan la pantalla.",
     `M: solo cuando cumple uno de los seis casos de 12.1 y suma ${MIN_MOTION_SCORE} de 20 o más en sus cuatro criterios (puntúa con honestidad). Una cada 2–3 minutos, máximo ${MAX_MOTION}, nunca dos en el mismo párrafo ni en párrafos seguidos. Cero también vale.`,
-    "M: cada una con una pieza de marca distinta (no se repite en el episodio) y un concepto visual distinto (12.2). Toda cifra en pantalla sale de una fila Verificado o Con matiz de la tabla de verificación, con su # en «rows» (12.3). El pie lleva gartechs.com, y la fuente y la fecha si hay cifras.",
+    "M: cada una con una pieza de marca distinta (no se repite en el episodio) y un concepto visual distinto (12.2). Toda cifra en pantalla sale de una fila Verificado o Con matiz de la tabla de verificación, con su # en «row» del momento que la muestra (12.3). El pie lleva gartechs.com, y la fuente y la fecha si hay cifras.",
     "Textos en pantalla (12.4): título de M de 1 a 6 palabras; elementos de 2 a 6 palabras; definición de C de 14 palabras o menos; título de L de 4 palabras o menos. Cuenta las palabras antes de responder.",
-    "M: duración de 2 a 30 segundos.",
+    `M: no es una pieza suelta con un título: es un guion de animación. Extrae del guion el segmento que la M explica (copiado tal cual), pártelo en sus frases y di, para cada frase, qué se mueve en pantalla. Dura lo que tarda en decirse el segmento (de ${MOTION_MIN_SECONDS} a ${MOTION_MAX_SECONDS} segundos): elige el tramo justo, ni medio párrafo de relleno ni una frase suelta.`,
+    `M: cada elemento lleva el ícono de la biblioteca que mejor lo representa, para que la animación muestre objetos y no solo texto: ${Object.entries(
+      AID_ICON_GROUPS,
+    )
+      .map(([g, icons]) => `${g}: ${icons.join(", ")}`)
+      .join(
+        "; ",
+      )}. Un cambio de estado puede cambiar el ícono (candado → candado_abierto, bateria_baja → bateria_llena).`,
+    "M: los elementos se construyen sobre un mismo lienzo, frase a frase: lo que entra se queda, cambia de estado, se compara, se conecta o se resalta; la última frase suele cerrar con la conclusión resaltada. El texto en pantalla resume, nunca lee el párrafo (12.4).",
+    `M: qué sabe hacer cada pieza: ${Object.entries(PIECE_ACTIONS)
+      .map(([p, a]) => `${p} (${pieceLabel(p as keyof typeof PIECE_ACTIONS)}): ${a.join(", ")}`)
+      .join("; ")}.`,
     "C: un término técnico, sigla o idea, una vez por término y en su primera aparición; unas 6 cada 10 minutos. L: cuando se enumeran 3 cosas o más, cada elemento con dónde empieza.",
     "Un párrafo con M no lleva C ni L.",
     "El ancla («anchor») son las primeras palabras exactas del párrafo, copiadas del guion verificado: si no aparecen tal cual, la ayuda se descarta.",
-    "Si ya hay fichas 12.5 del paso de motion graphics, respétalas y complétalas; descarta las que no cumplen.",
+    "Si ya hay fichas 12.5 del paso de motion graphics, respétalas y complétalas (su idea visual y su contenido pasan al guion de animación); descarta las que no cumplen.",
   ].join("\n");
   const user = [
     `Tema del episodio: ${input.episodeTitle}`,
@@ -136,7 +200,7 @@ export async function visualAidPlan(
   const call = async (sys: string, content: string) => {
     const res = await client.beta.messages.parse({
       model: config.model,
-      max_tokens: 12_000,
+      max_tokens: 16_000,
       system: sys,
       messages: [{ role: "user", content }],
       output_config: { effort: "medium", format: betaZodOutputFormat(planSchema) },
@@ -152,12 +216,13 @@ export async function visualAidPlan(
     return res;
   };
 
+  const wpm = input.speechWpm ?? DEFAULT_SPEECH_WPM;
   const res = await call(system, user);
   const parsed = res.parsed_output;
   if (!parsed) throw new Error("El plan de ayudas visuales llegó incompleto");
   let usage = addUsage(emptyUsage(), res.usage);
   const raw = [...parsed.aids];
-  let aids: VisualAid[] = raw.map((a, i) => toAid(a, `${a.kind}${i + 1}`));
+  let aids: VisualAid[] = raw.map((a, i) => toAid(a, `${a.kind}${i + 1}`, wpm));
 
   // Una vuelta de corrección: los textos fuera de límite (12.4) y las anclas
   // que no aparecen tal cual. Si falla, quedan las originales (y checkPlan
@@ -166,6 +231,10 @@ export async function visualAidPlan(
   const problems = aids
     .map((a, i) => {
       const reasons = validateAidText(a);
+      if (a.kind === "M" && a.segment && !foldText(input.script).includes(foldText(a.segment)))
+        reasons.push(
+          "El segmento no aparece tal cual en el guion: cópialo exacto, sin cambiar palabras.",
+        );
       if (paragraphOf(paragraphs, a.anchor) < 0)
         reasons.push(
           "El ancla no aparece tal cual en el guion: copia las primeras palabras exactas del párrafo.",
@@ -181,7 +250,7 @@ export async function visualAidPlan(
           "Corriges ayudas visuales que no cumplen el formato de la sección 12 de la guía. Respondes en español.",
           "Devuelves exactamente las mismas ayudas, en el mismo orden y del mismo tipo, con el mismo contenido y la misma intención: solo cambias lo necesario para cumplir los motivos indicados.",
           "Textos en pantalla (12.4): título de M de 1 a 6 palabras; elementos de 2 a 6 palabras; definición de C de 14 palabras o menos; título de L de 4 palabras o menos. Cuenta las palabras antes de responder.",
-          "M: duración de 2 a 30 segundos. El ancla son las primeras palabras exactas del párrafo, copiadas del guion.",
+          "El ancla son las primeras palabras exactas del párrafo y el segmento, el texto exacto del guion; las frases de los momentos copian el segmento en orden y lo cubren entero, y cada acción es una que su pieza sabe hacer.",
         ].join("\n"),
         [
           "## Ayudas que corregir (con sus motivos)",
@@ -202,7 +271,7 @@ export async function visualAidPlan(
           const k = problems.findIndex((p) => p.i === i);
           const f = k >= 0 ? fixed[k] : undefined;
           if (!f || f.kind !== a.kind) return a;
-          const next = toAid(f, a.code);
+          const next = toAid(f, a.code, wpm);
           if (!validateAidText(next).length) repaired++;
           return next;
         });
@@ -222,14 +291,37 @@ export async function visualAidPlan(
 
 type RawAid = z.infer<typeof planSchema>["aids"][number];
 
-/** Duración de una M: de 2 a 30 s; sin dato, 6 (lo mismo que usa el render). */
-export function aidDuration(seconds: number | null | undefined): number {
-  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return 6;
-  return Math.min(Math.max(Math.round(seconds), 2), 30);
+/** Sin acentos, signos ni mayúsculas, para comparar textos copiados del guion. */
+const foldText = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function toBeats(raw: RawAid["beats"]): AidBeat[] {
+  const blank = (s: string) => s.trim() || null;
+  return raw.map((b) => {
+    const text = blank(b.text);
+    return {
+      phrase: b.phrase.trim(),
+      action: b.action,
+      target: text ? null : b.target,
+      text,
+      value: blank(b.value),
+      unit: blank(b.unit),
+      row: b.value.trim() && b.row > 0 ? b.row : null,
+      icon: isAidIcon(b.icon) ? b.icon : null,
+    };
+  });
 }
 
-function toAid(a: RawAid, code: string): VisualAid {
+function toAid(a: RawAid, code: string, wpm: number): VisualAid {
   const blank = (s: string) => s.trim() || null;
+  const beats = a.kind === "M" ? toBeats(a.beats) : [];
+  const segment = a.kind === "M" ? blank(a.segment) : null;
   return {
     kind: a.kind,
     code,
@@ -238,17 +330,15 @@ function toAid(a: RawAid, code: string): VisualAid {
     title: a.title.trim(),
     definition: a.kind === "C" ? blank(a.definition) : null,
     elements:
-      a.kind === "C"
-        ? []
-        : a.elements.map((e) => ({
-            text: e.text.trim(),
-            value: a.kind === "M" ? blank(e.value) : null,
-            unit: a.kind === "M" ? blank(e.unit) : null,
-            anchor: a.kind === "L" ? blank(e.anchor) : null,
-          })),
-    rows: a.kind === "M" ? [...new Set(a.rows)] : [],
+      a.kind === "M"
+        ? elementsFromBeats(beats)
+        : a.kind === "L"
+          ? a.elements.map((e) => ({ text: e.text.trim(), anchor: blank(e.anchor) }))
+          : [],
+    rows: a.kind === "M" ? rowsFromBeats(beats) : [],
     footer: a.kind === "M" ? blank(a.footer) : null,
-    durationS: a.kind === "M" ? aidDuration(a.duration_s) : null,
+    // La duración es la del segmento dicho al ritmo del canal (12.5), no la que estime Claude.
+    durationS: a.kind === "M" ? motionSeconds(segment, wpm) : null,
     piece: a.kind === "M" ? a.piece : null,
     scores:
       a.kind === "M"
@@ -260,5 +350,8 @@ function toAid(a: RawAid, code: string): VisualAid {
           }
         : null,
     vertical: a.kind === "M" && a.vertical,
+    segment,
+    aidCase: a.kind === "M" ? a.case : null,
+    beats,
   };
 }

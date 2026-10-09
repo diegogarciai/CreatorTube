@@ -1,11 +1,14 @@
 import "server-only";
-import type {
-  AidElement,
-  AidKind,
-  AidPiece,
-  AidScores,
-  AidStatus,
-  DroppedAid,
+import {
+  DEFAULT_SPEECH_WPM,
+  type AidBeat,
+  type AidCase,
+  type AidElement,
+  type AidKind,
+  type AidPiece,
+  type AidScores,
+  type AidStatus,
+  type DroppedAid,
 } from "@planificador/core";
 import { RENDER_VERSION } from "@planificador/motion";
 import { getSupabase } from "../auth";
@@ -42,6 +45,10 @@ export type VisualAidView = {
   piece: AidPiece | null;
   scores: AidScores | null;
   vertical: boolean;
+  /** M: el segmento del guion, su caso de 12.1 y el guion de animación (vacío en planes viejos). */
+  segment: string | null;
+  aidCase: AidCase | null;
+  beats: AidBeat[];
   status: AidStatus;
   edited: boolean;
   renders: AidRenderView[];
@@ -59,6 +66,8 @@ export type VisualAidsView = {
   rendering: boolean;
   /** Lo que Claude propuso y las reglas de la sección 12 descartaron (último plan). */
   dropped: DroppedAid[];
+  /** Ritmo de lectura del canal: de ahí sale la duración de cada M. */
+  speechWpm: number;
 };
 
 /** El plan de ayudas visuales del episodio, en orden de guion. */
@@ -68,25 +77,31 @@ export async function loadVisualAidsView(episode: {
   currentScriptRunId: string | null;
 }): Promise<VisualAidsView> {
   const supabase = await getSupabase();
-  const [{ data: aids }, { data: task }, { count: verified }] = await Promise.all([
-    supabase.from("visual_aids").select("*").eq("episode_id", episode.id).order("position"),
-    supabase
-      .from("tasks")
-      .select("id, status, error")
-      .eq("episode_id", episode.id)
-      .eq("kind", "visual_plan")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    episode.currentScriptRunId
-      ? supabase
-          .from("script_step_runs")
-          .select("id", { count: "exact", head: true })
-          .eq("run_id", episode.currentScriptRunId)
-          .eq("step", "fix")
-          .eq("status", "succeeded")
-      : Promise.resolve({ count: 0 }),
-  ]);
+  const [{ data: aids }, { data: task }, { count: verified }, { data: channel }] =
+    await Promise.all([
+      supabase.from("visual_aids").select("*").eq("episode_id", episode.id).order("position"),
+      supabase
+        .from("tasks")
+        .select("id, status, error")
+        .eq("episode_id", episode.id)
+        .eq("kind", "visual_plan")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      episode.currentScriptRunId
+        ? supabase
+            .from("script_step_runs")
+            .select("id", { count: "exact", head: true })
+            .eq("run_id", episode.currentScriptRunId)
+            .eq("step", "fix")
+            .eq("status", "succeeded")
+        : Promise.resolve({ count: 0 }),
+      supabase
+        .from("episodes")
+        .select("channel:channels(speech_wpm)")
+        .eq("id", episode.id)
+        .single(),
+    ]);
   const { data: renders } = await supabase
     .from("aid_renders")
     .select(
@@ -173,6 +188,9 @@ export async function loadVisualAidsView(episode: {
       piece: a.piece as AidPiece | null,
       scores: (a.scores as AidScores | null) ?? null,
       vertical: a.vertical,
+      segment: a.segment,
+      aidCase: a.aid_case as AidCase | null,
+      beats: (a.beats as AidBeat[] | null) ?? [],
       status: a.status as AidStatus,
       edited: a.edited,
       renders: renderViews
@@ -191,5 +209,6 @@ export async function loadVisualAidsView(episode: {
     error: task?.status === "failed" ? (task.error ?? "errors.unknown") : null,
     rendering: renderViews.some((r) => r.view.status === "queued" || r.view.status === "rendering"),
     dropped,
+    speechWpm: channel?.channel?.speech_wpm ?? DEFAULT_SPEECH_WPM,
   };
 }

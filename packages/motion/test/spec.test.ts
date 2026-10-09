@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_BRAND_KIT, type VisualAid } from "@planificador/core";
 import {
   aidDurationFrames,
+  BEAT_FRAMES,
+  countedBetween,
+  FPS,
+  mixColor,
+  STORY_LEAD_FRAMES,
+  storyFor,
   barScale,
   brandProgress,
   countedText,
@@ -117,7 +123,8 @@ describe("efectos de sonido", () => {
     const ticks = cues.filter((c) => c.sound === "tick").map((c) => c.frame);
     expect(ticks.length).toBeGreaterThan(3);
     ticks.slice(1).forEach((f, i) => expect(f - ticks[i]!).toBeGreaterThanOrEqual(3));
-    expect(cues.find((c) => c.sound === "settle")?.frame).toBe(54);
+    const enter = elementStarts(1, 180)[0]!;
+    expect(cues.find((c) => c.sound === "settle")?.frame).toBe(enter + BEAT_FRAMES);
     // Sin cifra, no cuenta.
     const plain = sfxCues({ kind: "M", piece: "counter", elements: els(1, null) }, 180);
     expect(plain.some((c) => c.sound === "tick")).toBe(false);
@@ -135,6 +142,9 @@ describe("efectos de sonido", () => {
       "comparison",
       "network",
       "zoom",
+      "flow",
+      "equation",
+      "myth",
     ] as const;
     for (const piece of pieces) {
       const cues = sfxCues({ kind: "M", piece, elements: els(4, "60") }, 120);
@@ -158,5 +168,89 @@ describe("efectos de sonido", () => {
     expect(list.filter((c) => c.sound === "pop").map((c) => c.frame)).toEqual(
       staggerFrames(3, 210),
     );
+  });
+});
+
+describe("guion de animación", () => {
+  const beats: NonNullable<VisualAid["beats"]> = [
+    { phrase: "En las pruebas, la batería", action: "enter", text: "Batería del M4" },
+    { phrase: "duró 18 horas", action: "change", target: 0, value: "18", unit: "h", row: 1 },
+    {
+      phrase: "y la del M1, nueve",
+      action: "enter",
+      text: "Batería del M1",
+      value: "9",
+      unit: "h",
+      row: 1,
+    },
+    { phrase: "el doble de autonomía", action: "highlight", target: 0 },
+    { phrase: "mira el detalle", action: "zoom", target: 1 },
+  ];
+  const scripted: VisualAid = {
+    ...m,
+    durationS: 6,
+    beats,
+    elements: [
+      { text: "Batería del M4", value: null, unit: null },
+      { text: "Batería del M1", value: "9", unit: "h" },
+    ],
+  };
+
+  it("dura lo que el segmento dicho, más un segundo para el cierre", () => {
+    expect(aidDurationFrames(scripted)).toBe(7 * FPS);
+  });
+
+  it("cada momento empieza cuando se dice su frase", () => {
+    const story = storyFor(scripted, aidDurationFrames(scripted));
+    // 5 + 3 + 5 + 4 + 3 = 20 palabras en 6 s.
+    expect(story.beats.map((b) => b.at)).toEqual(
+      [0, 5, 8, 13, 17].map((w) => Math.round((w / 20) * 6 * FPS) + STORY_LEAD_FRAMES),
+    );
+    expect(story.enter).toEqual([story.beats[0]!.at, story.beats[2]!.at]);
+    expect(story.changes).toEqual([
+      { at: story.beats[1]!.at, element: 0, value: "18", unit: "h", icon: null },
+    ]);
+    expect(story.highlight).toEqual([story.beats[3]!.at, null]);
+    expect(story.zooms).toEqual([{ at: story.beats[4]!.at, element: 1 }]);
+    expect(story.scripted).toBe(true);
+  });
+
+  it("un dato viaja desde el elemento del momento anterior", () => {
+    const story = storyFor(
+      {
+        ...scripted,
+        beats: [beats[0]!, beats[2]!, { phrase: "pasa", action: "travel", target: 1 }],
+      },
+      210,
+    );
+    // Al mismo elemento no viaja nada.
+    expect(story.travels).toEqual([]);
+    const flow = storyFor(
+      {
+        ...scripted,
+        beats: [beats[0]!, beats[2]!, { phrase: "vuelve", action: "travel", target: 0 }],
+      },
+      210,
+    );
+    expect(flow.travels).toEqual([{ at: flow.beats[2]!.at, from: 1, to: 0 }]);
+  });
+
+  it("suena con cada momento: pop al entrar, tics al cambiar, golpe al resaltar, whoosh al acercarse", () => {
+    const frames = aidDurationFrames(scripted);
+    const story = storyFor(scripted, frames);
+    const cues = sfxCues(scripted, frames);
+    const at = (f: number) => cues.filter((c) => c.frame === f).map((c) => c.sound);
+    expect(at(story.beats[0]!.at)).toContain("pop");
+    expect(cues.some((c) => c.sound === "tick" && c.frame > story.beats[1]!.at)).toBe(true);
+    expect(at(story.beats[3]!.at)).toContain("settle");
+    expect(at(story.beats[4]!.at)).toContain("whoosh");
+    expect(cues.at(-1)).toMatchObject({ sound: "out" });
+  });
+
+  it("las cifras cambian contando y los colores se mezclan", () => {
+    expect(countedBetween("9 h", "18 h", 0)).toBe("9 h");
+    expect(countedBetween("9 h", "18 h", 0.5)).toBe("14 h");
+    expect(countedBetween(null, "1,5 GB", 1)).toBe("1,5 GB");
+    expect(mixColor("#000000", "#ffffff", 0.5)).toBe("#808080");
   });
 });
