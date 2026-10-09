@@ -9,8 +9,14 @@ import { errorMessage, type ActionResult } from "../utils";
 import { mobileTicketKey } from "../youtube";
 
 const targetSchema = z
-  .object({ channelId: z.uuid().optional(), workspaceId: z.uuid().optional() })
-  .refine((t) => t.channelId || t.workspaceId);
+  .object({
+    channelId: z.uuid().optional(),
+    workspaceId: z.uuid().optional(),
+    scope: z.literal("comments").optional(),
+  })
+  .refine((t) => t.channelId || t.workspaceId)
+  // Las respuestas a comentarios se activan sobre un canal ya conectado.
+  .refine((t) => !t.scope || t.channelId);
 
 /**
  * Enlace para conectar YouTube desde la app: un canal existente (reconectar)
@@ -21,6 +27,7 @@ const targetSchema = z
 export async function youtubeConnectLink(target: {
   channelId?: string;
   workspaceId?: string;
+  scope?: "comments";
 }): Promise<ActionResult<{ url: string }>> {
   try {
     if (!YOUTUBE_CONFIGURED()) return { ok: false, error: "errors.youtube_config" };
@@ -37,7 +44,7 @@ export async function youtubeConnectLink(target: {
     }
 
     const ticket = encodeMobileTicket(
-      { workspaceId, userId: user.id, channelId: input.channelId },
+      { workspaceId, userId: user.id, channelId: input.channelId, scope: input.scope },
       mobileTicketKey(),
     );
     const url = new URL("/api/youtube/mobile", env.appUrl);

@@ -46,6 +46,11 @@ describe("api móvil", () => {
       expect(decodeMobileTicket(ticket, key, now + MOBILE_TICKET_TTL_MS + 1)).toBeNull();
     });
 
+    it("conserva el permiso pedido para responder comentarios", () => {
+      const ticket = encodeMobileTicket({ ...data, scope: "comments" }, key, now);
+      expect(decodeMobileTicket(ticket, key, now)?.scope).toBe("comments");
+    });
+
     it("rechaza otra clave o un ticket cambiado", () => {
       const ticket = encodeMobileTicket(data, key, now);
       expect(decodeMobileTicket(ticket, Buffer.alloc(32, 8), now)).toBeNull();

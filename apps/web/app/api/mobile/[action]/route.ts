@@ -1,11 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshAnalytics } from "@/lib/actions/analytics";
+import {
+  commentToIdea,
+  dismissReply,
+  publishReply,
+  readComments,
+  readingToIdea,
+  saveReply,
+} from "@/lib/actions/comments";
+import { addCompetitor, competitorVideoToIdea, removeCompetitor } from "@/lib/actions/competitors";
+import { auditMonth, auditTopicToIdea, evaluateEpisode } from "@/lib/actions/evaluation";
+import { searchTermToIdea, suggestIdeas } from "@/lib/actions/ideas";
+import {
+  draftEpisodeNewsletter,
+  draftNewsletter,
+  saveNewsletter,
+  sendNewsletter,
+  sendNewsletterTest,
+} from "@/lib/actions/newsletter";
+import {
+  dismissSocialPost,
+  generateSocialPosts,
+  markSocialPostPublished,
+  saveSocialPost,
+} from "@/lib/actions/social-posts";
 import { saveBrandKit, setBrandLogo } from "@/lib/actions/brand";
 import {
   disconnectYouTube,
   publishWriterGuide,
   syncChannelNow,
   updateChannelProfile,
+  updateNewsletterSettings,
+  updateSocials,
 } from "@/lib/actions/channels";
 import { prepareDirection, saveDirection } from "@/lib/actions/direction";
 import { removeMember, updateMember } from "@/lib/actions/members";
@@ -79,6 +105,35 @@ const ACTIONS: Record<string, (...args: any[]) => Promise<unknown>> = {
   publishWriterGuide,
   saveBrandKit,
   setBrandLogo,
+  // Difusión: comentarios con respuesta y posts para redes
+  readComments,
+  saveReply,
+  dismissReply,
+  publishReply,
+  readingToIdea,
+  commentToIdea,
+  generateSocialPosts,
+  saveSocialPost,
+  dismissSocialPost,
+  markSocialPostPublished,
+  updateSocials,
+  // Evaluación a 7 días y auditoría mensual
+  evaluateEpisode,
+  auditMonth,
+  auditTopicToIdea,
+  // Ideas: búsquedas, competencia y propuestas por IA
+  searchTermToIdea,
+  suggestIdeas,
+  addCompetitor,
+  removeCompetitor,
+  competitorVideoToIdea,
+  // Boletín
+  draftNewsletter,
+  draftEpisodeNewsletter,
+  saveNewsletter,
+  sendNewsletterTest,
+  sendNewsletter,
+  updateNewsletterSettings,
   updateMember,
   removeMember,
 };
