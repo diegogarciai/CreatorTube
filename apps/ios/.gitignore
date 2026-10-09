@@ -1,0 +1,14 @@
+# Proyecto generado por XcodeGen
+*.xcodeproj
+*.xcworkspace
+Planificador/Info.plist
+
+# Secretos locales
+Config/Secrets.xcconfig
+
+# Compilación
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+build/

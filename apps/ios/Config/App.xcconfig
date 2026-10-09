@@ -1,0 +1,6 @@
+// Ajustes comunes. Los secretos van en Secrets.xcconfig (no se versiona);
+// si no existe, la app compila y muestra "Falta configurar Supabase".
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+
+#include? "Secrets.xcconfig"
