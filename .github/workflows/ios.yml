@@ -42,12 +42,18 @@ jobs:
           SUPABASE_URL: https://ci.supabase.co
           SUPABASE_ANON_KEY: ci
         run: ci_scripts/ci_post_clone.sh
-      # Si no hay apps/ios/Package.resolved, Xcode Cloud no puede resolver los
-      # paquetes. Se muestra el que quedó para copiarlo al repo.
-      - name: Revisar Package.resolved
+      # Xcode Cloud solo usa las versiones de apps/ios/Package.resolved. Aquí se
+      # resuelve igual que allá; si falla, se muestra el archivo que hace falta.
+      - name: Resolver paquetes como Xcode Cloud
         run: |
-          cat Planificador.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-          test -f Package.resolved || { echo "Falta apps/ios/Package.resolved: copia el de arriba"; exit 1; }
+          resolved=Planificador.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if ! cmp -s Package.resolved "$resolved" || ! xcodebuild -resolvePackageDependencies \
+              -project Planificador.xcodeproj -scheme Planificador \
+              -disableAutomaticPackageResolution; then
+            echo "apps/ios/Package.resolved falta o está desactualizado. Este es el que generó el CI:"
+            cat "$resolved"
+            exit 1
+          fi
       # En Release, como el archivo que se sube a TestFlight.
       - name: Compilar para el simulador
         run: |

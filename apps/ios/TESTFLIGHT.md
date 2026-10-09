@@ -62,7 +62,7 @@ El proyecto ya trae `ci_scripts/ci_post_clone.sh`. Xcode Cloud lo corre al clona
 
 - escribe `Secrets.xcconfig` con las variables del workflow;
 - genera el `.xcodeproj` con XcodeGen;
-- resuelve los paquetes.
+- copia `apps/ios/Package.resolved`, con las versiones exactas de los paquetes, y los resuelve. Xcode Cloud no descarga paquetes sin ese archivo.
 
 El CI de GitHub corre el mismo script en cada cambio, así que si se rompe se ve ahí primero.
 
@@ -104,7 +104,7 @@ Xcode Cloud pone el número de build solo. Si choca con uno que subiste a mano, 
 | Archive aparece gris en el menú | El destino es un simulador. Elige **Any iOS Device (arm64)**. |
 | La app instalada muestra «Falta configurar Supabase» | `Secrets.xcconfig` estaba vacío al archivar. Rellénalo, regenera y vuelve a subir. |
 | Xcode Cloud: «faltan SUPABASE_URL o SUPABASE_ANON_KEY» | Agrega las variables en **Environment** del workflow. |
-| Xcode Cloud: «a resolved file is required» o «project not found» | No corrió `ci_post_clone.sh`. Revisa que esté en `apps/ios/ci_scripts/` en `main`. |
+| Xcode Cloud: «a resolved file is required» o «project not found» | Revisa que `apps/ios/ci_scripts/ci_post_clone.sh` y `apps/ios/Package.resolved` estén en `main`. Si cambiaste la versión de un paquete en `project.yml`, el CI de GitHub falla y muestra el `Package.resolved` nuevo: cópialo a `apps/ios/Package.resolved`. |
 | Xcode Cloud: «Signing requires a development team» | Falta la variable `DEVELOPMENT_TEAM` en el workflow. |
 
 ## Antes de publicar en la App Store
