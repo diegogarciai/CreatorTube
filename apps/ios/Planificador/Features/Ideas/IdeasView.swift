@@ -15,6 +15,7 @@ struct IdeasView: View {
     @State private var suggestTask: TaskState?
     @State private var outliers: [OutlierRow] = []
     @State private var hasCompetitors = false
+    @State private var gearNames: [String: String] = [:]
 
     /// Orden de los filtros en la web.
     private static let filters: [IdeaStatus] = [.new, .suggested, .inProgress, .discarded]
@@ -65,7 +66,8 @@ struct IdeasView: View {
                 Button {
                     if canWrite { editing = IdeaEditTarget(idea: idea) }
                 } label: {
-                    IdeaRowView(idea: idea, pillar: model.pillars.first { $0.id == idea.pillarId })
+                    IdeaRowView(idea: idea, pillar: model.pillars.first { $0.id == idea.pillarId },
+                                gear: idea.gearIds.compactMap { gearNames[$0] })
                 }
                 .buttonStyle(.plain)
                 .swipeActions(edge: .trailing) {
@@ -219,6 +221,7 @@ struct IdeasView: View {
             errorMessage = error.localizedDescription
         }
         suggestTask = await model.latestTask(kind: "idea_suggestions")
+        gearNames = await model.gearNames()
         outliers = (try? await model.outliers()) ?? []
         if outliers.isEmpty {
             let competitors = (try? await model.competitors()) ?? []
@@ -275,6 +278,8 @@ extension IdeaOrigin {
 struct IdeaRowView: View {
     let idea: IdeaRow
     var pillar: PillarRow?
+    /// Los equipos de «Mi equipo» que usa la idea.
+    var gear: [String] = []
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -297,6 +302,13 @@ struct IdeaRowView: View {
                     (Text("Riesgo: ").bold() + Text(risk))
                         .font(.caption)
                         .foregroundStyle(Palette.muted)
+                }
+                if !gear.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "shippingbox").font(.caption2).foregroundStyle(Palette.muted)
+                        ForEach(gear, id: \.self) { Badge(text: $0) }
+                    }
+                    .accessibilityElement(children: .combine)
                 }
                 HStack(spacing: 6) {
                     Badge(text: idea.origin.label, tone: idea.origin.tone)

@@ -75,6 +75,7 @@ struct EpisodeDetailView: View {
             statusSection(episode)
             dataSection(episode)
             briefSection(episode)
+            EpisodeGearSection(episodeId: episode.id)
             videoSection(episode)
             checklistSection(episode, phase: .beforePublish)
             checklistSection(episode, phase: .afterPublish)

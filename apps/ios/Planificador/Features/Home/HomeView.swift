@@ -7,6 +7,7 @@ struct HomeView: View {
     @Environment(AppModel.self) private var model
     @State private var isCreating = false
     @State private var newIdeas: Int?
+    @State private var dueLoans: [DueLoan] = []
 
     private struct Overview {
         let week: WeekCoverage
@@ -50,6 +51,19 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+                ForEach(dueLoans) { loan in
+                    NavigationLink {
+                        GearView()
+                    } label: {
+                        Label(loan.text, systemImage: "shippingbox")
+                            .font(.callout)
+                            .foregroundStyle(Palette.warn)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(Tone.warn.background, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                }
                 if model.episodes.isEmpty && !model.isLoadingEpisodes {
                     emptyState
                 } else if let overview = computeOverview() {
@@ -64,12 +78,17 @@ struct HomeView: View {
         }
         .refreshable {
             await model.loadEpisodes()
-            newIdeas = await model.newIdeasCount()
+            await loadExtras()
         }
-        .task(id: model.selectedChannelId) { newIdeas = await model.newIdeasCount() }
+        .task(id: model.selectedChannelId) { await loadExtras() }
         .sheet(isPresented: $isCreating) {
             EpisodeFormView(mode: .create)
         }
+    }
+
+    private func loadExtras() async {
+        newIdeas = await model.newIdeasCount()
+        dueLoans = await model.dueLoans()
     }
 
     private var emptyState: some View {

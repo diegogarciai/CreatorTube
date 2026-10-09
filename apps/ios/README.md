@@ -7,11 +7,12 @@ App nativa en SwiftUI que habla directo con la misma base de Supabase que la web
 Está a la par con la web en todo lo del día a día. Pestañas: **Inicio**, **Ideas**, **Producción**, **Calendario** y **Más**.
 
 - **Entrar** con Google o con el código del correo. El registro sigue siendo solo por invitación; también se acepta una invitación pegando su enlace.
-- **Inicio**: meta de la semana, racha, cobertura, alertas, próximas fechas, señales del canal y aviso de banco de ideas bajo.
-- **Ideas**: banco con filtros y puntaje; crear, editar, descartar y «Arrancar episodio». Sugeridas por IA («Proponer ideas» y «Aceptar»), con por qué, riesgo y pilar, y los videos atípicos de la competencia.
+- **Inicio**: meta de la semana, racha, cobertura, alertas, próximas fechas, señales del canal, aviso de banco de ideas bajo y de préstamos de marcas por devolver.
+- **Ideas**: banco con filtros y puntaje; crear, editar, descartar y «Arrancar episodio». Sugeridas por IA («Proponer ideas» y «Aceptar»), con por qué, riesgo, pilar y el equipo que usan, y los videos atípicos de la competencia.
 - **Producción**: lista o tablero por estado, búsqueda y archivados. Crear, editar y archivar episodios y moverlos de estado según el rol.
 - **Ficha del episodio**:
   - etapas y siguiente paso (lleva a Guion, Producción, Difusión o Métricas), todos los campos y la ficha de entrada;
+  - equipo del episodio (protagonista o herramienta, su foto a las miniaturas) y el bloque para la descripción;
   - vincular el video, checklist y actividad;
   - **Guion**: dirección, etapas, verificación y corridas, con las acciones de IA;
   - **Producción**: ayudas visuales (aprobar, corregir sus textos y renderizar), miniaturas, recursos y títulos, con las acciones de IA;
@@ -22,6 +23,7 @@ Está a la par con la web en todo lo del día a día. Pestañas: **Inicio**, **I
   - todos mis canales y búsqueda;
   - analítica y «Así te fue ayer», con alcance, búsquedas que traen gente y auditoría mensual;
   - audiencia (dolores, por responder, temas, correcciones) y boletín semanal (redactar, probar, enviar o programar);
+  - Mi equipo: inventario de dispositivos con foto, pegar una lista para que Claude la ordene, por revisar, devolver o retirar;
   - tareas en curso;
   - configuración del canal: perfil, ritmo, pilares, checklist, guía del guionista, kit de marca, redes, competencia, boletín, fotos del presentador, ICS, YouTube (conectar, sincronizar, desconectar, importar videos, activar respuestas a comentarios);
   - espacio y equipo: créditos, miembros, invitar, roles;
@@ -41,7 +43,7 @@ apps/ios
 └── PlanificadorCore/      Paquete Swift con la lógica pura, port 1:1 de packages/core
 ```
 
-`PlanificadorCore` replica la lógica pura de la web con sus pruebas: `packages/core/src/{time,planning,signals,thresholds,permissions,episodes,ideas,retention,guide,socials,comments,evaluation,newsletter}.ts` y `apps/web/lib/daily-report.ts`. **Si cambia una regla en la web (umbrales, alertas, permisos), hay que cambiarla también aquí.** El flujo de CI `iOS` corre esas pruebas en cada cambio de `apps/ios`.
+`PlanificadorCore` replica la lógica pura de la web con sus pruebas: `packages/core/src/{time,planning,signals,thresholds,permissions,episodes,ideas,retention,guide,socials,comments,evaluation,newsletter,gear}.ts` y `apps/web/lib/daily-report.ts`. **Si cambia una regla en la web (umbrales, alertas, permisos), hay que cambiarla también aquí.** El flujo de CI `iOS` corre esas pruebas en cada cambio de `apps/ios`.
 
 ## Cómo abrirla en tu Mac
 

@@ -39,6 +39,11 @@ struct MoreView: View {
                     Label("Boletín", systemImage: "envelope")
                 }
                 NavigationLink {
+                    GearView()
+                } label: {
+                    Label("Mi equipo", systemImage: "shippingbox")
+                }
+                NavigationLink {
                     TasksView()
                 } label: {
                     Label("Tareas en curso", systemImage: "gearshape.2")

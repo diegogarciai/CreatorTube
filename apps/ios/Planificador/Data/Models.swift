@@ -459,14 +459,17 @@ struct IdeaRow: Decodable, Identifiable, Hashable {
     let reasons: String?
     let risk: String?
     let pillarId: String?
+    /// Los equipos de «Mi equipo» que usa la idea (los marca Claude al proponerla).
+    let gearIds: [String]
 
     enum CodingKeys: String, CodingKey {
         case id, title, notes, origin, status, signals, reasons, risk
         case createdAt = "created_at"
         case pillarId = "pillar_id"
+        case gearIds = "gear_ids"
     }
 
-    static let columns = "id, title, notes, origin, status, signals, created_at, reasons, risk, pillar_id"
+    static let columns = "id, title, notes, origin, status, signals, created_at, reasons, risk, pillar_id, gear_ids"
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -480,6 +483,7 @@ struct IdeaRow: Decodable, Identifiable, Hashable {
         reasons = try? c.decodeIfPresent(String.self, forKey: .reasons)
         risk = try? c.decodeIfPresent(String.self, forKey: .risk)
         pillarId = try? c.decodeIfPresent(String.self, forKey: .pillarId)
+        gearIds = (try? c.decodeIfPresent([String].self, forKey: .gearIds)) ?? []
         // jsonb {"demand": 3, ...}; claves desconocidas se ignoran.
         let raw = (try? c.decode([String: Int].self, forKey: .signals)) ?? [:]
         var parsed: [IdeaSignal: Int] = [:]
