@@ -125,3 +125,25 @@ describe("búsquedas cubiertas", () => {
     expect(termCovered("iphone 17", [])).toBe(false);
   });
 });
+
+describe("videos atípicos", () => {
+  it("la razón contra la mediana del canal, sin los videos muy nuevos", async () => {
+    const { outlierRatios } = await import("../src");
+    const now = new Date("2026-10-09T00:00:00Z");
+    const d = (days: number) => new Date(now.getTime() - days * 86_400_000);
+    const { median, ratios } = outlierRatios(
+      [
+        { id: "a", views: 1000, publishedAt: d(20) },
+        { id: "b", views: 2000, publishedAt: d(15) },
+        { id: "c", views: 9000, publishedAt: d(10) },
+        { id: "nuevo", views: 50000, publishedAt: d(1) },
+      ],
+      now,
+    );
+    expect(median).toBe(2000);
+    expect(ratios.get("c")).toBe(4.5);
+    expect(ratios.get("a")).toBe(0.5);
+    expect(ratios.get("nuevo")).toBeNull();
+    expect(outlierRatios([], now).median).toBeNull();
+  });
+});

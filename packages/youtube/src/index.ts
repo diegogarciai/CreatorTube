@@ -5,3 +5,4 @@ export * from "./sync";
 export * from "./analytics";
 export * from "./reporting";
 export * from "./comments";
+export * from "./competitors";

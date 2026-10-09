@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NewEpisodeButton } from "@/components/episodes/new-episode-button";
 import { IdeaRowActions, NewIdeaButton } from "@/components/ideas/idea-row-actions";
+import { OutliersCard } from "@/components/ideas/outliers-card";
 import { getChannelContext, getSupabase } from "@/lib/auth";
+import { loadCompetitors, loadOutliers } from "@/lib/data/competitors";
 import { getPillars } from "@/lib/data/queries";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +35,15 @@ export default async function IdeasPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const [{ data: ideas }, pillars] = await Promise.all([
+  const [{ data: ideas }, pillars, outliers, competitors] = await Promise.all([
     supabase
       .from("ideas")
       .select("*")
       .eq("channel_id", channelId)
       .order("created_at", { ascending: false }),
     getPillars(channelId),
+    loadOutliers(channelId),
+    loadCompetitors(channelId),
   ]);
   const all = ideas ?? [];
   const shown = all
@@ -94,7 +98,7 @@ export default async function IdeasPage({
                     ? "warn"
                     : idea.origin === "recommendation"
                       ? "accent"
-                      : idea.origin === "search"
+                      : idea.origin === "search" || idea.origin === "competitor"
                         ? "ok"
                         : "neutral"
                 }
@@ -134,6 +138,17 @@ export default async function IdeasPage({
           ))}
         </ul>
       )}
+      {filter === "new" ? (
+        <div className="mt-6">
+          <OutliersCard
+            channelId={channelId}
+            outliers={outliers}
+            hasCompetitors={competitors.length > 0}
+            canIdea={canWrite}
+            canConfigure={ctx.can("configure_channel")}
+          />
+        </div>
+      ) : null}
     </Page>
   );
 }

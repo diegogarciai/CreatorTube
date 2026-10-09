@@ -132,6 +132,31 @@ export class YouTubeClient {
   }
 
   /**
+   * Un canal público por su id (UC…) o su @handle (channels.list: 1 unidad).
+   * Devuelve null si no existe.
+   */
+  async getChannel(
+    ref: { id: string } | { handle: string },
+  ): Promise<(ChannelInfo & { subscriberCount: number | null }) | null> {
+    const json = await this.get("channels", {
+      part: "snippet,contentDetails,statistics",
+      ...("id" in ref ? { id: ref.id } : { forHandle: ref.handle }),
+    });
+    const item = json.items?.[0];
+    if (!item) return null;
+    return {
+      id: item.id,
+      title: item.snippet?.title ?? "",
+      handle: item.snippet?.customUrl ?? null,
+      thumbnailUrl: item.snippet?.thumbnails?.default?.url ?? null,
+      uploadsPlaylistId: item.contentDetails?.relatedPlaylists?.uploads ?? null,
+      country: item.snippet?.country ?? null,
+      defaultLanguage: item.snippet?.defaultLanguage ?? null,
+      subscriberCount: num(item.statistics?.subscriberCount),
+    };
+  }
+
+  /**
    * IDs de las subidas más recientes (incluye privadas y programadas para el
    * dueño), hasta `max`. Cada página de 50 cuesta 1 unidad de cuota.
    */

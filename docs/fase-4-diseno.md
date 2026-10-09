@@ -247,6 +247,12 @@ Además de las ideas propias, el banco se llena desde lo que ya mide la app. Cad
   - **Qué se trae:** con la sincronización diaria de la analítica se traen de YouTube Analytics las 25 búsquedas de YouTube que más vistas trajeron al canal en los últimos 28 días (`insightTrafficSourceDetail` con `insightTrafficSourceType==YT_SEARCH`).
   - **Dónde se ven:** en una tarjeta de Analítica, con la marca «sin video propio» cuando ningún episodio tiene sus palabras importantes en el título o en las palabras clave.
   - **Cómo se guardan:** en `youtube_search_terms`, que se reemplaza en cada sincronización. La purga las borra a los 30 días sin refrescar, porque son datos de YouTube.
+- **Competencia y videos atípicos** (origen «Competencia»):
+  - **Qué canales:** en Ajustes › Competencia se cargan hasta 15 canales que sigue el presentador, por enlace, @handle o id (`channels.list`, 1 unidad).
+  - **El cron diario** refresca de cada uno sus 30 subidas recientes con las vistas (`playlistItems` y `videos`, unas 3 unidades por canal, dentro del presupuesto de cuota).
+  - **Atípico:** un video de al menos 3 días que supera 3 veces la mediana de su canal.
+  - **En Ideas:** la tarjeta «Atípicos de la competencia» muestra los de los últimos 60 días, con «Pasar a Ideas». La nota de la idea recuerda buscar el ángulo propio, no copiar.
+  - **Datos de YouTube:** `competitor_channels` y `competitor_videos`. La purga borra los videos que no se refrescaron en 30 días, limpia los datos del canal y borra todo al desconectar.
 - **Auditoría mensual** (origen «Recomendación»): los temas que propone.
 
 ## 6. Costos estimados

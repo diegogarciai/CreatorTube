@@ -910,6 +910,73 @@ describe("Banco de ideas · búsquedas", () => {
   });
 });
 
+describe("Banco de ideas · competencia", () => {
+  it("se lee con permiso, la escribe el servidor y se purga a los 30 días", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const [comp] = await sql(
+      `insert into public.competitor_channels (channel_id, youtube_channel_id, title, uploads_playlist_id, synced_at)
+       values ($1, 'UCBJycsmduvYEL83R_U4JriQ', 'Otro', 'UUBJycsmduvYEL83R_U4JriQ', now() - interval '31 days')
+       returning id, workspace_id`,
+      [ch],
+    );
+    expect(comp.workspace_id).toBe(ws);
+    await expect(
+      sql(
+        "insert into public.competitor_channels (channel_id, youtube_channel_id, uploads_playlist_id) values ($1, 'malo', 'UU')",
+        [ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    const addVideo = (id: string, fetched = "now()") =>
+      sql(
+        `insert into public.competitor_videos (competitor_id, video_id, channel_id, title, published_at, views, ratio, fetched_at)
+         values ($1, $2, $3, 'Video', now() - interval '5 days', 9000, 4.5, ${fetched})`,
+        [comp.id, id, ch],
+      );
+    await addVideo("abcdefghijk");
+    await addVideo("viejo123456", "now() - interval '31 days'");
+    const read = (uid: string) =>
+      as(uid, async (q) => ({
+        channels: await q("select title from public.competitor_channels where channel_id = $1", [
+          ch,
+        ]),
+        videos: await q(
+          "select video_id from public.competitor_videos where channel_id = $1 order by video_id",
+          [ch],
+        ),
+      }));
+    expect(await read(owner.id)).toEqual({
+      channels: [{ title: "Otro" }],
+      videos: [{ video_id: "abcdefghijk" }, { video_id: "viejo123456" }],
+    });
+    expect(await read(outsider.id)).toEqual({ channels: [], videos: [] });
+    await expect(
+      as(owner.id, (q) =>
+        q("delete from public.competitor_channels where channel_id = $1 returning 1", [ch]),
+      ),
+    ).resolves.toEqual([]);
+    const [r] = await sql("select public.purge_youtube_data() as r");
+    expect(r.r.old_competitor_videos_deleted).toBeGreaterThanOrEqual(1);
+    expect(await read(owner.id)).toEqual({
+      channels: [{ title: null }],
+      videos: [{ video_id: "abcdefghijk" }],
+    });
+    await sql("update public.channels set disconnected_at = now() where id = $1", [ch]);
+    await sql("select public.purge_youtube_data()");
+    expect(
+      await sql("select count(*) as n from public.competitor_videos where channel_id = $1", [ch]),
+    ).toEqual([{ n: "0" }]);
+    const [idea] = await sql(
+      "insert into public.ideas (channel_id, title, origin) values ($1, 'Mi versión', 'competitor') returning origin",
+      [ch],
+    );
+    expect(idea.origin).toBe("competitor");
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

@@ -251,7 +251,8 @@
       "recommendation": "Recomendación",
       "own": "Propia",
       "pain_point": "Dolor de la audiencia",
-      "search": "Búsqueda en YouTube"
+      "search": "Búsqueda en YouTube",
+      "competitor": "Competencia"
     },
     "signal": {
       "demand": "Demanda",
@@ -589,6 +590,25 @@
     "inIdeas": "En Ideas",
     "ideaCreated": "Idea creada en Ideas."
   },
+  "competitors": {
+    "none": "Todavía no sigues ningún canal.",
+    "placeholder": "Enlace del canal, @handle o id",
+    "add": "Agregar",
+    "added": "Agregado: {title}",
+    "remove": "Quitar",
+    "open": "Abrir en YouTube",
+    "pendingTitle": "Canal (se actualiza en la próxima sincronización)",
+    "median": "mediana de {views} vistas",
+    "outliersTitle": "Atípicos de la competencia",
+    "outliersDesc": "Videos de los últimos 60 días que superan 3 veces la mediana de su canal. Busca tu ángulo: no los copies.",
+    "views": "{views} vistas",
+    "noOutliers": "Por ahora ningún video de los canales que sigues se sale de lo normal.",
+    "noCompetitors": "Agrega canales que sigues para ver sus videos atípicos.",
+    "toSettings": "Ir a Ajustes › Competencia",
+    "toIdea": "Pasar a Ideas",
+    "inIdeas": "En Ideas",
+    "ideaCreated": "Idea creada en Ideas."
+  },
   "analytics": {
     "title": "Analítica",
     "emptyTitle": "Todavía no hay analítica del canal",
@@ -714,7 +734,9 @@
     "writerGuide": "Guía del guionista",
     "writerGuideDesc": "Las reglas que siguen las preguntas de dirección y las 5 etapas del guion. Cada etapa recibe solo las secciones que usa.",
     "socials": "Redes",
-    "socialsDesc": "Las redes del canal: de cada episodio salen 3 posts por red (Difusión). El guion también las usa en la descripción."
+    "socialsDesc": "Las redes del canal: de cada episodio salen 3 posts por red (Difusión). El guion también las usa en la descripción.",
+    "competitors": "Competencia",
+    "competitorsDesc": "Canales que sigues. Cada día se revisan sus videos nuevos y los atípicos (los que superan 3 veces la mediana de su canal) aparecen en Ideas."
   },
   "workspace": {
     "title": "Espacio y equipo",
@@ -838,7 +860,11 @@
     "post_published": "Ese post ya está marcado como publicado.",
     "evaluation_not_published": "El episodio todavía no está publicado en YouTube.",
     "evaluation_not_ready": "Todavía no llegaron los 7 días de datos de YouTube (llegan con 2 o 3 días de atraso).",
-    "audit_no_evaluations": "Ese mes no tiene episodios evaluados."
+    "audit_no_evaluations": "Ese mes no tiene episodios evaluados.",
+    "competitor_invalid": "Pega el enlace del canal, su @handle o su id (UC…).",
+    "competitor_limit": "Puedes seguir hasta 15 canales.",
+    "competitor_not_found": "No se encontró ese canal en YouTube.",
+    "competitor_self": "Ese es tu propio canal."
   },
   "episodeType": {
     "product": "Producto o compra",

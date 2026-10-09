@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { CopyField } from "@/components/copy-field";
 import { BrandKitForm } from "@/components/settings/brand-kit-form";
 import { ChecklistEditor } from "@/components/settings/checklist-editor";
+import { CompetitorsForm } from "@/components/settings/competitors-form";
 import { ConnectionPanel, RegenerateIcsButton } from "@/components/settings/connection-panel";
 import { PresenterPhotos } from "@/components/settings/presenter-photos";
 import { PillarsEditor } from "@/components/settings/pillars-editor";
@@ -21,6 +22,7 @@ import {
 } from "@planificador/core";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { loadBrandView } from "@/lib/data/brand";
+import { loadCompetitors } from "@/lib/data/competitors";
 import { channelProfile, channelRhythm } from "@/lib/data/channel";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
 import { YOUTUBE_COMMENTS_SCOPE } from "@planificador/youtube";
@@ -43,6 +45,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
     { data: versions },
     brand,
     { data: dist },
+    competitors,
   ] = await Promise.all([
     getPillars(channelId, true),
     getChecklistSteps(channelId),
@@ -65,6 +68,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
       .select("socials")
       .eq("channel_id", channelId)
       .maybeSingle(),
+    loadCompetitors(channelId),
   ]);
   const canConfigure = ctx.can("configure_channel");
   const connection = conn?.[0] ?? null;
@@ -159,6 +163,18 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             />
           </CardBody>
         </Card>
+        {connection?.status === "active" ? (
+          <Card>
+            <CardHeader title={t("competitors")} description={t("competitorsDesc")} />
+            <CardBody>
+              <CompetitorsForm
+                channelId={channelId}
+                competitors={competitors}
+                disabled={!canConfigure}
+              />
+            </CardBody>
+          </Card>
+        ) : null}
         <Card>
           <CardHeader title={t("pillars")} description={t("pillarsDesc")} />
           <CardBody>
