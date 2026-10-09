@@ -3,11 +3,10 @@ import SwiftUI
 import UIKit
 
 /// Configuración del canal (`/c/[id]/ajustes`): perfil, ritmo, pilares,
-/// checklist, calendario ICS y YouTube (conectar, sincronizar, importar). La
-/// guía del guionista y la marca siguen en la web por ahora.
+/// checklist, guía del guionista, kit de marca, fotos del presentador,
+/// calendario ICS y YouTube (conectar, sincronizar, importar).
 struct ChannelSettingsView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.openURL) private var openURL
     @State private var details: ChannelDetails?
     @State private var connection: ConnectionInfo?
     @State private var errorMessage: String?
@@ -29,8 +28,10 @@ struct ChannelSettingsView: View {
                     NavigationLink("Ritmo") { RhythmSettingsView(details: details, onSave: { await load() }) }
                     NavigationLink("Pilares") { PillarsSettingsView() }
                     NavigationLink("Pasos de checklist") { ChecklistSettingsView() }
+                    NavigationLink("Guía del guionista") { WriterGuideView() }
+                    NavigationLink("Kit de marca") { BrandKitView() }
                 } footer: {
-                    Text("Nombre, zona horaria, meta semanal, días de publicación y grabación, pilares y pasos de checklist.")
+                    Text("Nombre, zona horaria, meta semanal, días de publicación y grabación, pilares, pasos de checklist, las reglas que usa la IA para escribir y la marca de las miniaturas.")
                 }
 
                 Section {
@@ -93,11 +94,6 @@ struct ChannelSettingsView: View {
                     }
                 }
 
-                Section {
-                    Button("Guía del guionista y kit de marca (en la web)") {
-                        openURL(AppConfig.webURL.appendingPathComponent("c/\(details.id)/ajustes"))
-                    }
-                }
             }
         }
         .navigationTitle("Configuración del canal")

@@ -22,13 +22,22 @@ struct VisualAidRow: Decodable, Identifiable, Hashable {
     let piece: String?
     let vertical: Bool
     let status: String
+    /// Para editar los textos: elementos, filas de verificación, guion de
+    /// animación (M) y el segmento del guion. Se leen sin tipo fijo para que un
+    /// cambio de forma no rompa la lista.
+    let elements: JSONAny?
+    let claimRows: [Int]?
+    let beats: JSONAny?
+    let segment: String?
 
     enum CodingKeys: String, CodingKey {
         case id, kind, code, position, anchor, idea, title, definition, footer, piece, vertical, status
+        case elements, beats, segment
         case durationS = "duration_s"
+        case claimRows = "claim_rows"
     }
 
-    static let columns = "id, kind, code, position, anchor, idea, title, definition, footer, duration_s, piece, vertical, status"
+    static let columns = "id, kind, code, position, anchor, idea, title, definition, footer, duration_s, piece, vertical, status, elements, claim_rows, beats, segment"
 
     var kindLabel: String {
         switch kind {
