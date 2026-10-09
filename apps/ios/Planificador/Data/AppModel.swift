@@ -445,6 +445,43 @@ final class AppModel {
         return rows ?? []
     }
 
+    // MARK: - Todos mis canales y búsqueda
+
+    /// Episodios activos de todos los canales visibles (`/todos`).
+    func allChannelEpisodes() async throws -> [ChannelEpisodeRow] {
+        guard let client = supabase, !channels.isEmpty else { return [] }
+        return try await client
+            .from("episodes")
+            .select(ChannelEpisodeRow.columns)
+            .in("channel_id", values: channels.map(\.id))
+            .filter("archived_at", operator: "is", value: "null")
+            .execute()
+            .value
+    }
+
+    /// Busca episodios por título en todos los canales (paleta de comandos de la web).
+    func searchEpisodes(_ query: String) async throws -> [ChannelEpisodeRow] {
+        guard let client = supabase, !channels.isEmpty else { return [] }
+        let clean = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "%", with: "")
+            .replacingOccurrences(of: "_", with: "\\_")
+        guard !clean.isEmpty else { return [] }
+        return try await client
+            .from("episodes")
+            .select(ChannelEpisodeRow.columns)
+            .in("channel_id", values: channels.map(\.id))
+            .filter("archived_at", operator: "is", value: "null")
+            .ilike("title", pattern: "%\(clean)%")
+            .order("updated_at", ascending: false)
+            .limit(40)
+            .execute()
+            .value
+    }
+
+    func channel(id: String) -> ChannelRow? {
+        channels.first { $0.id == id }
+    }
+
     // MARK: - Ideas (requieren write_script, como la web)
 
     func ideas() async throws -> [IdeaRow] {

@@ -504,6 +504,52 @@ struct IdeaStatusUpdate: Encodable {
     let status: IdeaStatus
 }
 
+/// Episodio con su canal, para «Todos mis canales» y la búsqueda.
+struct ChannelEpisodeRow: Decodable, Identifiable, Hashable {
+    let id: String
+    let channelId: String
+    let number: Int
+    let title: String
+    let status: EpisodeStatus
+    let stage: EpisodeStage
+    let publishDate: DateKey?
+    let recordDate: DateKey?
+    let youtubeVideoId: String?
+    let publishedAt: String?
+    let statusChangedAt: String?
+    let evaluatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, title, status, stage
+        case channelId = "channel_id"
+        case publishDate = "publish_date"
+        case recordDate = "record_date"
+        case youtubeVideoId = "youtube_video_id"
+        case publishedAt = "published_at"
+        case statusChangedAt = "status_changed_at"
+        case evaluatedAt = "evaluated_at"
+    }
+
+    static let columns =
+        "id, channel_id, number, title, status, stage, publish_date, record_date, youtube_video_id, published_at, status_changed_at, evaluated_at"
+
+    func planned(timeZone: String) -> PlannedEpisode {
+        PlannedEpisode(
+            id: id,
+            title: title,
+            status: status,
+            stage: stage,
+            publishDate: publishDate,
+            recordDate: recordDate,
+            youtubeVideoId: youtubeVideoId,
+            publishedOn: publishedAt.flatMap(Timestamp.parse).map { localDateKey($0, timeZone: timeZone) },
+            archivedAt: nil,
+            statusChangedAt: statusChangedAt.flatMap(Timestamp.parse) ?? Date(),
+            evaluatedAt: evaluatedAt.flatMap(Timestamp.parse)
+        )
+    }
+}
+
 struct InsertedId: Decodable {
     let id: String
 }

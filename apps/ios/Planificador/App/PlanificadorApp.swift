@@ -67,6 +67,7 @@ struct MainTabView: View {
             tab("Ideas", systemImage: "lightbulb") { IdeasView() }
             tab("Producción", systemImage: "film.stack") { EpisodesView() }
             tab("Calendario", systemImage: "calendar") { CalendarView() }
+            tab("Más", systemImage: "ellipsis.circle") { MoreView() }
         }
     }
 
