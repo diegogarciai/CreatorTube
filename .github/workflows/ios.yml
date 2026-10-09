@@ -22,7 +22,8 @@ concurrency:
 jobs:
   core:
     runs-on: ubuntu-latest
-    container: swift:6.1
+    # Del espejo de AWS, como postgres en ci.yml (límite de Docker Hub).
+    container: public.ecr.aws/docker/library/swift:6.1
     defaults:
       run:
         working-directory: apps/ios/PlanificadorCore
