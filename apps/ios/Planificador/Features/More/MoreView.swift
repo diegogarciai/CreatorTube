@@ -31,6 +31,27 @@ struct MoreView: View {
                 } label: {
                     Label("Tareas en curso", systemImage: "gearshape.2")
                 }
+                NavigationLink {
+                    ChannelSettingsView()
+                } label: {
+                    Label("Configuración del canal", systemImage: "slider.horizontal.3")
+                }
+            }
+
+            Section("Espacios") {
+                ForEach(model.memberships, id: \.workspaceId) { membership in
+                    if let workspace = membership.workspace {
+                        NavigationLink {
+                            TeamView(workspace: workspace)
+                        } label: {
+                            LabeledContent {
+                                Text(membership.role.label)
+                            } label: {
+                                Label(workspace.name, systemImage: "person.3")
+                            }
+                        }
+                    }
+                }
             }
 
             Section("Cuenta") {
