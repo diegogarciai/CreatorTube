@@ -29,7 +29,7 @@ Diego registra sus dispositivos (dron, portátil, cámara, gadgets), propios o d
 | Paso | Qué                                                                                                       | Estado    |
 | ---- | --------------------------------------------------------------------------------------------------------- | --------- |
 | 1    | Inventario: tabla `gear`, sección «Mi equipo», formulario con foto, lista pegada con Claude y revisión    | Hecho     |
-| 2    | Ideas con el equipo (Claude propone episodios con él) y aviso de préstamos por devolver en Inicio         | Pendiente |
+| 2    | Ideas con el equipo (Claude propone episodios con él) y aviso de préstamos por devolver en Inicio         | Hecho     |
 | 3    | Equipo en cada episodio (protagonista o herramienta), bloque para la descripción y aclaración en el guion | Pendiente |
 
 ## Lo que suma a las ideas (paso 2)

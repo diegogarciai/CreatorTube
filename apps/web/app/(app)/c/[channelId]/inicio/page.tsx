@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { CalendarCheck, Lightbulb } from "lucide-react";
-import { IDEAS_LOW_BANK, localDateKey } from "@planificador/core";
+import { CalendarCheck, Lightbulb, Package } from "lucide-react";
+import {
+  gearLabel,
+  IDEAS_LOW_BANK,
+  LOAN_WARN_DAYS,
+  loanDaysLeft,
+  localDateKey,
+  type GearOwnership,
+  type GearStatus,
+} from "@planificador/core";
 import { Page, PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { NewEpisodeButton } from "@/components/episodes/new-episode-button";
@@ -24,7 +32,7 @@ export default async function HomePage({ params }: { params: Promise<{ channelId
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("home");
   const supabase = await getSupabase();
-  const [rows, pillars, { count: newIdeas }] = await Promise.all([
+  const [rows, pillars, { count: newIdeas }, { data: loans }] = await Promise.all([
     getEpisodes(channelId),
     getPillars(channelId),
     supabase
@@ -32,10 +40,37 @@ export default async function HomePage({ params }: { params: Promise<{ channelId
       .select("id", { count: "exact", head: true })
       .eq("channel_id", channelId)
       .eq("status", "new"),
+    supabase
+      .from("gear")
+      .select("id, name, brand, model, ownership, return_by, status")
+      .eq("channel_id", channelId)
+      .eq("ownership", "loan")
+      .eq("status", "active")
+      .not("return_by", "is", null),
   ]);
   const lowBank = ctx.can("write_script") && (newIdeas ?? 0) < IDEAS_LOW_BANK;
   const tz = ctx.channel.timezone;
   const now = new Date();
+  const todayKey = localDateKey(now, tz);
+  // Préstamos de marcas por devolver pronto (o vencidos).
+  const dueLoans = (loans ?? [])
+    .map((g) => ({
+      id: g.id,
+      label: gearLabel(g),
+      days: loanDaysLeft(
+        {
+          ownership: g.ownership as GearOwnership,
+          return_by: g.return_by,
+          status: g.status as GearStatus,
+        },
+        todayKey,
+      ),
+    }))
+    .filter(
+      (g): g is { id: string; label: string; days: number } =>
+        g.days !== null && g.days <= LOAN_WARN_DAYS,
+    )
+    .sort((a, b) => a.days - b.days);
   const episodes = rows.map((r) => toPlannedEpisode(r, tz));
   const overview = computeOverview({
     channelId,
@@ -66,6 +101,19 @@ export default async function HomePage({ params }: { params: Promise<{ channelId
           {t("lowBank", { count: newIdeas ?? 0 })}
         </Link>
       ) : null}
+      {dueLoans.map((g) => (
+        <Link
+          key={g.id}
+          href={`/c/${channelId}/equipo`}
+          className="mb-3 flex items-center gap-2 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn hover:underline"
+          data-testid="home-loan"
+        >
+          <Package className="size-4" />
+          {g.days < 0
+            ? t("loanLate", { name: g.label, days: -g.days })
+            : t("loanDue", { name: g.label, days: g.days })}
+        </Link>
+      ))}
       {episodes.length === 0 ? (
         <EmptyState
           icon={<CalendarCheck className="size-8" />}

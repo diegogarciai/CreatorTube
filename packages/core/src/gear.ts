@@ -49,6 +49,9 @@ export function gearAgeMonths(acquiredOn: DateKey | null, today: DateKey): numbe
   return Math.max(0, months);
 }
 
+/** Con cuántos días de anticipación se avisa de un préstamo por devolver. */
+export const LOAN_WARN_DAYS = 10;
+
 /** Días que faltan para devolver un préstamo (negativo si ya pasó; null si no aplica). */
 export function loanDaysLeft(
   g: { ownership: GearOwnership; return_by: DateKey | null; status: GearStatus },
