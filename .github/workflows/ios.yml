@@ -1,9 +1,12 @@
 name: iOS
 
 # Solo corre cuando cambia apps/ios. La lógica (PlanificadorCore) se prueba en
-# Linux, que es barato; la app completa se compila en macOS sin firmar.
+# Linux, que es barato; la app completa se compila en macOS sin firmar, y solo
+# en los PR: un minuto de macOS cuenta como 10 de Linux, y en main ya compila
+# Xcode Cloud. El push corre solo en main (en una rama con PR ya corre el PR).
 on:
   push:
+    branches: [main]
     paths:
       - "apps/ios/**"
       - ".github/workflows/ios.yml"
@@ -28,6 +31,7 @@ jobs:
       - run: swift test
 
   app:
+    if: github.event_name == 'pull_request'
     runs-on: macos-15
     needs: core
     defaults:
