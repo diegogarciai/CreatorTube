@@ -32,7 +32,17 @@ export function stateKey(): Buffer {
   return createHash("sha256").update("oauth-state:").update(encryptionKey()).digest();
 }
 
+/** Clave derivada para firmar los tickets de la app móvil. */
+export function mobileTicketKey(): Buffer {
+  return createHash("sha256").update("mobile-ticket:").update(encryptionKey()).digest();
+}
+
 export const NONCE_COOKIE = "yt_oauth_nonce";
+/**
+ * Nonce del flujo que empieza la app con un ticket. Es otra cookie para que el
+ * callback sepa que la sesión viene del ticket y no de las cookies de la web.
+ */
+export const MOBILE_NONCE_COOKIE = "yt_oauth_mobile_nonce";
 
 type Admin = ReturnType<typeof createAdminClient>;
 

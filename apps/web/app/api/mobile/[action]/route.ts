@@ -23,6 +23,7 @@ import {
   setAidStatus,
 } from "@/lib/actions/visual-aids";
 import { findImportableVideos, importYouTubeVideos } from "@/lib/actions/youtube-import";
+import { youtubeConnectLink } from "@/lib/actions/youtube-mobile";
 import { actionArgs, bearerToken, nextErrorStatus } from "@/lib/mobile";
 import { bearerSession } from "@/lib/supabase/bearer";
 import { errorMessage } from "@/lib/utils";
@@ -65,6 +66,7 @@ const ACTIONS: Record<string, (...args: any[]) => Promise<unknown>> = {
   disconnectYouTube,
   findImportableVideos,
   importYouTubeVideos,
+  youtubeConnectLink,
   // Canal y equipo (piden service role)
   updateChannelProfile,
   updateMember,
