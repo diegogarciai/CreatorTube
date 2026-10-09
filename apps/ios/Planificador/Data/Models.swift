@@ -68,9 +68,11 @@ struct EpisodeRow: Decodable, Identifiable, Hashable {
     let archivedAt: String?
     let statusChangedAt: String?
     let notes: String?
+    let pillarId: String?
 
     enum CodingKeys: String, CodingKey {
         case id, number, code, title, status, stage, format, notes
+        case pillarId = "pillar_id"
         case publishDate = "publish_date"
         case recordDate = "record_date"
         case youtubeVideoId = "youtube_video_id"
@@ -80,7 +82,7 @@ struct EpisodeRow: Decodable, Identifiable, Hashable {
     }
 
     static let columns =
-        "id, number, code, title, status, stage, format, notes, publish_date, record_date, youtube_video_id, published_at, archived_at, status_changed_at"
+        "id, number, code, title, status, stage, format, notes, pillar_id, publish_date, record_date, youtube_video_id, published_at, archived_at, status_changed_at"
 
     var formatLabel: String? {
         format.flatMap(EpisodeFormat.init(rawValue:))?.label
@@ -120,6 +122,90 @@ struct PendingInvitation: Decodable, Identifiable, Hashable {
         case workspaceName = "workspace_name"
         case expiresAt = "expires_at"
     }
+}
+
+struct PillarRow: Decodable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let color: String
+
+    static let columns = "id, name, color"
+}
+
+/// Nuevo episodio (`createEpisode` en la web). `number` y `code` los pone la base.
+struct EpisodeInsert: Encodable {
+    let channelId: String
+    let title: String
+    let format: EpisodeFormat
+    let publishDate: DateKey?
+    let recordDate: DateKey?
+    let pillarId: String?
+    let createdBy: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, format
+        case channelId = "channel_id"
+        case publishDate = "publish_date"
+        case recordDate = "record_date"
+        case pillarId = "pillar_id"
+        case createdBy = "created_by"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(channelId, forKey: .channelId)
+        try c.encode(title, forKey: .title)
+        try c.encode(format, forKey: .format)
+        try c.encode(publishDate, forKey: .publishDate)
+        try c.encode(recordDate, forKey: .recordDate)
+        try c.encode(pillarId, forKey: .pillarId)
+        try c.encodeIfPresent(createdBy, forKey: .createdBy)
+    }
+}
+
+/// Edición de un episodio (`updateEpisode`). Las fechas y el pilar se escriben
+/// siempre, también como `null`, para poder quitarlos.
+struct EpisodeEdit: Encodable {
+    let title: String
+    let format: EpisodeFormat
+    let publishDate: DateKey?
+    let recordDate: DateKey?
+    let pillarId: String?
+    let notes: String
+
+    enum CodingKeys: String, CodingKey {
+        case title, format, notes
+        case publishDate = "publish_date"
+        case recordDate = "record_date"
+        case pillarId = "pillar_id"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(title, forKey: .title)
+        try c.encode(format, forKey: .format)
+        try c.encode(publishDate, forKey: .publishDate)
+        try c.encode(recordDate, forKey: .recordDate)
+        try c.encode(pillarId, forKey: .pillarId)
+        try c.encode(notes, forKey: .notes)
+    }
+}
+
+struct ArchiveUpdate: Encodable {
+    let archivedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case archivedAt = "archived_at"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(archivedAt, forKey: .archivedAt)
+    }
+}
+
+struct InsertedId: Decodable {
+    let id: String
 }
 
 /// Cambio de estado: siempre se escriben `status` y `stage` juntos, como la web.

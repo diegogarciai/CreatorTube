@@ -9,6 +9,9 @@ struct EpisodeDetailView: View {
 
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var isEditing = false
+    @State private var confirmArchive = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         if let episode = model.episode(id: episodeId) {
@@ -69,6 +72,7 @@ struct EpisodeDetailView: View {
                 row("Publicación", episode.publishDate.map { formatDateKey($0, template: "EEEE d 'de' MMMM") } ?? "Sin fecha")
                 row("Grabación", episode.recordDate.map { formatDateKey($0, template: "EEEE d 'de' MMMM") } ?? "Sin fecha")
                 if let format = episode.formatLabel { row("Formato", format) }
+                if let pillar = model.pillar(id: episode.pillarId) { row("Pilar", pillar.name) }
             }
 
             if let url = episode.youtubeURL {
@@ -86,10 +90,33 @@ struct EpisodeDetailView: View {
                     Text(notes)
                 }
             }
+
+            if model.can(.manageEpisodes) {
+                Section {
+                    Button("Archivar episodio", role: .destructive) { confirmArchive = true }
+                } footer: {
+                    Text("Deja de aparecer en Inicio, Episodios y Calendario. Se puede recuperar desde la web.")
+                }
+            }
         }
         .navigationTitle("#\(episode.number)")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.loadEpisodes() }
+        .toolbar {
+            if model.can(.manageEpisodes) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Editar") { isEditing = true }
+                }
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            EpisodeFormView(mode: .edit(episode))
+        }
+        .confirmationDialog("¿Archivar «\(episode.title)»?", isPresented: $confirmArchive, titleVisibility: .visible) {
+            Button("Archivar", role: .destructive) {
+                Task { await archive(episode) }
+            }
+        }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
@@ -97,6 +124,15 @@ struct EpisodeDetailView: View {
             Text(label).foregroundStyle(Palette.muted)
             Spacer()
             Text(value).multilineTextAlignment(.trailing)
+        }
+    }
+
+    private func archive(_ episode: EpisodeRow) async {
+        do {
+            try await model.archiveEpisode(episode)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

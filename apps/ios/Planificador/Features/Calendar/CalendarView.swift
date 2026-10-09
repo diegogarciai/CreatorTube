@@ -8,6 +8,7 @@ struct CalendarView: View {
     @Environment(AppModel.self) private var model
     @State private var month: DateKey?
     @State private var selectedDay: DateKey?
+    @State private var isCreating = false
 
     private static let weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     /// Estados en los que todavía se muestra la fecha de grabación.
@@ -49,6 +50,9 @@ struct CalendarView: View {
         }
         .background(Palette.background)
         .refreshable { await model.loadEpisodes() }
+        .sheet(isPresented: $isCreating) {
+            EpisodeFormView(mode: .create, initialPublishDate: selectedDay ?? today)
+        }
     }
 
     private func header(_ current: DateKey, today: DateKey) -> some View {
@@ -135,6 +139,16 @@ struct CalendarView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
+            if model.can(.manageEpisodes) {
+                Button {
+                    selectedDay = day
+                    isCreating = true
+                } label: {
+                    Label("Nuevo episodio este día", systemImage: "plus")
+                        .font(.callout.weight(.semibold))
+                }
+                .padding(.top, 4)
             }
         }
     }

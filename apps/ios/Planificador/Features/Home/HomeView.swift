@@ -5,6 +5,7 @@ import SwiftUI
 /// señales (`components/home/overview.tsx`).
 struct HomeView: View {
     @Environment(AppModel.self) private var model
+    @State private var isCreating = false
 
     private struct Overview {
         let week: WeekCoverage
@@ -56,6 +57,9 @@ struct HomeView: View {
             if model.isLoadingEpisodes && model.episodes.isEmpty { ProgressView() }
         }
         .refreshable { await model.loadEpisodes() }
+        .sheet(isPresented: $isCreating) {
+            EpisodeFormView(mode: .create)
+        }
     }
 
     private var emptyState: some View {
@@ -66,6 +70,11 @@ struct HomeView: View {
                 .font(.callout)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Palette.muted)
+            if model.can(.manageEpisodes) {
+                Button("Nuevo episodio") { isCreating = true }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.top, 8)
+            }
         }
         .padding(.vertical, 48)
     }

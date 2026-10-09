@@ -6,6 +6,7 @@ import SwiftUI
 struct EpisodesView: View {
     @Environment(AppModel.self) private var model
     @State private var search = ""
+    @State private var isCreating = false
 
     private var filtered: [EpisodeRow] {
         let query = search.trimmingCharacters(in: .whitespaces)
@@ -43,13 +44,24 @@ struct EpisodesView: View {
         .overlay {
             if model.episodes.isEmpty && !model.isLoadingEpisodes {
                 ContentUnavailableView("Sin episodios", systemImage: "film.stack",
-                                       description: Text("Crea episodios desde la versión web."))
+                                       description: Text("Toca + para crear el primero."))
             } else if model.isLoadingEpisodes && model.episodes.isEmpty {
                 ProgressView()
             }
         }
         .searchable(text: $search, prompt: "Buscar por título o número")
         .refreshable { await model.loadEpisodes() }
+        .toolbar {
+            if model.can(.manageEpisodes) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { isCreating = true } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("Nuevo episodio")
+                }
+            }
+        }
+        .sheet(isPresented: $isCreating) {
+            EpisodeFormView(mode: .create)
+        }
     }
 }
 
