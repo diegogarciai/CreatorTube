@@ -977,6 +977,29 @@ describe("Banco de ideas · competencia", () => {
   });
 });
 
+describe("Resumen semanal", () => {
+  it("uno por canal y semana, y solo lo ve el servidor", async () => {
+    const owner = await createUser();
+    const ws = await createWorkspace(owner.id);
+    const ch = await createChannel(ws);
+    const [row] = await sql(
+      "insert into public.weekly_digests (channel_id, week_start, recipients) values ($1, '2026-10-05', 1) returning workspace_id",
+      [ch],
+    );
+    expect(row.workspace_id).toBe(ws);
+    await expect(
+      sql("insert into public.weekly_digests (channel_id, week_start) values ($1, '2026-10-05')", [
+        ch,
+      ]),
+    ).rejects.toThrow(/duplicate key/);
+    expect(
+      await as(owner.id, (q) =>
+        q("select week_start from public.weekly_digests where channel_id = $1", [ch]),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

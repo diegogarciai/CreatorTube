@@ -3,6 +3,7 @@ import { addDays, localDateKey } from "@planificador/core";
 import { shouldSync } from "@planificador/youtube";
 import { isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWeeklyDigests } from "@/lib/weekly-digest";
 import { syncChannelById } from "@/lib/youtube";
 import { syncAnalyticsById, syncReachById } from "@/lib/youtube-analytics";
 import { syncCompetitorsById } from "@/lib/youtube-competitors";
@@ -71,6 +72,11 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+  // Resumen semanal por correo (los lunes, después de mover los estados).
+  // `?digest=force` lo manda aunque no sea lunes; igual sale uno por semana.
+  const digests = await sendWeeklyDigests(admin, now, {
+    force: request.nextUrl.searchParams.get("digest") === "force",
+  }).catch((err: unknown) => ({ error: String(err) }));
   // Analítica (Fase 4): una vez al día por canal; usa la cuota de la Analytics
   // API, aparte de la de la Data API.
   const analytics = [];
@@ -116,6 +122,7 @@ export async function GET(request: NextRequest) {
     synced: results.length,
     quotaUsedToday: usedToday,
     results,
+    digests,
     analytics,
     reach,
     competitors,

@@ -1630,5 +1630,23 @@
     "paragraphN": "Párrafo {n}",
     "allParagraphs": "Ver los {count} párrafos",
     "drop": "−{points} puntos: de {from} a {to}"
+  },
+  "digest": {
+    "subject": "{channel}: tu semana del {date}",
+    "heading": "Tu semana en {channel}",
+    "period": "Del {start} al {end}",
+    "goal": "Meta de la semana: {planned} de {goal} planeados · {published} publicados",
+    "noGoal": "Este canal no tiene meta semanal.",
+    "lastWeek": "La semana pasada: {published} de {goal} publicados.",
+    "agenda": "Esta semana",
+    "agendaEmpty": "No hay grabaciones ni publicaciones con fecha esta semana.",
+    "record": "Grabar",
+    "publish": "Publicar",
+    "overdue": "Atrasado",
+    "atRisk": "En riesgo",
+    "ideas": "{count, plural, =0 {El banco de ideas está vacío} one {El banco tiene # idea nueva} other {El banco tiene # ideas nuevas}}",
+    "ideasLow": "conviene proponer más",
+    "open": "Abrir el Planificador",
+    "footer": "Lo recibes los lunes porque tienes el rol de Propietario en este espacio."
   }
 }

@@ -47,7 +47,7 @@ Fuentes:
 | 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
 | 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Hecho     |
 | 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
-| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Pendiente |
+| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | En curso  |
 | 6    | Redes y cápsulas: posts de texto por red                                          | Hecho     |
 | 7    | Paridad con el panel (prueba de salida)                                           | Pendiente |
 
@@ -213,9 +213,15 @@ La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings
   - diseño de 600 px con el acento de la marca.
 - El permiso `publish` lo aprueba y lo envía con Resend Broadcasts.
 
-**Resumen semanal:**
+**Resumen semanal (hecho):**
 
-- Un correo de los lunes con la meta de la semana, lo que se publica, lo atrasado y lo que está en riesgo, con Resend.
+- **Qué trae:** la meta de la semana, cómo cerró la semana pasada, lo que se graba y se publica cada día, lo atrasado, lo que está en riesgo (sin los avisos menores) y las ideas nuevas del banco, con un botón al Planificador.
+- **Quién lo recibe:** solo los propietarios del espacio con acceso al canal, un correo por persona. Si no hay meta, ni fechas, ni alertas, no se envía.
+- **Cuándo:** el lunes, en la corrida diaria del cron (11:05 UTC), según la zona del canal.
+  - `weekly_digests` guarda uno por canal y semana, así que nunca sale dos veces.
+  - Si Resend falla, se libera la semana y se reintenta en la próxima corrida.
+  - `/api/cron/youtube-sync?digest=force` lo manda aunque no sea lunes, para probar.
+- **Configuración:** `RESEND_API_KEY` en Vercel; `RESEND_FROM` es opcional (por defecto, «Planificador <planificador@gartechs.com>»). Sin la clave, no se envía nada.
 
 ### Redes y cápsulas (paso 6)
 

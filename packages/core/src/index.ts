@@ -17,3 +17,4 @@ export * from "./retention";
 export * from "./comments";
 export * from "./socials";
 export * from "./evaluation";
+export * from "./digest";
