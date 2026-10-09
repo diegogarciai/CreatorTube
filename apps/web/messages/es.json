@@ -599,6 +599,7 @@
     "no_verified_script": "El plan de ayudas visuales sale del guion verificado: termina antes la verificación del guion.",
     "no_approved_aids": "Aprueba al menos una ayuda visual antes de renderizar.",
     "has_dependents": "Hay recursos que dependen de esto. Bórralos primero para poder rehacerlo.",
+    "aid_needs_fix": "Corrige los textos marcados antes de aprobar.",
     "busy": "Hay un trabajo en curso; espera a que termine.",
     "analytics_recent": "La analítica se actualizó hace menos de 15 minutos. YouTube la actualiza una vez al día.",
     "youtube_not_connected": "Conecta el canal de YouTube en Ajustes para ver la analítica."
@@ -1238,6 +1239,7 @@
     "deleteRendersConfirm": "Se borran los renders de todas las ayudas (los videos). ¿Continuar?",
     "deleteRender": "Borrar render",
     "deleteRenderConfirm": "Se borran los renders de esta ayuda. ¿Continuar?",
+    "needsFix": "Acórtalo antes de aprobar: {issues}",
     "noMotion": "Este plan no tiene motion graphics (M).",
     "noMotionDropped": "{count, plural, one {Claude propuso # M, pero las reglas de la sección 12 la descartaron (abajo dice por qué).} other {Claude propuso # M, pero las reglas de la sección 12 las descartaron (abajo dice por qué).}}",
     "noMotionNone": "Claude no propuso ninguna: según la sección 12, una M solo va cuando la escena cumple uno de los seis casos de 12.1 y suma 15/20. Si el guion tiene cifras o comparaciones que la merecen, rehaz el plan.",

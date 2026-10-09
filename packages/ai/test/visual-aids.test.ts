@@ -127,3 +127,87 @@ describe("plan de ayudas visuales", () => {
     expect(String(calls[0]!.system)).toContain("Un párrafo con M no lleva C ni L.");
   });
 });
+
+/** Cliente que responde por turno (la segunda respuesta es la corrección). */
+function sequenceClient(outputs: unknown[]) {
+  const calls: Record<string, unknown>[] = [];
+  const client = {
+    beta: {
+      messages: {
+        parse: async (params: Record<string, unknown>) => {
+          calls.push(params);
+          const out = outputs[calls.length - 1];
+          if (out instanceof Error) throw out;
+          return { model: "m", stop_reason: "end_turn", usage, parsed_output: out };
+        },
+      },
+    },
+  } as never;
+  return { client, calls };
+}
+
+const input = {
+  episodeTitle: "MacBook Air M4",
+  script,
+  claims: [claim(1, "verified")],
+  motionFichas: "",
+  guide: "",
+};
+
+describe("formato de las ayudas", () => {
+  it("la duración de una M se ajusta a 2–30 s (6 si no viene)", async () => {
+    const { client, calls } = sequenceClient([
+      {
+        aids: [
+          aid({ duration_s: 45 }),
+          aid({ anchor: "Tres cosas importan", duration_s: 0, piece: "ring", vertical: false }),
+        ],
+      },
+    ]);
+    const out = await visualAidPlan(client, { model: "m" }, input);
+    expect(out.kept.map((a) => a.durationS)).toEqual([30, 6]);
+    expect(calls).toHaveLength(1);
+    expect(out.repaired).toBe(0);
+  });
+
+  it("los textos largos se corrigen en una segunda llamada", async () => {
+    const long = aid({
+      elements: [
+        { text: "Prueba corta: puede no mostrar la caída", value: "", unit: "", anchor: "" },
+      ],
+    });
+    const fixed = aid({
+      elements: [{ text: "Prueba corta, poca caída", value: "", unit: "", anchor: "" }],
+    });
+    const { client, calls } = sequenceClient([{ aids: [long] }, { aids: [fixed] }]);
+    const out = await visualAidPlan(client, { model: "m" }, input);
+    expect(calls).toHaveLength(2);
+    const second = String((calls[1]!.messages as { content: string }[])[0]!.content);
+    expect(second).toContain("Cada elemento va de 2 a 6 palabras");
+    expect(out.repaired).toBe(1);
+    expect(out.kept).toHaveLength(1);
+    expect(out.kept[0]).toMatchObject({ code: "M1", issues: [] });
+    expect(out.kept[0]!.elements[0]!.text).toBe("Prueba corta, poca caída");
+    expect(out.usage.input_tokens).toBe(200);
+  });
+
+  it("si la corrección falla, la ayuda queda con su aviso (no se descarta)", async () => {
+    const long = aid({
+      kind: "L",
+      anchor: "Tres cosas importan",
+      title: "Las cosas que más importan",
+      idea: "",
+      elements: [
+        { text: "La pantalla brillante", value: "", unit: "", anchor: "la pantalla" },
+        { text: "El teclado cómodo", value: "", unit: "", anchor: "el teclado" },
+        { text: "El peso ligero", value: "", unit: "", anchor: "el peso" },
+      ],
+      scores: scores(1),
+    });
+    const { client } = sequenceClient([{ aids: [long] }, new Error("sin respuesta")]);
+    const out = await visualAidPlan(client, { model: "m" }, input);
+    expect(out.repaired).toBe(0);
+    expect(out.dropped).toEqual([]);
+    expect(out.kept[0]!.issues).toEqual(["El título de la lista va de 1 a 4 palabras (tiene 5)."]);
+  });
+});

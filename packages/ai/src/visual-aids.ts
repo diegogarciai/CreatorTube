@@ -6,6 +6,9 @@ import {
   checkPlan,
   MAX_MOTION,
   MIN_MOTION_SCORE,
+  paragraphOf,
+  scriptParagraphs,
+  validateAidText,
   type PlanCheck,
   type VisualAid,
 } from "@planificador/core";
@@ -62,7 +65,10 @@ const planSchema = z.object({
         .describe(
           `M: el pie: ${AID_FOOTER_SITE} siempre, y fuente y fecha si hay cifras. C y L: vacío.`,
         ),
-      duration_s: z.number().int().describe("M: duración en segundos. C y L: 0."),
+      duration_s: z
+        .number()
+        .int()
+        .describe("M: duración en segundos, de 2 a 30 (6 si no sabes). C y L: 0."),
       piece: z
         .enum(AID_PIECES)
         .describe("M: la pieza de marca que la anima. C y L: cualquiera, se ignora."),
@@ -98,13 +104,14 @@ export async function visualAidPlan(
   client: StreamClient,
   config: AiConfig,
   input: VisualPlanInput,
-): Promise<PlanCheck & { usage: UsageTotals; model: string }> {
+): Promise<PlanCheck & { repaired: number; usage: UsageTotals; model: string }> {
   const system = [
     "Armas el plan de ayudas visuales de un video de YouTube de un canal de tecnología, con la sección 12 de la guía del guionista (abajo). Respondes en español.",
     "Tres tipos: M, motion graphic a pantalla completa (fichas 12.5); C, etiqueta de concepto, y L, lista (12.8). Las C y L no tapan la pantalla.",
     `M: solo cuando cumple uno de los seis casos de 12.1 y suma ${MIN_MOTION_SCORE} de 20 o más en sus cuatro criterios (puntúa con honestidad). Una cada 2–3 minutos, máximo ${MAX_MOTION}, nunca dos en el mismo párrafo ni en párrafos seguidos. Cero también vale.`,
     "M: cada una con una pieza de marca distinta (no se repite en el episodio) y un concepto visual distinto (12.2). Toda cifra en pantalla sale de una fila Verificado o Con matiz de la tabla de verificación, con su # en «rows» (12.3). El pie lleva gartechs.com, y la fuente y la fecha si hay cifras.",
-    "Textos en pantalla (12.4): título de M de 1 a 6 palabras; elementos de 2 a 6 palabras; definición de C de 14 palabras o menos; título de L de 4 palabras o menos.",
+    "Textos en pantalla (12.4): título de M de 1 a 6 palabras; elementos de 2 a 6 palabras; definición de C de 14 palabras o menos; título de L de 4 palabras o menos. Cuenta las palabras antes de responder.",
+    "M: duración de 2 a 30 segundos.",
     "C: un término técnico, sigla o idea, una vez por término y en su primera aparición; unas 6 cada 10 minutos. L: cuando se enumeran 3 cosas o más, cada elemento con dónde empieza.",
     "Un párrafo con M no lleva C ni L.",
     "El ancla («anchor») son las primeras palabras exactas del párrafo, copiadas del guion verificado: si no aparecen tal cual, la ayuda se descarta.",
@@ -126,28 +133,106 @@ export async function visualAidPlan(
       : []),
   ].join("\n");
 
-  const res = await client.beta.messages.parse({
-    model: config.model,
-    max_tokens: 12_000,
-    system,
-    messages: [{ role: "user", content: user }],
-    output_config: { effort: "medium", format: betaZodOutputFormat(planSchema) },
-    ...(config.fallbacks && {
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default" as const,
-    }),
-  });
-  if (res.stop_reason === "refusal") {
-    const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
-    throw new AiRefusalError(details?.category ?? null);
-  }
+  const call = async (sys: string, content: string) => {
+    const res = await client.beta.messages.parse({
+      model: config.model,
+      max_tokens: 12_000,
+      system: sys,
+      messages: [{ role: "user", content }],
+      output_config: { effort: "medium", format: betaZodOutputFormat(planSchema) },
+      ...(config.fallbacks && {
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default" as const,
+      }),
+    });
+    if (res.stop_reason === "refusal") {
+      const details = (res as { stop_details?: { category?: string | null } | null }).stop_details;
+      throw new AiRefusalError(details?.category ?? null);
+    }
+    return res;
+  };
+
+  const res = await call(system, user);
   const parsed = res.parsed_output;
   if (!parsed) throw new Error("El plan de ayudas visuales llegó incompleto");
+  let usage = addUsage(emptyUsage(), res.usage);
+  const raw = [...parsed.aids];
+  let aids: VisualAid[] = raw.map((a, i) => toAid(a, `${a.kind}${i + 1}`));
 
+  // Una vuelta de corrección: los textos fuera de límite (12.4) y las anclas
+  // que no aparecen tal cual. Si falla, quedan las originales (y checkPlan
+  // marca los textos para corregir a mano).
+  const paragraphs = scriptParagraphs(input.script);
+  const problems = aids
+    .map((a, i) => {
+      const reasons = validateAidText(a);
+      if (paragraphOf(paragraphs, a.anchor) < 0)
+        reasons.push(
+          "El ancla no aparece tal cual en el guion: copia las primeras palabras exactas del párrafo.",
+        );
+      return { i, reasons };
+    })
+    .filter((p) => p.reasons.length);
+  let repaired = 0;
+  if (problems.length) {
+    try {
+      const fix = await call(
+        [
+          "Corriges ayudas visuales que no cumplen el formato de la sección 12 de la guía. Respondes en español.",
+          "Devuelves exactamente las mismas ayudas, en el mismo orden y del mismo tipo, con el mismo contenido y la misma intención: solo cambias lo necesario para cumplir los motivos indicados.",
+          "Textos en pantalla (12.4): título de M de 1 a 6 palabras; elementos de 2 a 6 palabras; definición de C de 14 palabras o menos; título de L de 4 palabras o menos. Cuenta las palabras antes de responder.",
+          "M: duración de 2 a 30 segundos. El ancla son las primeras palabras exactas del párrafo, copiadas del guion.",
+        ].join("\n"),
+        [
+          "## Ayudas que corregir (con sus motivos)",
+          JSON.stringify(
+            problems.map((p) => ({ ayuda: raw[p.i], motivos: p.reasons })),
+            null,
+            2,
+          ),
+          "",
+          "## Guion verificado (para copiar las anclas)",
+          input.script.trim(),
+        ].join("\n"),
+      );
+      usage = addUsage(usage, fix.usage);
+      const fixed = fix.parsed_output?.aids ?? [];
+      if (fixed.length === problems.length) {
+        aids = aids.map((a, i) => {
+          const k = problems.findIndex((p) => p.i === i);
+          const f = k >= 0 ? fixed[k] : undefined;
+          if (!f || f.kind !== a.kind) return a;
+          const next = toAid(f, a.code);
+          if (!validateAidText(next).length) repaired++;
+          return next;
+        });
+      }
+    } catch (err) {
+      if (err instanceof AiRefusalError) throw err;
+      // Sin corrección: siguen las originales.
+    }
+  }
+
+  const checked = checkPlan(aids, {
+    script: input.script,
+    claims: input.claims.map((c) => ({ idx: c.idx, status: c.status })),
+  });
+  return { ...checked, repaired, usage, model: res.model };
+}
+
+type RawAid = z.infer<typeof planSchema>["aids"][number];
+
+/** Duración de una M: de 2 a 30 s; sin dato, 6 (lo mismo que usa el render). */
+export function aidDuration(seconds: number | null | undefined): number {
+  if (!seconds || !Number.isFinite(seconds) || seconds <= 0) return 6;
+  return Math.min(Math.max(Math.round(seconds), 2), 30);
+}
+
+function toAid(a: RawAid, code: string): VisualAid {
   const blank = (s: string) => s.trim() || null;
-  const aids: VisualAid[] = parsed.aids.map((a, i) => ({
+  return {
     kind: a.kind,
-    code: `${a.kind}${i + 1}`,
+    code,
     anchor: a.anchor.trim(),
     idea: a.kind === "M" ? blank(a.idea) : null,
     title: a.title.trim(),
@@ -163,7 +248,7 @@ export async function visualAidPlan(
           })),
     rows: a.kind === "M" ? [...new Set(a.rows)] : [],
     footer: a.kind === "M" ? blank(a.footer) : null,
-    durationS: a.kind === "M" ? a.duration_s : null,
+    durationS: a.kind === "M" ? aidDuration(a.duration_s) : null,
     piece: a.kind === "M" ? a.piece : null,
     scores:
       a.kind === "M"
@@ -175,10 +260,5 @@ export async function visualAidPlan(
           }
         : null,
     vertical: a.kind === "M" && a.vertical,
-  }));
-  const checked = checkPlan(aids, {
-    script: input.script,
-    claims: input.claims.map((c) => ({ idx: c.idx, status: c.status })),
-  });
-  return { ...checked, usage: addUsage(emptyUsage(), res.usage), model: res.model };
+  };
 }
