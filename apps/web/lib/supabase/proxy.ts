@@ -9,6 +9,8 @@ const PUBLIC_PREFIXES = [
   "/terminos",
   "/api/ics",
   "/api/cron",
+  // La app móvil manda su sesión en el encabezado; la ruta la valida sola.
+  "/api/mobile",
 ];
 
 /** Refresca la sesión en cada petición y protege las rutas privadas. */
