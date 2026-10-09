@@ -3,8 +3,8 @@ import SwiftUI
 import UIKit
 
 /// Configuración del canal (`/c/[id]/ajustes`): perfil, ritmo, pilares,
-/// checklist, calendario ICS y estado de YouTube. Conectar YouTube, la guía del
-/// guionista y la marca siguen en la web por ahora.
+/// checklist, calendario ICS y YouTube (conectar, sincronizar, importar). La
+/// guía del guionista y la marca siguen en la web por ahora.
 struct ChannelSettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
@@ -57,13 +57,16 @@ struct ChannelSettingsView: View {
                                                onDone: { await load() })
                         }
                     }
-                    Button(connection?.status == "active" ? "Reconectar en la web" : "Conectar YouTube en la web") {
-                        openURL(AppConfig.webURL.appendingPathComponent("c/\(details.id)/ajustes"))
+                    if canEdit {
+                        ServerActionButton(title: connection?.status == "active" ? "Reconectar con YouTube" : "Conectar con YouTube",
+                                           systemImage: "play.rectangle",
+                                           action: { try await model.connectYouTube(channelId: details.id) },
+                                           onDone: { await load() })
                     }
                 } header: {
                     Text("Conexión con YouTube")
                 } footer: {
-                    Text("Los tokens se guardan cifrados en el servidor y nunca llegan al teléfono.")
+                    Text("Se abre Google para que elijas la cuenta dueña del canal. Los tokens se guardan cifrados en el servidor y nunca llegan al teléfono.")
                 }
 
                 PhotoGridView(

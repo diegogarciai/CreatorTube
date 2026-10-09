@@ -21,11 +21,11 @@ Está a la par con la web en todo lo del día a día. Pestañas: **Inicio**, **I
   - todos mis canales y búsqueda;
   - analítica y «Así te fue ayer»;
   - tareas en curso;
-  - configuración del canal: perfil, ritmo, pilares, checklist, fotos del presentador, ICS, YouTube (sincronizar, desconectar, importar videos);
+  - configuración del canal: perfil, ritmo, pilares, checklist, fotos del presentador, ICS, YouTube (conectar, sincronizar, desconectar, importar videos);
   - espacio y equipo: créditos, miembros, invitar, roles;
   - avisos diarios y nuevo canal.
 
-**Sigue solo en la web**: conectar YouTube (OAuth), la guía del guionista, el kit de marca, editar los textos de una ayuda visual y el panel de administración.
+**Sigue solo en la web**: la guía del guionista, el kit de marca, editar los textos de una ayuda visual y el panel de administración.
 
 **Lo que usa IA o YouTube** pasa por `POST /api/mobile/<acción>` en la web, con la sesión de la app en `Authorization: Bearer`. Son las mismas acciones del servidor, con los mismos permisos y costos. Si la web todavía no tiene esa ruta, la app avisa que la función no está disponible.
 
