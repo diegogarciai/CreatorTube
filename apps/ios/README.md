@@ -71,4 +71,4 @@ Cada vez que agregues o borres archivos `.swift`, vuelve a correr `xcodegen gene
 
 ## Publicar en TestFlight
 
-Necesitas una cuenta de Apple Developer (99 USD al año). En Xcode: **Product → Archive** y luego **Distribute App → TestFlight**. El identificador de la app es `com.gartechs.planificador`; cámbialo en `project.yml` si usas otro.
+Necesitas una cuenta de Apple Developer (99 USD al año). El paso a paso, con los errores comunes, está en [TESTFLIGHT.md](TESTFLIGHT.md). En corto: en Xcode elige **Any iOS Device (arm64)**, luego **Product → Archive** y **Distribute App → App Store Connect**. El identificador de la app es `com.gartechs.planificador`.
