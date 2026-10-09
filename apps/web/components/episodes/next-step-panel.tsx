@@ -70,6 +70,16 @@ export function NextStepPanel({
             </Button>
           ) : null}
         </div>
+      ) : step.action === "evaluate" && step.available && canAct ? (
+        <div className="mt-2">
+          <Link
+            href="?tab=metrics#evaluacion"
+            scroll={false}
+            className={buttonClass("primary", "lg")}
+          >
+            {label} <ArrowRight className="size-4" />
+          </Link>
+        </div>
       ) : step.action === "link_video" && canAct ? (
         <form
           className="mt-2 flex flex-wrap gap-2"

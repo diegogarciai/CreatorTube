@@ -323,7 +323,7 @@
       "script": "Preguntas de dirección, guion en 5 etapas y verificación con fuentes. Llega en la Fase 2.",
       "production": "Plan de ayudas visuales, motion graphics y miniaturas. Llega en la Fase 3.",
       "distribution": "Posts para redes y respuestas a comentarios.",
-      "metrics": "La evaluación a 7 días llega en el paso 3 de la Fase 4."
+      "metrics": "Las métricas y la evaluación a 7 días aparecen cuando el video está publicado y conectado a YouTube."
     },
     "activityAction": {
       "episode_created": "creó el episodio",
@@ -507,10 +507,75 @@
     "none": "Sin redes todavía.",
     "add": "Agregar red"
   },
+  "evaluation": {
+    "title": "Evaluación a 7 días",
+    "description": "La primera semana ({from} al {to}) contra la mediana de los últimos episodios del canal.",
+    "evaluate": "Evaluar a los 7 días",
+    "redo": "Volver a evaluar",
+    "estimate": "Unos {credits} créditos",
+    "started": "Evaluando la primera semana…",
+    "notReady": "Los 7 días de datos llegan hacia el {date} (YouTube los publica con 2 o 3 días de atraso).",
+    "ready": "Ya están los 7 días de datos.",
+    "working": "Evaluando. Tarda menos de un minuto.",
+    "failed": "No se pudo evaluar.",
+    "baseline": "{count, plural, =0 {Sin episodios anteriores para comparar} one {Comparado con # episodio anterior} other {Comparado con # episodios anteriores}}",
+    "learnings": "Aprendizajes",
+    "drops": "Dónde se fue la gente",
+    "paragraph": "párrafo {n}",
+    "computed": "Calculado por la app con los datos de YouTube Analytics (primera semana; diferencia contra la mediana; ±10 % es «en línea»).",
+    "col": {
+      "metric": "Métrica",
+      "episode": "Este episodio",
+      "median": "Mediana",
+      "delta": "Diferencia"
+    },
+    "metric": {
+      "views": "Vistas",
+      "averageViewPercentage": "% visto promedio",
+      "averageViewDurationS": "Duración media",
+      "impressions": "Impresiones",
+      "ctr": "CTR",
+      "likes": "Me gusta",
+      "comments": "Comentarios",
+      "subscribersNet": "Suscriptores netos"
+    },
+    "verdict": {
+      "above": "Por encima",
+      "inline": "En línea",
+      "below": "Por debajo"
+    }
+  },
+  "audit": {
+    "title": "Auditoría mensual",
+    "description": "Junta las evaluaciones a 7 días de un mes y propone ajustes a la guía del guionista y a los temas, para que los revises.",
+    "month": "Mes",
+    "monthOption": "{month} ({count, plural, one {# episodio} other {# episodios}})",
+    "run": "Auditar el mes",
+    "redo": "Volver a auditar",
+    "estimate": "Unos {credits} créditos",
+    "started": "Auditando el mes…",
+    "working": "Auditando. Tarda uno o dos minutos.",
+    "failed": "No se pudo auditar.",
+    "empty": "Aparece cuando haya episodios evaluados a los 7 días.",
+    "none": "{month} todavía no tiene auditoría.",
+    "basedOn": "Con {count, plural, one {# episodio evaluado} other {# episodios evaluados}} de {month}.",
+    "guideTitle": "Ajustes a la guía del guionista",
+    "toGuide": "Editar la guía en Ajustes",
+    "noGuide": "Sin ajustes a la guía este mes.",
+    "topicsTitle": "Temas",
+    "noTopics": "Sin propuestas de temas este mes.",
+    "action": {
+      "more": "Hacer más",
+      "less": "Hacer menos",
+      "try": "Probar"
+    },
+    "toIdea": "Pasar a Ideas",
+    "ideaCreated": "Idea creada en Ideas."
+  },
   "analytics": {
     "title": "Analítica",
     "emptyTitle": "Todavía no hay analítica del canal",
-    "emptyDesc": "Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora». La auditoría llega en los próximos pasos de la Fase 4.",
+    "emptyDesc": "Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora».",
     "recentVideos": "Videos recientes sincronizados",
     "noVideos": "Aún no hay videos sincronizados. Conecta YouTube en la configuración del canal.",
     "views": "{count, plural, one {# vista} other {# vistas}}",
@@ -753,7 +818,10 @@
     "socials_none": "Agrega las redes del canal en Ajustes › Redes.",
     "socials_no_script": "Primero hace falta el guion verificado del episodio.",
     "socials_complete": "Ya están todos los posts. Usa «Rehacer» en una red para escribirla de nuevo.",
-    "post_published": "Ese post ya está marcado como publicado."
+    "post_published": "Ese post ya está marcado como publicado.",
+    "evaluation_not_published": "El episodio todavía no está publicado en YouTube.",
+    "evaluation_not_ready": "Todavía no llegaron los 7 días de datos de YouTube (llegan con 2 o 3 días de atraso).",
+    "audit_no_evaluations": "Ese mes no tiene episodios evaluados."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -815,7 +883,9 @@
       "visual_plan": "Plan de ayudas visuales",
       "comments": "Respuestas a comentarios",
       "render_aids": "Render de ayudas visuales",
-      "social_posts": "Posts para redes"
+      "social_posts": "Posts para redes",
+      "evaluation": "Evaluación a 7 días",
+      "audit": "Auditoría mensual"
     },
     "status": {
       "queued": "En cola",
@@ -1036,7 +1106,9 @@
       "youtube_import": "Importación de YouTube",
       "thumbnails": "Miniaturas (brief y calificación)",
       "visual_aids": "Ayudas visuales",
-      "distribution": "Difusión (comentarios y redes)"
+      "distribution": "Difusión (comentarios y redes)",
+      "evaluation": "Evaluación (7 días)",
+      "audit": "Auditoría mensual"
     }
   },
   "usage": {
@@ -1079,7 +1151,9 @@
       "thumbnails": "Miniaturas",
       "visual_aids": "Ayudas visuales",
       "distribution": "Difusión",
-      "render": "Render (Trigger.dev)"
+      "render": "Render (Trigger.dev)",
+      "evaluation": "Evaluación",
+      "audit": "Auditoría"
     },
     "parallelDesc": "Búsquedas web de la verificación.",
     "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",

@@ -59,7 +59,12 @@ describe("episodios", () => {
 
   it("la evaluación se habilita a los 7 días de publicar", () => {
     const e = ep({ stage: "evaluation", status: "published", publishedOn: "2026-10-01" });
-    expect(nextStep(e, "2026-10-07").availableFrom).toBe("2026-10-08");
+    expect(nextStep(e, "2026-10-07")).toMatchObject({
+      action: "evaluate",
+      availableFrom: "2026-10-08",
+      available: false,
+    });
+    expect(nextStep(e, "2026-10-08").available).toBe(true);
     expect(nextStep({ ...e, evaluatedAt: new Date() }, "2026-10-09").action).toBe("done");
   });
 
