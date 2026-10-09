@@ -9,11 +9,17 @@ import {
   type StreamClient,
 } from "@planificador/ai";
 import {
+  gearAgeMonths,
+  gearLabel,
+  localDateKey,
+  loanDaysLeft,
   OUTLIER_MIN_RATIO,
   sectionsText,
   termCovered,
   type AuditProposals,
   type CommentReading,
+  type GearOwnership,
+  type GearStatus,
   type GuideSection,
 } from "@planificador/core";
 import type { Json } from "@planificador/db";
@@ -86,8 +92,9 @@ export async function runIdeaSuggestions(
         { data: readings },
         { data: requests },
         { data: audit },
+        { data: gear },
       ] = await Promise.all([
-        db.from("channels").select("name").eq("id", channelId).single(),
+        db.from("channels").select("name, timezone").eq("id", channelId).single(),
         db
           .from("pillars")
           .select("id, name, description")
@@ -144,6 +151,15 @@ export async function runIdeaSuggestions(
           .order("month", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        db
+          .from("gear")
+          .select(
+            "id, name, brand, model, category, ownership, acquired_on, return_by, status, notes",
+          )
+          .eq("channel_id", channelId)
+          .eq("status", "active")
+          .order("created_at")
+          .limit(60),
       ]);
       const eps = episodes ?? [];
       const texts = eps.flatMap((e) => [e.title, ...(e.keywords ?? [])]);
@@ -151,6 +167,24 @@ export async function runIdeaSuggestions(
       const reads = (readings ?? []).map((r) => r.reading as unknown as CommentReading);
       const pillarRows = pillars ?? [];
       const today = new Date();
+      const todayKey = localDateKey(today, channel?.timezone ?? "America/Bogota");
+      const gearItems = (gear ?? []).map((g) => ({
+        id: g.id,
+        label: gearLabel(g),
+        category: g.category,
+        ownership: g.ownership,
+        months: gearAgeMonths(g.acquired_on, todayKey),
+        returnInDays: loanDaysLeft(
+          {
+            ownership: g.ownership as GearOwnership,
+            return_by: g.return_by,
+            status: g.status as GearStatus,
+          },
+          todayKey,
+        ),
+        notes: g.notes,
+      }));
+      const gearId = new Map(gearItems.map((g) => [g.label, g.id]));
 
       // Noticias del nicho (si Parallel está configurado).
       let newsResults: SearchResult[] = [];
@@ -218,6 +252,7 @@ export async function runIdeaSuggestions(
           (t) => ({ topic: t.topic, action: t.action, evidence: t.evidence }),
         ),
         news: newsResults.slice(0, 20),
+        gear: gearItems,
         today: today.toISOString().slice(0, 10),
       });
       const aiUsd = ai.costUsd(out.usage, out.model);
@@ -237,6 +272,7 @@ export async function runIdeaSuggestions(
           searches,
           search_usd: searchUsd,
           ideas: out.ideas.length,
+          gear: gearItems.length,
         } as unknown as Json,
       });
 
@@ -256,6 +292,7 @@ export async function runIdeaSuggestions(
             reasons: i.reasons.slice(0, 2000),
             risk: i.risk.slice(0, 2000),
             pillar_id: pillarRows.find((p) => p.name === i.pillar)?.id ?? null,
+            gear_ids: i.gear.flatMap((g) => gearId.get(g) ?? []),
             created_by: task.requested_by,
           })),
         );

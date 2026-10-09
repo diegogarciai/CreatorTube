@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { Lightbulb } from "lucide-react";
-import { IDEAS_LOW_BANK, ideaScore, type IdeaSignals, type IdeaStatus } from "@planificador/core";
+import { Lightbulb, Package } from "lucide-react";
+import {
+  gearLabel,
+  IDEAS_LOW_BANK,
+  ideaScore,
+  type IdeaSignals,
+  type IdeaStatus,
+} from "@planificador/core";
 import { Page, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -37,24 +43,27 @@ export default async function IdeasPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const [{ data: ideas }, pillars, outliers, competitors, { data: task }] = await Promise.all([
-    supabase
-      .from("ideas")
-      .select("*")
-      .eq("channel_id", channelId)
-      .order("created_at", { ascending: false }),
-    getPillars(channelId),
-    loadOutliers(channelId),
-    loadCompetitors(channelId),
-    supabase
-      .from("tasks")
-      .select("status, error")
-      .eq("channel_id", channelId)
-      .eq("kind", "idea_suggestions")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  const [{ data: ideas }, pillars, outliers, competitors, { data: task }, { data: gear }] =
+    await Promise.all([
+      supabase
+        .from("ideas")
+        .select("*")
+        .eq("channel_id", channelId)
+        .order("created_at", { ascending: false }),
+      getPillars(channelId),
+      loadOutliers(channelId),
+      loadCompetitors(channelId),
+      supabase
+        .from("tasks")
+        .select("status, error")
+        .eq("channel_id", channelId)
+        .eq("kind", "idea_suggestions")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from("gear").select("id, name, brand, model").eq("channel_id", channelId),
+    ]);
+  const gearName = new Map((gear ?? []).map((g) => [g.id, gearLabel(g)]));
   const suggesting = task?.status === "queued" || task?.status === "running";
   const all = ideas ?? [];
   const shown = all
@@ -146,6 +155,14 @@ export default async function IdeasPage({
                 {idea.risk ? (
                   <p className="mt-0.5 text-xs text-muted">
                     <span className="font-medium">{t("ideas.risk")}:</span> {idea.risk}
+                  </p>
+                ) : null}
+                {idea.gear_ids.some((id) => gearName.has(id)) ? (
+                  <p className="mt-1 flex flex-wrap items-center gap-1" data-testid="idea-gear">
+                    <Package className="size-3.5 text-muted" />
+                    {idea.gear_ids.flatMap((id) =>
+                      gearName.has(id) ? [<Badge key={id}>{gearName.get(id)}</Badge>] : [],
+                    )}
                   </p>
                 ) : null}
                 {pillarName(idea.pillar_id) ? (

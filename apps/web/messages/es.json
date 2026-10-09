@@ -203,7 +203,9 @@
     "newEpisode": "Nuevo episodio",
     "emptyTitle": "Tu semana empieza aquí",
     "emptyDesc": "Crea tu primer episodio con fecha de publicación y verás la meta, la cobertura y las alertas.",
-    "lowBank": "El banco de ideas tiene {count, plural, one {# idea nueva} other {# ideas nuevas}}: propón más en Ideas."
+    "lowBank": "El banco de ideas tiene {count, plural, one {# idea nueva} other {# ideas nuevas}}: propón más en Ideas.",
+    "loanDue": "{days, plural, =0 {Hoy devuelves} one {En # día devuelves} other {En # días devuelves}} {name} a la marca: ¿ya tiene su video?",
+    "loanLate": "La devolución de {name} venció hace {days, plural, one {# día} other {# días}}."
   },
   "alerts": {
     "overdue_publish": "«{title}» debía publicarse hace {days, plural, one {# día} other {# días}}",
