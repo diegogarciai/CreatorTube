@@ -552,6 +552,134 @@ export type Database = {
           },
         ];
       };
+      competitor_channels: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          youtube_channel_id: string;
+          title: string | null;
+          handle: string | null;
+          thumbnail_url: string | null;
+          uploads_playlist_id: string;
+          median_views: number | null;
+          synced_at: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          youtube_channel_id: string;
+          title?: string | null;
+          handle?: string | null;
+          thumbnail_url?: string | null;
+          uploads_playlist_id: string;
+          median_views?: number | null;
+          synced_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          youtube_channel_id?: string;
+          title?: string | null;
+          handle?: string | null;
+          thumbnail_url?: string | null;
+          uploads_playlist_id?: string;
+          median_views?: number | null;
+          synced_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "competitor_channels_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "competitor_channels_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "competitor_channels_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      competitor_videos: {
+        Row: {
+          competitor_id: string;
+          video_id: string;
+          channel_id: string;
+          workspace_id: string;
+          title: string;
+          thumbnail_url: string | null;
+          published_at: string;
+          views: number;
+          ratio: number | null;
+          fetched_at: string;
+        };
+        Insert: {
+          competitor_id: string;
+          video_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          title?: string;
+          thumbnail_url?: string | null;
+          published_at: string;
+          views?: number;
+          ratio?: number | null;
+          fetched_at?: string;
+        };
+        Update: {
+          competitor_id?: string;
+          video_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          title?: string;
+          thumbnail_url?: string | null;
+          published_at?: string;
+          views?: number;
+          ratio?: number | null;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "competitor_videos_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "competitor_videos_competitor_id_fkey";
+            columns: ["competitor_id"];
+            isOneToOne: false;
+            referencedRelation: "competitor_channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "competitor_videos_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       devices: {
         Row: {
           id: string;
@@ -3355,7 +3483,7 @@ export type Database = {
         | "evaluation";
       episode_status: "planned" | "script" | "to_record" | "editing" | "scheduled" | "published";
       episode_type: "product" | "explainer" | "news" | "opinion";
-      idea_origin: "recommendation" | "own" | "pain_point" | "search";
+      idea_origin: "recommendation" | "own" | "pain_point" | "search" | "competitor";
       idea_status: "new" | "in_progress" | "discarded";
       invitation_kind: "platform" | "workspace";
       script_stage: "study" | "script" | "verification" | "publication" | "podcast";

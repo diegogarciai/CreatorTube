@@ -2,7 +2,13 @@
  * Ideas del banco. En la Fase 2 las recomendaciones llegan con IA; aquí solo
  * vive el modelo y la puntuación con las cinco señales (1 a 5 cada una).
  */
-export const IDEA_ORIGINS = ["recommendation", "own", "pain_point", "search"] as const;
+export const IDEA_ORIGINS = [
+  "recommendation",
+  "own",
+  "pain_point",
+  "search",
+  "competitor",
+] as const;
 export type IdeaOrigin = (typeof IDEA_ORIGINS)[number];
 
 export const IDEA_STATUSES = ["new", "in_progress", "discarded"] as const;
@@ -59,4 +65,31 @@ export function termCovered(term: string, texts: readonly string[]): boolean {
     const have = new Set(words(t));
     return need.every((w) => have.has(w));
   });
+}
+
+/** Un video atípico supera esta razón contra la mediana de su canal. */
+export const OUTLIER_MIN_RATIO = 3;
+/** Y tiene al menos estos días (antes, las vistas todavía no dicen nada). */
+export const OUTLIER_MIN_AGE_DAYS = 3;
+
+/**
+ * La razón de cada video contra la mediana de vistas de los videos del canal
+ * que ya tienen la edad mínima (null si es muy nuevo o no hay con qué comparar).
+ */
+export function outlierRatios(
+  videos: readonly { id: string; views: number; publishedAt: Date }[],
+  now: Date,
+): { median: number | null; ratios: Map<string, number | null> } {
+  const minAge = OUTLIER_MIN_AGE_DAYS * 86_400_000;
+  const old = videos.filter((v) => now.getTime() - v.publishedAt.getTime() >= minAge);
+  const sorted = old.map((v) => v.views).sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length
+    ? sorted.length % 2
+      ? sorted[mid]!
+      : (sorted[mid - 1]! + sorted[mid]!) / 2
+    : null;
+  const ratios = new Map<string, number | null>();
+  for (const v of videos) ratios.set(v.id, median && old.includes(v) ? v.views / median : null);
+  return { median, ratios };
 }

@@ -7,6 +7,7 @@ public enum IdeaOrigin: String, CaseIterable, Codable, Sendable {
     case own
     case painPoint = "pain_point"
     case search
+    case competitor
 
     public var label: String {
         switch self {
@@ -14,6 +15,7 @@ public enum IdeaOrigin: String, CaseIterable, Codable, Sendable {
         case .own: return "Propia"
         case .painPoint: return "Dolor de la audiencia"
         case .search: return "Búsqueda en YouTube"
+        case .competitor: return "Competencia"
         }
     }
 }

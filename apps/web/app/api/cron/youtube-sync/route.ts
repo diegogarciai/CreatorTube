@@ -5,6 +5,7 @@ import { isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncChannelById } from "@/lib/youtube";
 import { syncAnalyticsById, syncReachById } from "@/lib/youtube-analytics";
+import { syncCompetitorsById } from "@/lib/youtube-competitors";
 
 export const maxDuration = 300;
 
@@ -103,11 +104,20 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+  // Competencia (banco de ideas): unas pocas unidades de la Data API por canal seguido.
+  const competitors = [];
+  for (const conn of conns ?? []) {
+    if (!conn.channel || conn.channel.disconnected_at) continue;
+    if (Date.now() - now.getTime() > (maxDuration - 30) * 1000) break;
+    const r = await syncCompetitorsById(admin, conn.channel_id);
+    if (r) competitors.push(r);
+  }
   return NextResponse.json({
     synced: results.length,
     quotaUsedToday: usedToday,
     results,
     analytics,
     reach,
+    competitors,
   });
 }
