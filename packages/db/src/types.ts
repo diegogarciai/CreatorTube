@@ -1149,6 +1149,62 @@ export type Database = {
           },
         ];
       };
+      episode_gear: {
+        Row: {
+          episode_id: string;
+          gear_id: string;
+          channel_id: string;
+          workspace_id: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          episode_id: string;
+          gear_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Update: {
+          episode_id?: string;
+          gear_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "episode_gear_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_gear_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_gear_gear_id_fkey";
+            columns: ["gear_id"];
+            isOneToOne: false;
+            referencedRelation: "gear";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "episode_gear_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       episode_refs: {
         Row: {
           id: string;

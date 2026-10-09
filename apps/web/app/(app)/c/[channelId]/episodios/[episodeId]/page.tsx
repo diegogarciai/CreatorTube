@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ChevronLeft, Mail } from "lucide-react";
+import { gearDescriptionBlock } from "@planificador/core";
 import {
   checklistProgress,
   localDateKey,
@@ -37,6 +38,9 @@ import { loadEpisodeComments } from "@/lib/data/comments";
 import { CommentsPanel } from "@/components/episodes/comments-panel";
 import { SocialPostsPanel } from "@/components/episodes/social-posts-panel";
 import { EpisodeNewsletterPanel } from "@/components/newsletter/episode-panel";
+import { GearDescriptionBlock } from "@/components/gear/description-block";
+import { EpisodeGearCard } from "@/components/gear/episode-gear";
+import { loadEpisodeGear } from "@/lib/data/gear";
 import { NewsletterSetupNotice } from "@/components/newsletter/setup-notice";
 import { buttonClass } from "@/components/ui/button";
 import { effectiveStatus, loadEpisodeNewsletter, loadNewsletterSetup } from "@/lib/data/newsletter";
@@ -202,6 +206,8 @@ export default async function EpisodePage({
           youtubeVideoId: row.youtube_video_id,
         })
       : null;
+  const episodeGear =
+    tab === "summary" || tab === "publication" ? await loadEpisodeGear(channelId, episodeId) : null;
   const [newsletter, newsletterSetup] =
     tab === "distribution"
       ? await Promise.all([
@@ -401,6 +407,15 @@ export default async function EpisodePage({
               </CardBody>
             </Card>
             <div className="space-y-6">
+              {episodeGear ? (
+                <EpisodeGearCard
+                  channelId={channelId}
+                  episodeId={row.id}
+                  linked={episodeGear.linked}
+                  options={episodeGear.options}
+                  canEdit={canManage}
+                />
+              ) : null}
               <Card>
                 <CardBody>
                   <ChecklistPanel
@@ -549,6 +564,9 @@ export default async function EpisodePage({
         ) : tab === "publication" ? (
           <div className="space-y-6">
             <PublicationTitles titles={titles ?? []} />
+            {episodeGear?.linked.length ? (
+              <GearDescriptionBlock text={gearDescriptionBlock(episodeGear.linked)} />
+            ) : null}
             <Card>
               <CardHeader title={t("episode.linkVideo")} />
               <CardBody className="space-y-4">

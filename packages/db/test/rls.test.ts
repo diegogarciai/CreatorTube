@@ -1115,6 +1115,42 @@ describe("Mi equipo", () => {
     );
     expect(await as(owner.id, (q) => q("select text from public.gear_imports"))).toEqual([]);
   });
+
+  it("une equipo y episodio del mismo canal; lo lee quien ve el canal", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const other = await createChannel(ws, "Otro", "OT");
+    const ep = await createEpisode(ch);
+    const [g] = await sql(
+      "insert into public.gear (channel_id, name) values ($1, 'Dron') returning id",
+      [ch],
+    );
+    const [g2] = await sql(
+      "insert into public.gear (channel_id, name) values ($1, 'Ajeno') returning id",
+      [other],
+    );
+    const [row] = await sql(
+      "insert into public.episode_gear (episode_id, gear_id, channel_id, role) values ($1, $2, $3, 'tool') returning workspace_id, role",
+      [ep, g.id, ch],
+    );
+    expect(row).toEqual({ workspace_id: ws, role: "tool" });
+    await expect(
+      sql("insert into public.episode_gear (episode_id, gear_id, channel_id) values ($1, $2, $3)", [
+        ep,
+        g2.id,
+        ch,
+      ]),
+    ).rejects.toThrow(/canales distintos/);
+    const read = (uid: string) =>
+      as(uid, (q) => q("select role from public.episode_gear where episode_id = $1", [ep]));
+    expect(await read(owner.id)).toEqual([{ role: "tool" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await sql("delete from public.gear where id = $1", [g.id]);
+    expect(await read(owner.id)).toEqual([]);
+  });
 });
 
 describe("Fase 2 · guía del guionista y créditos", () => {

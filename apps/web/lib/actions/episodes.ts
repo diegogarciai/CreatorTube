@@ -16,6 +16,7 @@ import {
 } from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireChannelPermission } from "../auth";
 import { toPlannedEpisode } from "../data/episodes";
+import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 import { localDateKey } from "@planificador/core";
 
@@ -53,7 +54,31 @@ export async function createEpisode(input: unknown): Promise<ActionResult<{ id: 
       .single();
     if (error) throw error;
     if (parsed.ideaId) {
-      await supabase.from("ideas").update({ status: "in_progress" }).eq("id", parsed.ideaId);
+      const { data: idea } = await supabase
+        .from("ideas")
+        .update({ status: "in_progress" })
+        .eq("id", parsed.ideaId)
+        .select("gear_ids")
+        .maybeSingle();
+      // Los equipos de la idea quedan como protagonistas del episodio.
+      if (idea?.gear_ids.length) {
+        const { data: gear } = await supabase
+          .from("gear")
+          .select("id")
+          .eq("channel_id", parsed.channelId)
+          .in("id", idea.gear_ids);
+        if (gear?.length)
+          await createAdminClient()
+            .from("episode_gear")
+            .insert(
+              gear.map((g) => ({
+                episode_id: data.id,
+                gear_id: g.id,
+                channel_id: parsed.channelId,
+                role: "protagonist",
+              })),
+            );
+      }
     }
     revalidateEpisode(parsed.channelId);
     return { ok: true, data: { id: data.id } };

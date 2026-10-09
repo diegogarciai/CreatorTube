@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fromBrand, gearAgeMonths, gearLabel, gearSchema, loanDaysLeft } from "../src";
+import {
+  fromBrand,
+  gearAgeMonths,
+  gearDescriptionBlock,
+  gearLabel,
+  gearSchema,
+  loanDaysLeft,
+} from "../src";
 
 describe("mi equipo", () => {
   it("nombra por marca y modelo, o por el nombre", () => {
@@ -41,5 +48,38 @@ describe("mi equipo", () => {
     ).toBe("2026-11-01");
     expect(() => gearSchema.parse({ name: "x", category: "nave" })).toThrow();
     expect(() => gearSchema.parse({ name: "x", acquiredOn: "ayer" })).toThrow();
+  });
+
+  it("arma el bloque de la descripción con aclaraciones y afiliados", () => {
+    expect(gearDescriptionBlock([])).toBe("");
+    const block = gearDescriptionBlock([
+      {
+        label: "DJI Mini 4 Pro",
+        brand: "DJI",
+        role: "protagonist",
+        ownership: "own",
+        affiliateUrl: "https://amzn.to/dji",
+      },
+      {
+        label: "Sony ZV-E10 II",
+        brand: "Sony",
+        role: "tool",
+        ownership: "loan",
+        affiliateUrl: null,
+      },
+    ]);
+    expect(block).toBe(
+      [
+        "EQUIPO DE ESTE VIDEO",
+        "Lo que reseñé:",
+        "- DJI Mini 4 Pro: https://amzn.to/dji",
+        "Con qué lo grabé:",
+        "- Sony ZV-E10 II",
+        "",
+        "Transparencia: Sony me prestó el Sony ZV-E10 II para este video; lo devuelvo y la marca no revisó ni aprobó lo que digo.",
+        "",
+        "Algunos enlaces son de afiliado: si compras con ellos, el canal recibe una comisión sin costo extra para ti.",
+      ].join("\n"),
+    );
   });
 });
