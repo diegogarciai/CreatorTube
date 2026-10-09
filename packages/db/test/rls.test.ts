@@ -1055,6 +1055,68 @@ describe("Boletín semanal", () => {
   });
 });
 
+describe("Mi equipo", () => {
+  it("lo lee quien ve el canal, lo escribe el servidor y la foto la sube quien maneja episodios", async () => {
+    const owner = await createUser();
+    const producer = await createUser();
+    const writer = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    await addMember(ws, producer.id, "producer");
+    await addMember(ws, writer.id, "writer");
+    const ch = await createChannel(ws);
+    const [g] = await sql(
+      "insert into public.gear (channel_id, name, brand, model, category, ownership, return_by) values ($1, 'Mi dron', 'DJI', 'Mini 4 Pro', 'drone', 'loan', '2026-11-01') returning workspace_id, status",
+      [ch],
+    );
+    expect(g).toEqual({ workspace_id: ws, status: "active" });
+    await expect(
+      sql("insert into public.gear (channel_id, name, category) values ($1, 'x', 'nave')", [ch]),
+    ).rejects.toThrow(/check constraint/);
+    // La fecha de devolución es solo de los préstamos.
+    await expect(
+      sql("insert into public.gear (channel_id, name, return_by) values ($1, 'x', '2026-11-01')", [
+        ch,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    await expect(
+      sql("insert into public.gear (channel_id, name, photo_path) values ($1, 'x', $2)", [
+        ch,
+        `${ch}/brand/x.png`,
+      ]),
+    ).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, (q) => q("select name from public.gear where channel_id = $1", [ch]));
+    expect(await read(writer.id)).toEqual([{ name: "Mi dron" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await expect(
+      as(owner.id, (q) => q("insert into public.gear (channel_id, name) values ($1, 'y')", [ch])),
+    ).rejects.toThrow(/row-level security/);
+    const put = (path: string) =>
+      "insert into storage.objects (bucket_id, name) values ('channel-media', '" + path + "')";
+    await as(producer.id, (q) => q(put(`${ch}/gear/a.jpg`)));
+    await expect(as(writer.id, (q) => q(put(`${ch}/gear/b.jpg`)))).rejects.toThrow(
+      /row-level security/,
+    );
+    expect(
+      await as(producer.id, (q) =>
+        q("delete from storage.objects where name = $1 returning 1", [`${ch}/gear/a.jpg`]),
+      ),
+    ).toEqual([{ "?column?": 1 }]);
+    // La lista pegada solo la ve el servidor.
+    const [task] = await sql(
+      "insert into public.tasks (workspace_id, channel_id, kind) values ($1, $2, 'gear_parse') returning id",
+      [ws, ch],
+    );
+    await sql(
+      "insert into public.gear_imports (task_id, channel_id, text) values ($1, $2, 'dji mini')",
+      [task.id, ch],
+    );
+    expect(await as(owner.id, (q) => q("select text from public.gear_imports"))).toEqual([]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

@@ -185,7 +185,7 @@ const EXT: Record<(typeof MEDIA_MIME_TYPES)[number], string> = {
   "image/svg+xml": "svg",
 };
 
-export type MediaFolder = "brand" | "presenter";
+export type MediaFolder = "brand" | "presenter" | "gear";
 
 /** Ruta nueva en el bucket: `{canal}/{carpeta}/{id}.{ext}`. */
 export function mediaPath(channelId: string, folder: MediaFolder, mime: string, id: string) {

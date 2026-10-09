@@ -6,6 +6,7 @@ import type {
   commentsTask,
   directionTask,
   evaluationTask,
+  gearParseTask,
   ideaSuggestionsTask,
   JobKind,
   newsletterTask,
@@ -39,6 +40,7 @@ interface JobPayloads {
   audit: typeof auditTask;
   idea_suggestions: typeof ideaSuggestionsTask;
   newsletter: typeof newsletterTask;
+  gear_parse: typeof gearParseTask;
 }
 
 export interface JobScope {

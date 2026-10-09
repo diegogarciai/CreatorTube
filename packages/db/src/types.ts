@@ -1372,6 +1372,134 @@ export type Database = {
           },
         ];
       };
+      gear: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          name: string;
+          brand: string;
+          model: string;
+          category: string;
+          ownership: string;
+          acquired_on: string | null;
+          return_by: string | null;
+          status: string;
+          notes: string;
+          affiliate_url: string | null;
+          photo_path: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          name: string;
+          brand?: string;
+          model?: string;
+          category?: string;
+          ownership?: string;
+          acquired_on?: string | null;
+          return_by?: string | null;
+          status?: string;
+          notes?: string;
+          affiliate_url?: string | null;
+          photo_path?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          name?: string;
+          brand?: string;
+          model?: string;
+          category?: string;
+          ownership?: string;
+          acquired_on?: string | null;
+          return_by?: string | null;
+          status?: string;
+          notes?: string;
+          affiliate_url?: string | null;
+          photo_path?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gear_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gear_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gear_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      gear_imports: {
+        Row: {
+          task_id: string;
+          channel_id: string;
+          workspace_id: string;
+          text: string;
+          created_at: string;
+        };
+        Insert: {
+          task_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          text: string;
+          created_at?: string;
+        };
+        Update: {
+          task_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          text?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "gear_imports_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gear_imports_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: true;
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "gear_imports_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       ideas: {
         Row: {
           id: string;
