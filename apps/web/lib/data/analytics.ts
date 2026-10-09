@@ -2,6 +2,7 @@ import "server-only";
 import {
   retentionByParagraph,
   scriptParagraphs,
+  termCovered,
   type ParagraphRetention,
   type RetentionPoint,
 } from "@planificador/core";
@@ -389,5 +390,47 @@ export async function loadYesterday(channelId: string): Promise<YesterdayView> {
       ]),
     ),
     hasSnapshots: Boolean(snaps?.length),
+  };
+}
+
+export type SearchTermRow = {
+  term: string;
+  views: number;
+  watchMinutes: number;
+  /** Ya hay un episodio con esas palabras en el título o las palabras clave. */
+  covered: boolean;
+  /** Ya está en el banco de ideas. */
+  inIdeas: boolean;
+};
+
+/** Las búsquedas de YouTube que trajeron gente en los últimos 28 días. */
+export async function loadSearchTerms(
+  channelId: string,
+): Promise<{ terms: SearchTermRow[]; periodEnd: string | null }> {
+  const supabase = await getSupabase();
+  const [{ data: terms }, { data: episodes }, { data: ideas }] = await Promise.all([
+    supabase
+      .from("youtube_search_terms")
+      .select("term, views, watch_minutes, period_end")
+      .eq("channel_id", channelId)
+      .order("views", { ascending: false }),
+    supabase
+      .from("episodes")
+      .select("title, keywords")
+      .eq("channel_id", channelId)
+      .is("archived_at", null),
+    supabase.from("ideas").select("title").eq("channel_id", channelId).eq("origin", "search"),
+  ]);
+  const texts = (episodes ?? []).flatMap((e) => [e.title, ...(e.keywords ?? [])]);
+  const taken = new Set((ideas ?? []).map((i) => i.title.toLowerCase()));
+  return {
+    periodEnd: terms?.[0]?.period_end ?? null,
+    terms: (terms ?? []).map((t) => ({
+      term: t.term,
+      views: t.views,
+      watchMinutes: Number(t.watch_minutes) || 0,
+      covered: termCovered(t.term, texts),
+      inIdeas: taken.has(t.term.toLowerCase()),
+    })),
   };
 }

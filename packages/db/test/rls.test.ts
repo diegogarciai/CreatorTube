@@ -869,6 +869,47 @@ describe("Fase 4 · evaluación y auditoría", () => {
   });
 });
 
+describe("Banco de ideas · búsquedas", () => {
+  it("se leen con permiso, las escribe el servidor y se purgan a los 30 días", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const add = (term: string, fetched = "now()") =>
+      sql(
+        `insert into public.youtube_search_terms (channel_id, term, views, period_end, fetched_at)
+         values ($1, $2, 10, current_date, ${fetched}) returning workspace_id`,
+        [ch, term],
+      );
+    const [row] = await add("macbook air m4");
+    expect(row.workspace_id).toBe(ws);
+    await add("viejo", "now() - interval '31 days'");
+    const read = (uid: string) =>
+      as(uid, (q) =>
+        q("select term from public.youtube_search_terms where channel_id = $1 order by term", [ch]),
+      );
+    expect(await read(owner.id)).toEqual([{ term: "macbook air m4" }, { term: "viejo" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.youtube_search_terms (channel_id, term, period_end) values ($1, 'x', current_date)",
+          [ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    const [r] = await sql("select public.purge_youtube_data() as r");
+    expect(r.r.old_search_terms_deleted).toBeGreaterThanOrEqual(1);
+    expect(await read(owner.id)).toEqual([{ term: "macbook air m4" }]);
+    const [idea] = await sql(
+      "insert into public.ideas (channel_id, title, origin) values ($1, 'Desde búsqueda', 'search') returning origin",
+      [ch],
+    );
+    expect(idea.origin).toBe("search");
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

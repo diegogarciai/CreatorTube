@@ -246,11 +246,12 @@
     "filterInProgress": "En marcha",
     "filterDiscarded": "Descartadas",
     "emptyTitle": "Aún no hay ideas",
-    "emptyDesc": "Anota ideas propias o dolores de tu audiencia. Las recomendaciones con IA llegan en la Fase 2.",
+    "emptyDesc": "Anota ideas propias o pásalas desde Audiencia, Analítica y la auditoría.",
     "originValue": {
       "recommendation": "Recomendación",
       "own": "Propia",
-      "pain_point": "Dolor de la audiencia"
+      "pain_point": "Dolor de la audiencia",
+      "search": "Búsqueda en YouTube"
     },
     "signal": {
       "demand": "Demanda",
@@ -570,6 +571,22 @@
       "try": "Probar"
     },
     "toIdea": "Pasar a Ideas",
+    "ideaCreated": "Idea creada en Ideas."
+  },
+  "searchTerms": {
+    "title": "Búsquedas que traen gente",
+    "description": "Lo que la gente buscó en YouTube para llegar al canal en los 28 días hasta el {date}. Las que no tienen video propio son ideas con demanda.",
+    "empty": "Aparecen con la próxima actualización de la analítica.",
+    "onlyGaps": "Solo sin video propio ({count})",
+    "noGaps": "Todas estas búsquedas ya tienen un video del canal.",
+    "gap": "Sin video propio",
+    "col": {
+      "term": "Búsqueda",
+      "views": "Vistas",
+      "minutes": "Minutos vistos"
+    },
+    "toIdea": "Pasar a Ideas",
+    "inIdeas": "En Ideas",
     "ideaCreated": "Idea creada en Ideas."
   },
   "analytics": {

@@ -6,12 +6,14 @@ public enum IdeaOrigin: String, CaseIterable, Codable, Sendable {
     case recommendation
     case own
     case painPoint = "pain_point"
+    case search
 
     public var label: String {
         switch self {
         case .recommendation: return "Recomendación"
         case .own: return "Propia"
         case .painPoint: return "Dolor de la audiencia"
+        case .search: return "Búsqueda en YouTube"
         }
     }
 }

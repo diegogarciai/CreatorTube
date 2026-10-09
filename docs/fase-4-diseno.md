@@ -238,6 +238,17 @@ La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings
 
 **Tabla:** `social_posts` (uno por episodio, red y tipo), con RLS de lectura; la escribe el servidor. No son datos de YouTube, así que no entran en la purga.
 
+### Banco de ideas: de dónde salen
+
+Además de las ideas propias, el banco se llena desde lo que ya mide la app. Cada idea guarda su origen.
+
+- **Audiencia** (origen «Dolor de la audiencia»): «Pasar a Ideas» en los dolores y en las ideas para próximos videos de la lectura de comentarios, y en los comentarios clasificados como pedido de tema. A la idea se le pasa el texto, sin el nombre de quien comentó.
+- **Búsquedas que traen gente** (origen «Búsqueda en YouTube»):
+  - **Qué se trae:** con la sincronización diaria de la analítica se traen de YouTube Analytics las 25 búsquedas de YouTube que más vistas trajeron al canal en los últimos 28 días (`insightTrafficSourceDetail` con `insightTrafficSourceType==YT_SEARCH`).
+  - **Dónde se ven:** en una tarjeta de Analítica, con la marca «sin video propio» cuando ningún episodio tiene sus palabras importantes en el título o en las palabras clave.
+  - **Cómo se guardan:** en `youtube_search_terms`, que se reemplaza en cada sincronización. La purga las borra a los 30 días sin refrescar, porque son datos de YouTube.
+- **Auditoría mensual** (origen «Recomendación»): los temas que propone.
+
 ## 6. Costos estimados
 
 | Qué                          | Estimado                                             |
