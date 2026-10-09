@@ -192,8 +192,12 @@ Vive en la pestaña **Producción**, arriba de las miniaturas. Aplica la secció
   - Le pide a Claude el plan del guion verificado (paso `fix`). Le pasa la tabla de verificación, las fichas 12.5 del paso `motion` y la sección 12 de la guía del run.
   - El modelo es la etapa «Ayudas visuales» de Administración.
   - Reemplaza las propuestas y descartadas, y conserva las aprobadas si su ancla sigue en el guion.
-- **Lo que valida el código** (`packages/core/src/visual-aids.ts`; lo que no cumple se descarta y queda en el registro de consumo):
-  - **Textos (12.4):** título de M de 1 a 6 palabras; elementos de 2 a 6; definición de C de 14 o menos; título de L de 4 o menos; L con 3 elementos o más, cada uno con dónde empieza.
+- **Nada se pierde por formato:**
+  - La duración de una M se ajusta sola a 2–30 segundos (6 si no viene).
+  - Las ayudas con textos fuera de límite o con un ancla que no aparece van a **una segunda llamada corta**, con sus motivos exactos y el guion, y la versión corregida reemplaza a la original. Se hace una sola vez y el consumo de las dos llamadas se suma (`repaired` en el registro de consumo).
+  - Si la corrección falla o vuelve a pasarse, la ayuda queda en el plan con el aviso «Acórtalo antes de aprobar» y no se puede aprobar hasta editarla (el servidor lo revisa: `errors.aid_needs_fix`).
+- **Lo que valida el código** (`packages/core/src/visual-aids.ts`; los textos dejan aviso, lo demás se descarta y queda en el registro de consumo, visible en el panel):
+  - **Textos (12.4):** título de M de 1 a 6 palabras; elementos de 2 a 6; definición de C de 14 o menos; título de L de 4 o menos; L con 3 elementos o más, cada uno con dónde empieza; duración de M de 2 a 30 s.
   - **Pie de M:** gartechs.com, y la fuente y la fecha si hay cifras.
   - **Cifras (12.3):** salen de filas Verificado o Con matiz, y la ficha las nombra.
   - **Ancla:** aparece en el guion verificado.

@@ -155,6 +155,34 @@ describe("plan completo (sección 12)", () => {
     expect(why.x9).toContain("Su ancla no aparece en el guion verificado.");
   });
 
+  it("un texto fuera de límite no descarta la ayuda: queda con su aviso", () => {
+    const out = checkPlan(
+      [
+        m({
+          code: "x1",
+          elements: [{ text: "Prueba corta: puede no mostrar la caída", value: null }],
+        }),
+        l({ code: "x2", title: "Las cosas que más importan" }),
+        // Lo de contenido se sigue descartando aunque el texto también falle.
+        m({
+          code: "x3",
+          anchor: "Mi veredicto",
+          piece: "counter",
+          rows: [3],
+          title: "Un título demasiado largo para la pantalla hoy",
+        }),
+      ],
+      { script, claims },
+    );
+    expect(out.kept.map((a) => [a.code, a.issues.length > 0])).toEqual([
+      ["M1", true],
+      ["L1", true],
+    ]);
+    expect(out.kept[0]!.issues[0]).toContain("Cada elemento va de 2 a 6 palabras");
+    expect(out.dropped.map((d) => d.code)).toEqual(["x3"]);
+    expect(out.dropped[0]!.reasons).toEqual(["La fila #3 no está Verificada ni Con matiz."]);
+  });
+
   it("a lo sumo 6 M", () => {
     const long = Array.from({ length: 20 }, (_, i) => `Párrafo ${i} con un dato`).join("\n\n");
     const pieces = ["bars", "ring", "counter", "timeline", "dot_matrix", "curve", "zoom"] as const;

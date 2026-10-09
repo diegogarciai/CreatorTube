@@ -342,6 +342,8 @@ function AidItem({
     });
 
   const discarded = aid.status === "discarded";
+  // Textos fuera de límite (12.4): la ayuda se queda, pero no se aprueba hasta corregirla.
+  const issues = useMemo(() => validateAidText(toVisualAid(aid)), [aid]);
   return (
     <li
       data-testid={`aid-${aid.code}`}
@@ -362,6 +364,15 @@ function AidItem({
         {aid.vertical ? <Badge tone="accent">{t("vertical")}</Badge> : null}
       </div>
       <p className="mt-1 text-xs text-muted">{t("anchor", { anchor: aid.anchor })}</p>
+      {issues.length && !discarded && !editing ? (
+        <p
+          role="status"
+          className="mt-1 rounded-md bg-warn-soft px-2 py-1 text-xs text-warn"
+          data-testid={`aid-issues-${aid.code}`}
+        >
+          {t("needsFix", { issues: issues.join(" ") })}
+        </p>
+      ) : null}
 
       {editing ? (
         <AidEditor aid={aid} onDone={() => setEditing(false)} />
@@ -446,7 +457,12 @@ function AidItem({
             />
           ) : null}
           {aid.status !== "approved" ? (
-            <Button size="sm" onClick={() => status("approved")} disabled={pending}>
+            <Button
+              size="sm"
+              onClick={() => status("approved")}
+              disabled={pending || issues.length > 0}
+              data-testid={`approve-${aid.code}`}
+            >
               <Check className="size-3.5" /> {t("approve")}
             </Button>
           ) : null}

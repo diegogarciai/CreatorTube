@@ -79,6 +79,20 @@ async function loadAid(aidId: string) {
   return { admin, aid, row };
 }
 
+/** Lo que impide aprobar una ayuda: largos de 12.4 y, en una M, cifras de filas sin verificar. */
+async function aidProblems(
+  admin: ReturnType<typeof createAdminClient>,
+  scriptRunId: string | null,
+  aid: VisualAid,
+): Promise<string[]> {
+  const broken = validateAidText(aid);
+  if (aid.kind !== "M") return broken;
+  const { data: claims } = scriptRunId
+    ? await admin.from("verification_items").select("idx, status").eq("run_id", scriptRunId)
+    : { data: [] };
+  return [...broken, ...validateAidRows(aid, claims ?? [])];
+}
+
 const statusSchema = z.enum(["proposed", "approved", "discarded"]);
 
 /** Aprueba, descarta o devuelve a propuesta una ayuda. */
@@ -86,6 +100,25 @@ export async function setAidStatus(aidId: string, status: unknown): Promise<Acti
   try {
     const next = statusSchema.parse(status);
     const { admin, aid, row } = await loadAid(aidId);
+    // Una ayuda con textos fuera de límite (o cifras sin verificar) no se aprueba.
+    if (next === "approved") {
+      const kind = aid.kind as AidKind;
+      const current: VisualAid = {
+        kind,
+        code: aid.code,
+        anchor: aid.anchor,
+        idea: aid.idea,
+        title: aid.title,
+        definition: aid.definition,
+        elements: (aid.elements as VisualAid["elements"] | null) ?? [],
+        rows: aid.claim_rows,
+        footer: aid.footer,
+        durationS: aid.duration_s,
+        piece: aid.piece as VisualAid["piece"],
+      };
+      const broken = await aidProblems(admin, aid.script_run_id, current);
+      if (broken.length) return { ok: false, error: "errors.aid_needs_fix" };
+    }
     const { error } = await admin.from("visual_aids").update({ status: next }).eq("id", aid.id);
     if (error) throw error;
     revalidate(row.channel_id, aid.episode_id);
@@ -135,16 +168,7 @@ export async function editAid(aidId: string, input: unknown): Promise<ActionResu
       durationS: kind === "M" ? (edit.durationS ?? aid.duration_s) : null,
       piece: kind === "M" ? (edit.piece ?? (aid.piece as VisualAid["piece"])) : null,
     };
-    let broken = validateAidText(next);
-    if (kind === "M") {
-      const { data: claims } = aid.script_run_id
-        ? await admin
-            .from("verification_items")
-            .select("idx, status")
-            .eq("run_id", aid.script_run_id)
-        : { data: [] };
-      broken = [...broken, ...validateAidRows(next, claims ?? [])];
-    }
+    const broken = await aidProblems(admin, aid.script_run_id, next);
     if (broken.length) return { ok: false, error: broken.join(" ") };
     const { error } = await admin
       .from("visual_aids")

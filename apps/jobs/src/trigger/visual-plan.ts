@@ -107,6 +107,7 @@ export async function runVisualPlan(taskId: string, db: ServiceClient, anthropic
           ...out.usage,
           ai_usd: usd,
           kept: out.kept.length,
+          repaired: out.repaired,
           dropped: out.dropped,
         } as unknown as Json,
       });

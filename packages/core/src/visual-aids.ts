@@ -169,8 +169,12 @@ export function paragraphOf(paragraphs: readonly string[], anchor: string): numb
 export type DroppedAid = { code: string; kind?: AidKind; title?: string; reasons: string[] };
 
 export type PlanCheck = {
-  /** Las ayudas que pasan, en orden de guion, con su párrafo. */
-  kept: (VisualAid & { paragraph: number })[];
+  /**
+   * Las ayudas que pasan, en orden de guion, con su párrafo. `issues` son los
+   * textos fuera de límite (12.4): la ayuda queda, pero hay que corregirla
+   * antes de aprobarla.
+   */
+  kept: (VisualAid & { paragraph: number; issues: string[] })[];
   /** Las que se descartan y por qué (con su tipo y título, para mostrarlas). */
   dropped: DroppedAid[];
 };
@@ -189,15 +193,18 @@ export function checkPlan(
   const dropped: PlanCheck["dropped"] = [];
   const located = aids.map((a) => ({ ...a, paragraph: paragraphOf(paragraphs, a.anchor) }));
 
-  // Primero cada ayuda por sí sola.
-  const valid = located.filter((a) => {
-    const reasons = [...validateAidText(a), ...validateAidRows(a, ctx.claims)];
-    if (a.paragraph < 0) reasons.push("Su ancla no aparece en el guion verificado.");
-    if (a.kind === "M" && scoreTotal(a.scores) < MIN_MOTION_SCORE)
-      reasons.push(`Suma ${scoreTotal(a.scores)}/20; una M necesita ${MIN_MOTION_SCORE}.`);
-    if (reasons.length) dropped.push({ code: a.code, kind: a.kind, title: a.title, reasons });
-    return !reasons.length;
-  });
+  // Primero cada ayuda por sí sola. Lo de contenido (filas, ancla, puntaje)
+  // la descarta; los textos fuera de límite solo la marcan para corregir.
+  const valid = located
+    .filter((a) => {
+      const reasons = [...validateAidRows(a, ctx.claims)];
+      if (a.paragraph < 0) reasons.push("Su ancla no aparece en el guion verificado.");
+      if (a.kind === "M" && scoreTotal(a.scores) < MIN_MOTION_SCORE)
+        reasons.push(`Suma ${scoreTotal(a.scores)}/20; una M necesita ${MIN_MOTION_SCORE}.`);
+      if (reasons.length) dropped.push({ code: a.code, kind: a.kind, title: a.title, reasons });
+      return !reasons.length;
+    })
+    .map((a) => ({ ...a, issues: validateAidText(a) }));
 
   // Las M: las de más puntaje primero, sin párrafos seguidos ni piezas repetidas.
   const motions: typeof valid = [];
