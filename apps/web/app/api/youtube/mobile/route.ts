@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildAuthUrl, createState } from "@planificador/youtube";
+import { buildAuthUrl, createState, YOUTUBE_COMMENT_SCOPES } from "@planificador/youtube";
 import { YOUTUBE_CONFIGURED } from "@/lib/env";
 import { decodeMobileTicket, mobileYouTubeResult } from "@/lib/mobile";
 import { MOBILE_NONCE_COOKIE, mobileTicketKey, oauthConfig, stateKey } from "@/lib/youtube";
@@ -23,7 +23,12 @@ export async function GET(request: NextRequest) {
     { workspaceId: ticket.workspaceId, userId: ticket.userId, channelId: ticket.channelId },
     stateKey(),
   );
-  const response = NextResponse.redirect(buildAuthUrl(oauthConfig(), state));
+  // scope "comments": pide además el permiso para responder comentarios, como
+  // `?scope=comments` en /api/youtube/connect.
+  const comments = ticket.scope === "comments" && ticket.channelId;
+  const response = NextResponse.redirect(
+    buildAuthUrl(oauthConfig(), state, comments ? { scopes: YOUTUBE_COMMENT_SCOPES } : {}),
+  );
   response.cookies.set(MOBILE_NONCE_COOKIE, nonce, {
     httpOnly: true,
     secure: request.nextUrl.protocol === "https:",
