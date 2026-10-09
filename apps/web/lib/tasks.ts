@@ -75,3 +75,6 @@ export const AUDIT_ESTIMATE_CREDITS = 60;
 
 /** Ideas propuestas por IA: búsquedas de noticias y una llamada con todo el contexto. */
 export const IDEAS_ESTIMATE_CREDITS = 25;
+
+/** Boletín semanal: una llamada con hasta 3 guiones y una corrección. */
+export const NEWSLETTER_ESTIMATE_CREDITS = 15;

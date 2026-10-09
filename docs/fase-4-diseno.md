@@ -47,7 +47,7 @@ Fuentes:
 | 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
 | 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Hecho     |
 | 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
-| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | En curso  |
+| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Hecho     |
 | 6    | Redes y cápsulas: posts de texto por red                                          | Hecho     |
 | 7    | Paridad con el panel (prueba de salida)                                           | Pendiente |
 
@@ -203,15 +203,26 @@ La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings
 
 ### Boletín y resumen semanal (paso 5)
 
-**Boletín (§21):**
+**Boletín (§21, hecho):**
 
-- Se redacta solo a pedido y sale del guion, el dossier, la verificación y los comentarios.
-- Formato:
+- **Dónde:** la sección «Boletín» del menú. Hay uno por semana (la semana local del canal), con su historial.
+- **Redacción:** a pedido, con «Redactar el boletín» (unos 15 créditos, etapa Difusión). Claude usa:
+  - los episodios publicados en los últimos 7 días (hasta 3): el guion verificado, la postura, la tabla de verificación (solo las cifras verificadas o con matiz) y lo que preguntó la audiencia;
+  - las secciones 2 y 21 de la guía.
+- **Formato:**
   - asunto de 55 caracteres como máximo y preheader de 90 como máximo;
-  - cuerpo de 400 a 700 palabras;
-  - botón de 4 palabras como máximo y «el punto» de 140 caracteres como máximo;
-  - diseño de 600 px con el acento de la marca.
-- El permiso `publish` lo aprueba y lo envía con Resend Broadcasts.
+  - cuerpo de 400 a 700 palabras, en markdown sencillo;
+  - botón de 4 palabras como máximo, que lleva al episodio que elige Claude;
+  - «el punto» de 140 caracteres como máximo;
+  - si algo no cumple, se corrige una vez; lo que siga sin cumplir se marca en el editor y bloquea el envío.
+- **Diseño:** 600 px con el acento del kit de marca, preheader oculto y el enlace de baja de Resend (`{{{RESEND_UNSUBSCRIBE_URL}}}`).
+- **Envío (permiso `publish`):**
+  - se edita con vista previa en vivo;
+  - «Enviarme una prueba» lo manda solo a quien lo pide;
+  - «Enviar ahora» o «Programar» (de 5 minutos a 30 días) piden confirmación y crean el Broadcast en Resend con `send: true` al segmento del canal;
+  - después ya no se edita; una programación se cancela en Resend.
+- **Ajustes › Boletín:** el nombre, el remitente (un correo del dominio verificado en Resend) y el ID del segmento.
+- **Pendiente:** el envío automático cada semana (que se redacte y salga solo, por ejemplo el lunes). Por ahora todo es a pedido, como pidió Diego.
 
 **Resumen semanal (hecho):**
 

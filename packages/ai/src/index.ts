@@ -14,3 +14,4 @@ export * from "./comments";
 export * from "./socials";
 export * from "./evaluation";
 export * from "./ideas";
+export * from "./newsletter";

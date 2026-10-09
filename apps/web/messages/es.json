@@ -38,7 +38,8 @@
     "addChannel": "Conectar otro canal",
     "signOut": "Cerrar sesión",
     "command": "Buscar o ir a…",
-    "menu": "Menú"
+    "menu": "Menú",
+    "newsletter": "Boletín"
   },
   "status": {
     "planned": "Planeado",
@@ -749,7 +750,9 @@
     "socials": "Redes",
     "socialsDesc": "Las redes del canal: de cada episodio salen 3 posts por red (Difusión). El guion también las usa en la descripción.",
     "competitors": "Competencia",
-    "competitorsDesc": "Canales que sigues. Cada día se revisan sus videos nuevos y los atípicos (los que superan 3 veces la mediana de su canal) aparecen en Ideas."
+    "competitorsDesc": "Canales que sigues. Cada día se revisan sus videos nuevos y los atípicos (los que superan 3 veces la mediana de su canal) aparecen en Ideas.",
+    "newsletter": "Boletín",
+    "newsletterDesc": "El boletín semanal por correo: su nombre, quién lo firma (un correo del dominio verificado en Resend) y el segmento de Resend al que se envía. Las bajas las maneja Resend."
   },
   "workspace": {
     "title": "Espacio y equipo",
@@ -877,7 +880,14 @@
     "competitor_invalid": "Pega el enlace del canal, su @handle o su id (UC…).",
     "competitor_limit": "Puedes seguir hasta 15 canales.",
     "competitor_not_found": "No se encontró ese canal en YouTube.",
-    "competitor_self": "Ese es tu propio canal."
+    "competitor_self": "Ese es tu propio canal.",
+    "newsletter_no_episodes": "No hay episodios publicados en los últimos 7 días.",
+    "newsletter_locked": "Ese boletín ya se envió o se programó.",
+    "newsletter_invalid": "El boletín no cumple el formato: revisa los avisos.",
+    "newsletter_no_segment": "Falta el segmento de Resend en Ajustes › Boletín.",
+    "newsletter_schedule": "Elige una fecha entre 5 minutos y 30 días desde ahora.",
+    "email_not_configured": "Falta la clave de Resend (RESEND_API_KEY) en Vercel.",
+    "no_email": "Tu cuenta no tiene correo."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -942,7 +952,8 @@
       "social_posts": "Posts para redes",
       "evaluation": "Evaluación a 7 días",
       "audit": "Auditoría mensual",
-      "idea_suggestions": "Ideas propuestas"
+      "idea_suggestions": "Ideas propuestas",
+      "newsletter": "Boletín semanal"
     },
     "status": {
       "queued": "En cola",
@@ -1648,5 +1659,84 @@
     "ideasLow": "conviene proponer más",
     "open": "Abrir el Planificador",
     "footer": "Lo recibes los lunes porque tienes el rol de Propietario en este espacio."
+  },
+  "newsletterSettings": {
+    "name": "Nombre del boletín",
+    "segment": "ID del segmento en Resend",
+    "senderName": "Nombre del remitente",
+    "senderEmail": "Correo del remitente",
+    "senderEmailHint": "del dominio verificado"
+  },
+  "newsletter": {
+    "title": "Boletín {name}",
+    "subtitle": "Uno por semana: Claude lo redacta con lo publicado en los últimos 7 días; lo revisas, te mandas una prueba y lo envías o lo programas.",
+    "draft": "Redactar el boletín",
+    "redo": "Rehacer el borrador",
+    "redoConfirm": "Se reescribe el borrador de esta semana y se pierde lo que editaste. ¿Seguir?",
+    "draftingShort": "Redactando…",
+    "drafting": "Claude está redactando el boletín. Tarda uno o dos minutos.",
+    "draftStarted": "Redactando el boletín",
+    "failed": "No se pudo redactar el boletín.",
+    "estimate": "Unos {credits} créditos",
+    "setup": "Para enviar falta: {items}.",
+    "setupLink": "Completar en Ajustes › Boletín",
+    "missing": {
+      "key": "la clave de Resend en Vercel (RESEND_API_KEY)",
+      "segment": "el segmento de Resend",
+      "sender": "el correo del remitente"
+    },
+    "emptyTitle": "Sin boletín para la semana del {date}",
+    "emptyDesc": "{count, plural, one {Hay # episodio publicado} other {Hay # episodios publicados}} en los últimos 7 días: Claude puede redactar el boletín.",
+    "noEpisodes": "No hay episodios publicados en los últimos 7 días. El boletín sale de lo publicado en la semana.",
+    "emptyPast": "Esa semana no tuvo boletín.",
+    "episodes": "Episodios de la semana",
+    "history": "Boletines",
+    "noHistory": "Todavía no hay boletines.",
+    "weekOf": "Semana del {date}",
+    "status": {
+      "draft": "Borrador",
+      "scheduled": "Programado",
+      "sent": "Enviado"
+    },
+    "scheduledFor": "Programado para el {date}. Si necesitas cancelarlo, hazlo en Resend › Broadcasts.",
+    "sentOn": "Enviado el {date}.",
+    "field": {
+      "subject": "Asunto",
+      "preheader": "Preheader (vista previa en la bandeja)",
+      "point": "El punto",
+      "body": "Cuerpo",
+      "cta": "Botón",
+      "ctaUrl": "Enlace del botón"
+    },
+    "bodyHelp": "Markdown sencillo: párrafos separados por una línea en blanco, ## subtítulos, listas con -, **negrita**, *cursiva* y [enlaces](https://…).",
+    "issue": {
+      "subject_empty": "Falta el asunto.",
+      "subject_long": "El asunto pasa de 55 caracteres.",
+      "preheader_long": "El preheader pasa de 90 caracteres.",
+      "body_short": "El cuerpo tiene menos de 400 palabras.",
+      "body_long": "El cuerpo pasa de 700 palabras.",
+      "cta_empty": "Falta el texto del botón.",
+      "cta_long": "El botón pasa de 4 palabras.",
+      "point_empty": "Falta «el punto».",
+      "point_long": "«El punto» pasa de 140 caracteres."
+    },
+    "save": "Guardar",
+    "saved": "Boletín guardado",
+    "sendTest": "Enviarme una prueba",
+    "testSent": "Prueba enviada a tu correo",
+    "testSentAt": "Última prueba: {date}",
+    "sendNow": "Enviar ahora",
+    "schedule": "Programar",
+    "sendTitle": "Enviar el boletín",
+    "scheduleTitle": "Programar el boletín",
+    "confirmText": "«{subject}» sale a todo el segmento de Resend. Después de enviarlo o programarlo ya no se puede editar.",
+    "noTestYet": "Todavía no te mandaste una prueba.",
+    "when": "Fecha y hora (tu zona horaria)",
+    "cancel": "Cancelar",
+    "confirmSend": "Enviar a todos",
+    "confirmSchedule": "Programar",
+    "sent": "Boletín enviado",
+    "scheduled": "Boletín programado",
+    "preview": "Vista previa"
   }
 }

@@ -14,6 +14,7 @@ const SECTIONS = [
   "produccion",
   "calendario",
   "audiencia",
+  "boletin",
   "analitica",
   "ajustes",
 ] as const;
@@ -23,6 +24,7 @@ const SECTION_KEYS: Record<(typeof SECTIONS)[number], string> = {
   produccion: "production",
   calendario: "calendar",
   audiencia: "audience",
+  boletin: "newsletter",
   analitica: "analytics",
   ajustes: "channelSettings",
 };

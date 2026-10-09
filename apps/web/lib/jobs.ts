@@ -8,6 +8,7 @@ import type {
   evaluationTask,
   ideaSuggestionsTask,
   JobKind,
+  newsletterTask,
   pingTask,
   renderAidsTask,
   scriptTask,
@@ -37,6 +38,7 @@ interface JobPayloads {
   evaluation: typeof evaluationTask;
   audit: typeof auditTask;
   idea_suggestions: typeof ideaSuggestionsTask;
+  newsletter: typeof newsletterTask;
 }
 
 export interface JobScope {
