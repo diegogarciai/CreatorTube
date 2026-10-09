@@ -250,12 +250,17 @@ final class AppModel {
                 publishDate: draft.publishDate,
                 recordDate: draft.recordDate,
                 pillarId: draft.pillarId,
-                createdBy: userId
+                createdBy: userId,
+                ideaId: draft.ideaId
             ))
             .select("id")
             .single()
             .execute()
             .value
+        // Como la web: la idea pasa a «En marcha» al convertirse en episodio.
+        if let ideaId = draft.ideaId {
+            try? await client.from("ideas").update(IdeaStatusUpdate(status: .inProgress)).eq("id", value: ideaId).execute()
+        }
         await loadEpisodes()
         return inserted.id
     }
@@ -438,6 +443,49 @@ final class AppModel {
             .execute()
             .value
         return rows ?? []
+    }
+
+    // MARK: - Ideas (requieren write_script, como la web)
+
+    func ideas() async throws -> [IdeaRow] {
+        guard let client = supabase, let channelId = selectedChannelId else { return [] }
+        return try await client
+            .from("ideas")
+            .select(IdeaRow.columns)
+            .eq("channel_id", value: channelId)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func saveIdea(_ draft: IdeaDraft, editing idea: IdeaRow?) async throws {
+        guard let client = supabase, let channelId = selectedChannelId else { throw AppError.notReady }
+        guard can(.writeScript) else { throw AppError.forbiddenEdit }
+        var write = IdeaWrite(
+            title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: draft.notes,
+            origin: draft.origin,
+            status: draft.status,
+            signals: Dictionary(uniqueKeysWithValues: draft.signals.map { ($0.key.rawValue, $0.value) })
+        )
+        if let idea {
+            try await client.from("ideas").update(write).eq("id", value: idea.id).eq("channel_id", value: channelId).execute()
+        } else {
+            write.channelId = channelId
+            write.createdBy = userId
+            try await client.from("ideas").insert(write).execute()
+        }
+    }
+
+    func setIdeaStatus(_ idea: IdeaRow, _ status: IdeaStatus) async throws {
+        guard let client = supabase, let channelId = selectedChannelId else { throw AppError.notReady }
+        guard can(.writeScript) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("ideas")
+            .update(IdeaStatusUpdate(status: status))
+            .eq("id", value: idea.id)
+            .eq("channel_id", value: channelId)
+            .execute()
     }
 
     // MARK: - Fechas y archivados

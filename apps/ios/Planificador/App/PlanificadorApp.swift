@@ -64,7 +64,8 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             tab("Inicio", systemImage: "house") { HomeView() }
-            tab("Episodios", systemImage: "film.stack") { EpisodesView() }
+            tab("Ideas", systemImage: "lightbulb") { IdeasView() }
+            tab("Producción", systemImage: "film.stack") { EpisodesView() }
             tab("Calendario", systemImage: "calendar") { CalendarView() }
         }
     }

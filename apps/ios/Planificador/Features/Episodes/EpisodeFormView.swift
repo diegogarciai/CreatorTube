@@ -9,6 +9,8 @@ struct EpisodeDraft {
     var recordDate: DateKey?
     var pillarId: String?
     var notes = ""
+    /// Idea de la que nace el episodio («Arrancar episodio»).
+    var ideaId: String?
     // Ficha de entrada (solo al editar).
     var priority: Priority = .normal
     var stance = ""
@@ -75,12 +77,16 @@ struct EpisodeFormView: View {
     @State private var errorMessage: String?
     @FocusState private var titleFocused: Bool
 
-    init(mode: Mode, initialPublishDate: DateKey? = nil) {
+    init(mode: Mode, initialPublishDate: DateKey? = nil, fromIdea idea: IdeaRow? = nil) {
         self.mode = mode
         switch mode {
         case .create:
             var d = EpisodeDraft()
             d.publishDate = initialPublishDate
+            if let idea {
+                d.title = String(idea.title.prefix(200))
+                d.ideaId = idea.id
+            }
             _draft = State(initialValue: d)
         case .edit(let episode):
             _draft = State(initialValue: EpisodeDraft(episode))

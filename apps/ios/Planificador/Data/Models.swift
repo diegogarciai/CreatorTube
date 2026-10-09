@@ -343,9 +343,11 @@ struct EpisodeInsert: Encodable {
     let recordDate: DateKey?
     let pillarId: String?
     let createdBy: String?
+    var ideaId: String?
 
     enum CodingKeys: String, CodingKey {
         case title, format
+        case ideaId = "idea_id"
         case channelId = "channel_id"
         case publishDate = "publish_date"
         case recordDate = "record_date"
@@ -362,6 +364,7 @@ struct EpisodeInsert: Encodable {
         try c.encode(recordDate, forKey: .recordDate)
         try c.encode(pillarId, forKey: .pillarId)
         try c.encodeIfPresent(createdBy, forKey: .createdBy)
+        try c.encodeIfPresent(ideaId, forKey: .ideaId)
     }
 }
 
@@ -442,6 +445,63 @@ struct DateUpdate: Encodable {
         var c = encoder.container(keyedBy: Key.self)
         try c.encode(date, forKey: Key(stringValue: field))
     }
+}
+
+struct IdeaRow: Decodable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let notes: String
+    let origin: IdeaOrigin
+    let status: IdeaStatus
+    let signals: [IdeaSignal: Int]
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, notes, origin, status, signals
+        case createdAt = "created_at"
+    }
+
+    static let columns = "id, title, notes, origin, status, signals, created_at"
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        origin = try c.decode(IdeaOrigin.self, forKey: .origin)
+        status = try c.decode(IdeaStatus.self, forKey: .status)
+        createdAt = try c.decode(String.self, forKey: .createdAt)
+        // jsonb {"demand": 3, ...}; claves desconocidas se ignoran.
+        let raw = (try? c.decode([String: Int].self, forKey: .signals)) ?? [:]
+        var parsed: [IdeaSignal: Int] = [:]
+        for (key, value) in raw {
+            if let signal = IdeaSignal(rawValue: key) { parsed[signal] = value }
+        }
+        signals = parsed
+    }
+
+    var score: Int? { ideaScore(signals) }
+}
+
+/// Crear o editar una idea (`createIdea` / `updateIdea`).
+struct IdeaWrite: Encodable {
+    var channelId: String?
+    let title: String
+    let notes: String
+    let origin: IdeaOrigin
+    let status: IdeaStatus
+    let signals: [String: Int]
+    var createdBy: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, notes, origin, status, signals
+        case channelId = "channel_id"
+        case createdBy = "created_by"
+    }
+}
+
+struct IdeaStatusUpdate: Encodable {
+    let status: IdeaStatus
 }
 
 struct InsertedId: Decodable {
