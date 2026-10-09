@@ -237,3 +237,130 @@ extension AppModel {
         return bundle
     }
 }
+
+// MARK: - Métricas del episodio (`loadEpisodeMetrics`)
+
+struct RetentionRow: Decodable {
+    let points: [RetentionPoint]?
+    let fetchedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case points
+        case fetchedAt = "fetched_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        points = try? c.decodeIfPresent([RetentionPoint].self, forKey: .points)
+        fetchedAt = try c.decodeIfPresent(String.self, forKey: .fetchedAt)
+    }
+}
+
+struct StepTextRow: Decodable {
+    let step: String
+    let body: String?
+}
+
+struct EpisodeMetrics {
+    var totals: PeriodTotals?
+    var daily: [DayStats] = []
+    var retention: [RetentionPoint] = []
+    var paragraphs: [ParagraphRetention] = []
+    /// De qué texto salen los párrafos.
+    var scriptSource: String?
+}
+
+extension AppModel {
+    func episodeMetrics(_ episode: EpisodeRow) async throws -> EpisodeMetrics {
+        guard let client = supabase, let channelId = selectedChannelId, let videoId = episode.youtubeVideoId else {
+            return EpisodeMetrics()
+        }
+        let ref: EpisodeScriptRef = try await client
+            .from("episodes").select("current_script_run_id")
+            .eq("id", value: episode.id).single()
+            .execute().value
+        async let daysQuery: [DayStatsRow] = client
+            .from("youtube_video_daily_stats")
+            .select(DayStatsRow.columns + ", fetched_at")
+            .eq("channel_id", value: channelId).eq("video_id", value: videoId)
+            .order("day")
+            .execute().value
+        async let retentionQuery: [RetentionRow] = client
+            .from("youtube_video_retention")
+            .select("points, fetched_at")
+            .eq("channel_id", value: channelId).eq("video_id", value: videoId)
+            .limit(1)
+            .execute().value
+
+        var metrics = EpisodeMetrics()
+        let days = try await daysQuery.map(\.stats)
+        metrics.daily = days
+        metrics.totals = days.isEmpty ? nil : totals(days)
+        metrics.retention = (try await retentionQuery.first?.points ?? []).filter { $0.r.isFinite && $0.watch.isFinite }
+
+        // El guion grabado: el verificado, o si no la revisión o el teleprompter.
+        if let runId = ref.currentScriptRunId, !metrics.retention.isEmpty {
+            let steps: [StepTextRow] = try await client
+                .from("script_step_runs").select("step, body")
+                .eq("run_id", value: runId).eq("status", value: "succeeded")
+                .in("step", values: ["fix", "revision", "teleprompter"])
+                .execute().value
+            if let source = ["fix", "revision", "teleprompter"].first(where: { key in steps.contains { $0.step == key && !($0.body ?? "").isEmpty } }) {
+                metrics.scriptSource = source
+                let script = steps.first { $0.step == source }?.body ?? ""
+                metrics.paragraphs = retentionByParagraph(metrics.retention, scriptParagraphs(script))
+            }
+        }
+        return metrics
+    }
+}
+
+// MARK: - Tareas en curso (bandeja de tareas)
+
+struct TaskRow: Decodable, Identifiable, Hashable {
+    let id: String
+    let kind: String
+    let status: String
+    let progress: Double?
+    let message: String?
+    let error: String?
+    let episodeId: String?
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, status, progress, message, error
+        case episodeId = "episode_id"
+        case createdAt = "created_at"
+    }
+
+    static let columns = "id, kind, status, progress, message, error, episode_id, created_at"
+
+    var kindLabel: String {
+        switch kind {
+        case "direction": return "Preguntas de dirección"
+        case "script": return "Guion"
+        case "youtube_import": return "Importar videos de YouTube"
+        case "thumbnails": return "Miniaturas"
+        case "thumbnail_ideas": return "Textos para miniaturas"
+        case "visual_plan": return "Plan de ayudas visuales"
+        case "render_aids": return "Render de ayudas visuales"
+        case "ai_models_refresh": return "Actualizar modelos de IA"
+        case "ping": return "Prueba del motor de tareas"
+        default: return kind
+        }
+    }
+
+    var isActive: Bool { status == "queued" || status == "running" }
+}
+
+extension AppModel {
+    func recentTasks() async throws -> [TaskRow] {
+        guard let client = supabase, let channelId = selectedChannelId else { return [] }
+        return try await client
+            .from("tasks").select(TaskRow.columns)
+            .eq("channel_id", value: channelId)
+            .order("created_at", ascending: false)
+            .limit(30)
+            .execute().value
+    }
+}

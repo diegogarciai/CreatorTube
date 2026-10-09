@@ -26,6 +26,11 @@ struct MoreView: View {
                 } label: {
                     Label("Analítica", systemImage: "chart.bar.xaxis")
                 }
+                NavigationLink {
+                    TasksView()
+                } label: {
+                    Label("Tareas en curso", systemImage: "gearshape.2")
+                }
             }
 
             Section("Cuenta") {

@@ -58,6 +58,13 @@ struct EpisodeDetailView: View {
                 } label: {
                     Label("Ayudas visuales, miniaturas y títulos", systemImage: "photo.on.rectangle")
                 }
+                if episode.youtubeVideoId != nil {
+                    NavigationLink {
+                        EpisodeMetricsView(episode: episode)
+                    } label: {
+                        Label("Métricas", systemImage: "chart.line.uptrend.xyaxis")
+                    }
+                }
             }
 
             statusSection(episode)
