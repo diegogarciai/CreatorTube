@@ -38,7 +38,7 @@ export function stageOfKind(kind: string): UsageStage {
   if (kind === "comments" || kind === "social_posts" || kind === "newsletter")
     return "distribution";
   if (kind === "evaluation" || kind === "audit") return kind;
-  if (kind === "idea_suggestions") return "ideas";
+  if (kind === "idea_suggestions" || kind === "gear_parse") return "ideas";
   if (kind.startsWith("script_")) {
     const step = kind.slice("script_".length);
     if (isScriptStep(step)) return stepSpec(step).stage;

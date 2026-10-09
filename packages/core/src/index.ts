@@ -19,3 +19,4 @@ export * from "./socials";
 export * from "./evaluation";
 export * from "./digest";
 export * from "./newsletter";
+export * from "./gear";

@@ -11,6 +11,7 @@ import type { ShellChannel } from "./sidebar";
 const SECTIONS = [
   "inicio",
   "ideas",
+  "equipo",
   "produccion",
   "calendario",
   "audiencia",
@@ -21,6 +22,7 @@ const SECTIONS = [
 const SECTION_KEYS: Record<(typeof SECTIONS)[number], string> = {
   inicio: "home",
   ideas: "ideas",
+  equipo: "gear",
   produccion: "production",
   calendario: "calendar",
   audiencia: "audience",

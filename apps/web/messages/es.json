@@ -39,7 +39,8 @@
     "signOut": "Cerrar sesión",
     "command": "Buscar o ir a…",
     "menu": "Menú",
-    "newsletter": "Boletín"
+    "newsletter": "Boletín",
+    "gear": "Mi equipo"
   },
   "status": {
     "planned": "Planeado",
@@ -954,7 +955,8 @@
       "evaluation": "Evaluación a 7 días",
       "audit": "Auditoría mensual",
       "idea_suggestions": "Ideas propuestas",
-      "newsletter": "Boletín semanal"
+      "newsletter": "Boletín semanal",
+      "gear_parse": "Ordenar mi equipo"
     },
     "status": {
       "queued": "En cola",
@@ -1755,5 +1757,82 @@
     "noComments": "Este episodio todavía no tiene comentarios leídos.",
     "draftEpisode": "Redactar el boletín",
     "episodeNone": "Todavía no hay boletín de este episodio."
+  },
+  "gear": {
+    "title": "Mi equipo",
+    "subtitle": "Tus dispositivos, propios o de marcas: Claude los tiene en cuenta para proponer episodios que solo tú puedes hacer.",
+    "add": "Agregar equipo",
+    "edit": "Editar equipo",
+    "added": "Equipo agregado",
+    "saved": "Equipo guardado",
+    "paste": "Pegar una lista",
+    "pasteHint": "Pega tus equipos, uno por línea o separados por comas. Claude los ordena en marca, modelo y categoría y quedan «por revisar» antes de entrar al inventario.",
+    "parse": "Ordenar con Claude",
+    "parsing": "Ordenando…",
+    "parseStarted": "Claude está ordenando tu lista",
+    "parsingDesc": "Claude está ordenando la lista. En unos segundos aparece para revisar.",
+    "parseFailed": "No se pudo ordenar la lista. Inténtalo de nuevo.",
+    "estimate": "Unos {credits} créditos",
+    "reviewTitle": "Por revisar ({count})",
+    "reviewDesc": "Revisa marca, modelo y categoría, completa lo que falte (origen, fecha, foto) y confírmalos.",
+    "confirm": "Confirmar",
+    "discard": "Descartar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar «{name}» del inventario?",
+    "retire": "Ya no lo tengo",
+    "markReturned": "Ya lo devolví",
+    "reactivate": "Volver a activar",
+    "goneTitle": "Ya no están ({count})",
+    "emptyTitle": "Todavía no registras tu equipo",
+    "emptyDesc": "Agrega tu dron, tu portátil, tu cámara o tus gadgets (uno por uno o pegando una lista) y las ideas de episodios los tendrán en cuenta.",
+    "months": "{count, plural, =0 {Recién llegado} one {# mes contigo} other {# meses contigo}}",
+    "returnIn": "{days, plural, =0 {Se devuelve hoy} one {Se devuelve en # día} other {Se devuelve en # días}}",
+    "returnLate": "{days, plural, one {Devolución vencida hace # día} other {Devolución vencida hace # días}}",
+    "namePlaceholder": "Mi dron, el portátil del estudio…",
+    "notesPlaceholder": "Configuración, accesorios, qué tal te ha ido, lo que quieres probar…",
+    "disclosureHint": "Lo que viene de una marca lleva la aclaración de contenido patrocinado que pide YouTube; el guion la incluirá.",
+    "affiliateHint": "(opcional, para la descripción)",
+    "photo": "Foto del equipo",
+    "addPhoto": "Agregar foto",
+    "changePhoto": "Cambiar foto",
+    "removePhoto": "Quitar foto",
+    "field": {
+      "name": "Nombre",
+      "brand": "Marca",
+      "model": "Modelo",
+      "category": "Categoría",
+      "ownership": "Origen",
+      "acquiredOn": "Desde cuándo lo tienes",
+      "returnBy": "Fecha de devolución",
+      "affiliateUrl": "Enlace de afiliado",
+      "notes": "Notas"
+    },
+    "category": {
+      "drone": "Dron",
+      "laptop": "Portátil",
+      "computer": "Computador",
+      "phone": "Teléfono",
+      "tablet": "Tablet",
+      "camera": "Cámara",
+      "audio": "Audio",
+      "lighting": "Iluminación",
+      "wearable": "Wearable",
+      "gaming": "Gaming",
+      "smart_home": "Casa inteligente",
+      "accessory": "Accesorio",
+      "other": "Otro"
+    },
+    "ownership": {
+      "own": "Propio",
+      "loan": "Prestado por una marca",
+      "gift": "Regalo de una marca",
+      "sponsored": "Patrocinado"
+    },
+    "status": {
+      "active": "Activo",
+      "retired": "Ya no lo tengo",
+      "returned": "Devuelto",
+      "review": "Por revisar"
+    }
   }
 }

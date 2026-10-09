@@ -14,6 +14,7 @@ import {
   Lightbulb,
   LogOut,
   Mail,
+  Package,
   Menu,
   MessagesSquare,
   Plus,
@@ -44,6 +45,7 @@ export interface ShellWorkspace {
 const SECTIONS = [
   { slug: "inicio", key: "home", icon: Home },
   { slug: "ideas", key: "ideas", icon: Lightbulb },
+  { slug: "equipo", key: "gear", icon: Package },
   { slug: "produccion", key: "production", icon: Clapperboard },
   { slug: "calendario", key: "calendar", icon: CalendarDays },
   { slug: "audiencia", key: "audience", icon: MessagesSquare },

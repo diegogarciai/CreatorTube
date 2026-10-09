@@ -78,3 +78,6 @@ export const IDEAS_ESTIMATE_CREDITS = 25;
 
 /** Boletín semanal: una llamada con hasta 3 guiones y una corrección. */
 export const NEWSLETTER_ESTIMATE_CREDITS = 15;
+
+/** Ordenar una lista de equipos pegada: una llamada corta. */
+export const GEAR_PARSE_ESTIMATE_CREDITS = 2;
