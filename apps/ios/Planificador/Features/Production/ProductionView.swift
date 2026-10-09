@@ -26,6 +26,7 @@ struct ProductionView: View {
     @State private var textTarget: ThumbnailAssetRow?
     @State private var newText = ""
     @State private var newAccent = ""
+    @State private var editingAid: VisualAidRow?
 
     private var canWrite: Bool { model.can(.writeScript) }
 
@@ -53,6 +54,9 @@ struct ProductionView: View {
         }
         .navigationTitle("Producción")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editingAid) { aid in
+            AidEditorView(aid: aid) { await load() }
+        }
         .alert("Regenerar miniatura", isPresented: Binding(get: { noteTarget != nil }, set: { if !$0 { noteTarget = nil } })) {
             TextField("Qué cambiar (opcional)", text: $noteText)
             Button("Regenerar (≈ \(CreditEstimate.thumbnails) créditos)") {
@@ -173,6 +177,13 @@ struct ProductionView: View {
                                                        onDone: { await load() })
                                 }
                             }
+                            .font(.caption)
+                            Button {
+                                editingAid = aid
+                            } label: {
+                                Label("Editar textos", systemImage: "pencil")
+                            }
+                            .buttonStyle(.borderless)
                             .font(.caption)
                             if aid.status == "approved" && !bundle.renders(for: aid).isEmpty {
                                 ServerActionButton(title: "Renderizar de nuevo", systemImage: "film",
