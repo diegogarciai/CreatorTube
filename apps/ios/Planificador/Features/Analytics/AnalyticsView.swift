@@ -22,6 +22,8 @@ struct AnalyticsView: View {
             if bundle.connected {
                 periodSection
                 chartSection
+                ReachSection()
+                SearchTermsSection()
             } else if !isLoading {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
@@ -34,6 +36,9 @@ struct AnalyticsView: View {
             }
 
             episodesSection
+            if bundle.connected {
+                AuditSection()
+            }
             recentSection
         }
         .navigationTitle("Analítica")

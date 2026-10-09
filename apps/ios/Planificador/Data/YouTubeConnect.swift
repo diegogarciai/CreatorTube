@@ -14,13 +14,16 @@ extension AppModel {
     }
 
     /// Reconecta un canal existente (`channelId`) o crea uno nuevo en un
-    /// espacio (`workspaceId`). Si la persona cierra la hoja de Google, lanza
+    /// espacio (`workspaceId`); con `scope: "comments"` pide además el permiso
+    /// para responder comentarios. Si la persona cierra la hoja de Google, lanza
     /// `CancellationError`.
     @discardableResult
-    func connectYouTube(channelId: String? = nil, workspaceId: String? = nil) async throws -> YouTubeConnection {
+    func connectYouTube(channelId: String? = nil, workspaceId: String? = nil, scope: String? = nil) async throws -> YouTubeConnection {
         var target: [String: JSONAny] = [:]
         if let channelId { target["channelId"] = .string(channelId) }
         if let workspaceId { target["workspaceId"] = .string(workspaceId) }
+        // "comments": además el permiso para responder comentarios.
+        if let scope { target["scope"] = .string(scope) }
         guard let link = try await ServerAPI.call("youtubeConnectLink", [.object(target)], as: ConnectLink.self),
               let url = URL(string: link.url) else {
             throw ActionFailure(key: "errors.unknown")

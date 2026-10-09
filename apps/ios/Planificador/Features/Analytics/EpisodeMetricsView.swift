@@ -17,6 +17,9 @@ struct EpisodeMetricsView: View {
             if let errorMessage {
                 Section { ErrorBanner(message: errorMessage) { await load() } }
             }
+            if episode.youtubeVideoId != nil && episode.publishedAt != nil {
+                EvaluationSection(episode: episode)
+            }
             if let t = metrics.totals {
                 Section("Totales en YouTube") {
                     LabeledContent("Vistas", value: "\(Int(t.views))")
@@ -33,6 +36,9 @@ struct EpisodeMetricsView: View {
                     }
                     .frame(height: 160)
                     .padding(.vertical, 6)
+                }
+                if let videoId = episode.youtubeVideoId {
+                    ReachSection(videoId: videoId)
                 }
             } else if !isLoading {
                 Section {

@@ -58,11 +58,16 @@ struct EpisodeDetailView: View {
                 } label: {
                     Label("Ayudas visuales, miniaturas y títulos", systemImage: "photo.on.rectangle")
                 }
+                NavigationLink {
+                    DistributionView(episode: episode)
+                } label: {
+                    Label("Difusión: posts para redes y comentarios", systemImage: "megaphone")
+                }
                 if episode.youtubeVideoId != nil {
                     NavigationLink {
                         EpisodeMetricsView(episode: episode)
                     } label: {
-                        Label("Métricas", systemImage: "chart.line.uptrend.xyaxis")
+                        Label("Métricas y evaluación a 7 días", systemImage: "chart.line.uptrend.xyaxis")
                     }
                 }
             }
@@ -167,13 +172,28 @@ struct EpisodeDetailView: View {
             }
             .padding(.vertical, 4)
 
-        case .answerDirection, .generateScript, .resolveVerification:
+        case .answerDirection, .generateScript, .resolveVerification, .prepareAssets, .shareAndReply, .evaluate:
+            // Llevan a su pantalla, como los enlaces a las pestañas en la web.
             VStack(alignment: .leading, spacing: 8) {
-                Text(step.action.label).font(.headline)
-                Text("Por ahora se hace desde la web, en la pestaña Guion del episodio.")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.muted)
-                if step.action != .answerDirection && canSkip {
+                if step.available && canAct {
+                    NavigationLink {
+                        stepDestination(episode, action: step.action)
+                    } label: {
+                        HStack {
+                            Text(step.action.label).font(.headline)
+                            Spacer()
+                            Image(systemName: "arrow.right")
+                        }
+                    }
+                } else {
+                    Text(step.action.label).font(.headline)
+                    if !step.available, let from = step.availableFrom {
+                        Text("Disponible desde el \(formatDateKey(from))")
+                            .font(.footnote)
+                            .foregroundStyle(Palette.muted)
+                    }
+                }
+                if step.action != .answerDirection && step.action != .evaluate && canSkip {
                     skipButton(episode)
                 }
             }
@@ -203,6 +223,16 @@ struct EpisodeDetailView: View {
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private func stepDestination(_ episode: EpisodeRow, action: PrimaryAction) -> some View {
+        switch action {
+        case .prepareAssets: ProductionView(episode: episode)
+        case .shareAndReply: DistributionView(episode: episode)
+        case .evaluate: EpisodeMetricsView(episode: episode)
+        default: ScriptView(episode: episode)
         }
     }
 

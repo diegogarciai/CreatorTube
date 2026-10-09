@@ -1,8 +1,9 @@
 import PlanificadorCore
 import SwiftUI
 
-/// Banco de ideas (`/c/[channelId]/ideas`): filtros Banco / En marcha /
-/// Descartadas, orden por puntaje y «Arrancar episodio».
+/// Banco de ideas (`/c/[channelId]/ideas`): filtros Banco / Sugeridas / En
+/// marcha / Descartadas, orden por puntaje, «Arrancar episodio», ideas
+/// propuestas por IA y los atípicos de la competencia.
 struct IdeasView: View {
     @Environment(AppModel.self) private var model
     @State private var ideas: [IdeaRow] = []
@@ -11,6 +12,12 @@ struct IdeasView: View {
     @State private var errorMessage: String?
     @State private var editing: IdeaEditTarget?
     @State private var startingEpisode: IdeaRow?
+    @State private var suggestTask: TaskState?
+    @State private var outliers: [OutlierRow] = []
+    @State private var hasCompetitors = false
+
+    /// Orden de los filtros en la web.
+    private static let filters: [IdeaStatus] = [.new, .suggested, .inProgress, .discarded]
 
     private var shown: [IdeaRow] {
         ideas.filter { $0.status == filter }
@@ -22,34 +29,47 @@ struct IdeasView: View {
             .map(\.element)
     }
 
+    private var newCount: Int { ideas.filter { $0.status == .new }.count }
+    private var canWrite: Bool { model.can(.writeScript) }
+
     var body: some View {
         List {
             Section {
                 Picker("Filtro", selection: $filter) {
-                    ForEach(IdeaStatus.allCases, id: \.self) { status in
-                        Text("\(status.filterLabel) (\(ideas.filter { $0.status == status }.count))").tag(status)
+                    ForEach(Self.filters, id: \.self) { status in
+                        Text(status.filterLabel).tag(status)
                     }
                 }
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
             } footer: {
-                Text("Tu banco de ideas. Las que ya son episodio viven en Producción.")
+                Text("\(shown.count) en «\(filter.filterLabel)». Las que ya son episodio viven en Producción.")
             }
 
             if let errorMessage {
                 Section { ErrorBanner(message: errorMessage) { await load() } }
             }
 
+            banner
+
+            if canWrite && (filter == .new || filter == .suggested) && suggestTask?.isActive != true {
+                Section {
+                    suggestButton
+                } footer: {
+                    Text("Claude propone ideas con tus búsquedas, comentarios, competencia y noticias del nicho; quedan en «Sugeridas» para aceptarlas o descartarlas.")
+                }
+            }
+
             ForEach(shown) { idea in
                 Button {
-                    if model.can(.writeScript) { editing = IdeaEditTarget(idea: idea) }
+                    if canWrite { editing = IdeaEditTarget(idea: idea) }
                 } label: {
-                    IdeaRowView(idea: idea)
+                    IdeaRowView(idea: idea, pillar: model.pillars.first { $0.id == idea.pillarId })
                 }
                 .buttonStyle(.plain)
                 .swipeActions(edge: .trailing) {
-                    if model.can(.writeScript) {
+                    if canWrite {
                         if idea.status == .discarded {
                             Button("Restaurar") { setStatus(idea, .new) }
                                 .tint(Palette.ok)
@@ -59,18 +79,24 @@ struct IdeasView: View {
                     }
                 }
                 .swipeActions(edge: .leading) {
-                    if model.can(.manageEpisodes) && idea.status != .discarded {
+                    if idea.status == .suggested && canWrite {
+                        Button("Aceptar") { setStatus(idea, .new) }
+                            .tint(Palette.ok)
+                    } else if model.can(.manageEpisodes) && idea.status != .discarded && idea.status != .suggested {
                         Button("Arrancar episodio") { startingEpisode = idea }
                             .tint(Palette.accent)
                     }
                 }
                 .contextMenu {
-                    if model.can(.manageEpisodes) && idea.status != .discarded {
+                    if idea.status == .suggested && canWrite {
+                        Button { setStatus(idea, .new) } label: { Label("Aceptar", systemImage: "checkmark") }
+                    }
+                    if model.can(.manageEpisodes) && idea.status != .discarded && idea.status != .suggested {
                         Button { startingEpisode = idea } label: {
                             Label("Arrancar episodio", systemImage: "film.stack")
                         }
                     }
-                    if model.can(.writeScript) {
+                    if canWrite {
                         Button { editing = IdeaEditTarget(idea: idea) } label: {
                             Label("Editar", systemImage: "pencil")
                         }
@@ -82,20 +108,21 @@ struct IdeasView: View {
                     }
                 }
             }
+
+            if filter == .new {
+                outliersSection
+            }
         }
         .overlay {
             if isLoading && ideas.isEmpty {
                 ProgressView()
-            } else if !isLoading && shown.isEmpty {
-                ContentUnavailableView(
-                    filter == .new ? "Aún no hay ideas" : "Nada por aquí",
-                    systemImage: "lightbulb",
-                    description: Text(filter == .new ? "Anota ideas propias o dolores de tu audiencia." : "No hay ideas en «\(filter.filterLabel)».")
-                )
+            } else if !isLoading && shown.isEmpty && filter != .suggested && filter != .new {
+                ContentUnavailableView("Nada por aquí", systemImage: "lightbulb",
+                                       description: Text("No hay ideas en «\(filter.filterLabel)»."))
             }
         }
         .toolbar {
-            if model.can(.writeScript) {
+            if canWrite {
                 ToolbarItem(placement: .primaryAction) {
                     Button { editing = IdeaEditTarget(idea: nil) } label: { Image(systemName: "plus") }
                         .accessibilityLabel("Nueva idea")
@@ -109,8 +136,80 @@ struct IdeasView: View {
             EpisodeFormView(mode: .create, fromIdea: idea)
         }
         .task(id: model.selectedChannelId) { await load() }
+        .task(id: suggestTask?.isActive == true) { await watchSuggestions() }
         .refreshable { await load() }
     }
+
+    // MARK: - Avisos
+
+    @ViewBuilder
+    private var banner: some View {
+        if suggestTask?.isActive == true {
+            Section {
+                Label("Claude está proponiendo ideas con tus búsquedas, comentarios, competencia y noticias del nicho. Tarda uno o dos minutos; quedan en «Sugeridas».",
+                      systemImage: "sparkles")
+                    .font(.callout)
+                    .foregroundStyle(Palette.warn)
+            }
+        } else if suggestTask?.failed == true {
+            Section {
+                Text("No se pudieron proponer ideas. Vuelve a intentarlo.")
+                    .font(.callout)
+                    .foregroundStyle(Palette.critical)
+            }
+        } else if !isLoading && canWrite && newCount < ideasLowBank && filter == .new {
+            Section {
+                Text("El banco tiene \(newCount) \(newCount == 1 ? "idea nueva" : "ideas nuevas") (conviene tener al menos \(ideasLowBank)). Pulsa «Proponer ideas» o pásalas desde Audiencia, Analítica y la competencia.")
+                    .font(.callout)
+                    .foregroundStyle(Palette.muted)
+            }
+        } else if !isLoading && shown.isEmpty && filter == .new {
+            Section {
+                Text("Anota ideas propias o pásalas desde Audiencia, Analítica y la auditoría.")
+                    .font(.callout)
+                    .foregroundStyle(Palette.muted)
+            }
+        }
+    }
+
+    private var suggestButton: some View {
+        ServerActionButton(title: "Proponer ideas", systemImage: "sparkles", cost: IdeaCredits.suggest,
+                           action: { try await model.suggestIdeas() },
+                           onDone: {
+                               filter = .suggested
+                               suggestTask = await model.latestTask(kind: "idea_suggestions")
+                           })
+            .disabled(suggestTask?.isActive == true)
+    }
+
+    // MARK: - Atípicos de la competencia
+
+    @ViewBuilder
+    private var outliersSection: some View {
+        Section {
+            if outliers.isEmpty {
+                Text(hasCompetitors
+                     ? "Por ahora ningún video de los canales que sigues se sale de lo normal."
+                     : "Agrega canales que sigues para ver sus videos atípicos (Más › Configuración del canal › Competencia).")
+                    .font(.callout)
+                    .foregroundStyle(Palette.muted)
+            }
+            ForEach(outliers) { outlier in
+                OutlierRowView(outlier: outlier,
+                               inIdeas: ideas.contains { $0.origin == .competitor && $0.notes.contains("youtu.be/\(outlier.videoId)") },
+                               canIdea: canWrite) {
+                    try await model.competitorVideoToIdea(outlier)
+                    await load()
+                }
+            }
+        } header: {
+            Text("Atípicos de la competencia")
+        } footer: {
+            Text("Videos de los últimos 60 días que superan 3 veces la mediana de su canal. Busca tu ángulo: no los copies.")
+        }
+    }
+
+    // MARK: - Datos
 
     private func load() async {
         do {
@@ -119,7 +218,24 @@ struct IdeasView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+        suggestTask = await model.latestTask(kind: "idea_suggestions")
+        outliers = (try? await model.outliers()) ?? []
+        hasCompetitors = !outliers.isEmpty || !((try? await model.competitors()) ?? []).isEmpty
         isLoading = false
+    }
+
+    /// Mientras Claude propone, revisa cada 3 s y recarga al terminar (como la web).
+    private func watchSuggestions() async {
+        guard suggestTask?.isActive == true else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(3))
+            let state = await model.latestTask(kind: "idea_suggestions")
+            if state?.isActive != true {
+                suggestTask = state
+                await load()
+                return
+            }
+        }
     }
 
     private func setStatus(_ idea: IdeaRow, _ status: IdeaStatus) {
@@ -139,8 +255,21 @@ struct IdeaEditTarget: Identifiable {
     var id: String { idea?.id ?? "new" }
 }
 
+extension IdeaOrigin {
+    /// Tono de la insignia, como en la web.
+    var tone: Tone {
+        switch self {
+        case .painPoint: .warn
+        case .recommendation: .accent
+        case .search, .competitor: .ok
+        case .own: .neutral
+        }
+    }
+}
+
 struct IdeaRowView: View {
     let idea: IdeaRow
+    var pillar: PillarRow?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -152,9 +281,24 @@ struct IdeaRowView: View {
                     Text(idea.notes)
                         .font(.caption)
                         .foregroundStyle(Palette.muted)
-                        .lineLimit(2)
+                        .lineLimit(4)
                 }
-                Badge(text: idea.origin.label, tone: idea.origin == .recommendation ? .accent : .neutral)
+                if let reasons = idea.reasons, !reasons.isEmpty {
+                    (Text("Por qué: ").bold() + Text(reasons))
+                        .font(.caption)
+                        .foregroundStyle(Palette.muted)
+                }
+                if let risk = idea.risk, !risk.isEmpty {
+                    (Text("Riesgo: ").bold() + Text(risk))
+                        .font(.caption)
+                        .foregroundStyle(Palette.muted)
+                }
+                HStack(spacing: 6) {
+                    Badge(text: idea.origin.label, tone: idea.origin.tone)
+                    if let pillar {
+                        Text("Pilar: \(pillar.name)").font(.caption2).foregroundStyle(Palette.muted)
+                    }
+                }
             }
             Spacer(minLength: 0)
             if let score = idea.score {
@@ -170,6 +314,48 @@ struct IdeaRowView: View {
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
+    }
+}
+
+/// Un video atípico de la competencia, con «Pasar a Ideas».
+struct OutlierRowView: View {
+    let outlier: OutlierRow
+    let inIdeas: Bool
+    let canIdea: Bool
+    let toIdea: () async throws -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            AsyncImage(url: outlier.thumbnailUrl.flatMap(URL.init(string:))) { image in
+                image.resizable().aspectRatio(16 / 9, contentMode: .fill)
+            } placeholder: {
+                Palette.surfaceMuted
+            }
+            .frame(width: 80, height: 45)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 4) {
+                Link(destination: URL(string: "https://youtu.be/\(outlier.videoId)")!) {
+                    Text(outlier.title ?? outlier.videoId).font(.subheadline).lineLimit(2)
+                }
+                HStack(spacing: 6) {
+                    Text("\(outlier.competitor?.title ?? "Otro canal") · \(Int(outlier.views?.value ?? 0).formatted()) vistas")
+                        .font(.caption)
+                        .foregroundStyle(Palette.muted)
+                    if let ratio = outlier.ratio?.value {
+                        Badge(text: "×" + ratio.formatted(.number.precision(.fractionLength(1))), tone: .ok)
+                    }
+                }
+                if canIdea {
+                    if inIdeas {
+                        Label("En Ideas", systemImage: "checkmark").font(.caption).foregroundStyle(Palette.ok)
+                    } else {
+                        ServerActionButton(title: "Pasar a Ideas", systemImage: "lightbulb", action: toIdea)
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 

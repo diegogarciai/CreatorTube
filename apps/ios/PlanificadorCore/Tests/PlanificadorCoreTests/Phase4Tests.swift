@@ -127,3 +127,48 @@ final class SearchTermsTests: XCTestCase {
         XCTAssertFalse(termCovered("iphone 17", texts: []))
     }
 }
+
+final class NewsletterTests: XCTestCase {
+    private func words(_ n: Int) -> String { (0..<n).map { "palabra\($0)" }.joined(separator: " ") }
+
+    func testWords() {
+        XCTAssertEqual(newsletterWords("Hola — mundo, 18 veces · ok"), 5)
+    }
+
+    func testValidate() {
+        let ok = NewsletterDraft(subject: "El iPhone 18 no es para ti (todavía)",
+                                 preheader: "Lo que medimos, lo que no te dicen y a quién sí le conviene.",
+                                 body: words(500), ctaText: "Ver el episodio",
+                                 point: "Si tu teléfono tiene menos de tres años, espera.")
+        XCTAssertEqual(validateNewsletter(ok), [])
+        let bad = NewsletterDraft(subject: String(repeating: "x", count: 56), preheader: String(repeating: "y", count: 91),
+                                  body: words(300), ctaText: "Mira el episodio completo ahora",
+                                  point: String(repeating: "z", count: 141))
+        XCTAssertEqual(validateNewsletter(bad).count, 5)
+        XCTAssertTrue(validateNewsletter(bad).contains("El cuerpo tiene 300 palabras; mínimo 400."))
+        var empty = ok
+        empty.body = words(701)
+        empty.subject = " "
+        empty.ctaText = ""
+        empty.point = ""
+        XCTAssertEqual(validateNewsletter(empty), [
+            "Falta el asunto.", "El cuerpo tiene 701 palabras; máximo 700.", "Falta el texto del botón.", "Falta «el punto».",
+        ])
+    }
+
+    func testImportantComments() {
+        func c(_ id: String, _ kind: CommentKind?, flags: [String] = [], likes: Int = 0, valid: Bool? = nil) -> NewsletterComment {
+            NewsletterComment(id: id, text: id, kind: kind, flags: flags, likes: likes, replies: 0, correctionValid: valid)
+        }
+        let ranked = importantComments([
+            c("elogio", .elogio, likes: 2),
+            c("troll", .trollSpam, likes: 50),
+            c("marcado", .preguntaTecnica, flags: ["riesgo_legal"]),
+            c("correccion", .correccion),
+            c("pregunta", .preguntaTecnica),
+        ], max: 10)
+        XCTAssertEqual(ranked.map(\.id), ["correccion", "elogio", "pregunta"])
+        XCTAssertEqual(commentImportance(c("x", .trollSpam)), -1)
+        XCTAssertEqual(commentImportance(c("x", .correccion, valid: false)), 2)
+    }
+}
