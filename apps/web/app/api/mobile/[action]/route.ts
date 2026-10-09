@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshAnalytics } from "@/lib/actions/analytics";
-import { disconnectYouTube, syncChannelNow, updateChannelProfile } from "@/lib/actions/channels";
+import { saveBrandKit, setBrandLogo } from "@/lib/actions/brand";
+import {
+  disconnectYouTube,
+  publishWriterGuide,
+  syncChannelNow,
+  updateChannelProfile,
+} from "@/lib/actions/channels";
 import { prepareDirection, saveDirection } from "@/lib/actions/direction";
 import { removeMember, updateMember } from "@/lib/actions/members";
 import { decideClaim, deletePodcast, deleteScript, startScript } from "@/lib/actions/script";
@@ -69,6 +75,10 @@ const ACTIONS: Record<string, (...args: any[]) => Promise<unknown>> = {
   youtubeConnectLink,
   // Canal y equipo (piden service role)
   updateChannelProfile,
+  // Guía del guionista y kit de marca (validan con los esquemas de la web)
+  publishWriterGuide,
+  saveBrandKit,
+  setBrandLogo,
   updateMember,
   removeMember,
 };
