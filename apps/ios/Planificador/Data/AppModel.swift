@@ -29,6 +29,9 @@ final class AppModel {
 
     var episodes: [EpisodeRow] = []
     var pillars: [PillarRow] = []
+    var checklistSteps: [ChecklistStepRow] = []
+    /// Pasos marcados por episodio.
+    var checklistDone: [String: Set<String>] = [:]
     var isLoadingEpisodes = false
     var episodesError: String?
 
@@ -110,6 +113,8 @@ final class AppModel {
         pendingInvitations = []
         episodes = []
         pillars = []
+        checklistSteps = []
+        checklistDone = [:]
         selectedChannelId = nil
         Task { await NotificationScheduler.shared.clear() }
         workspaceError = nil
@@ -188,11 +193,28 @@ final class AppModel {
                 .order("position")
                 .execute()
                 .value
+            async let stepsQuery: [ChecklistStepRow] = client
+                .from("checklist_steps")
+                .select(ChecklistStepRow.columns)
+                .eq("channel_id", value: channelId)
+                .filter("archived_at", operator: "is", value: "null")
+                .order("position")
+                .execute()
+                .value
+            async let itemsQuery: [ChecklistItemRow] = client
+                .from("episode_checklist_items")
+                .select("episode_id, step_id")
+                .eq("channel_id", value: channelId)
+                .execute()
+                .value
             let (rows, pillarRows) = try await (episodesQuery, pillarsQuery)
+            let (stepRows, itemRows) = try await (stepsQuery, itemsQuery)
             // Si el usuario cambió de canal mientras cargaba, se descarta.
             if channelId == selectedChannelId {
                 episodes = rows
                 pillars = pillarRows
+                checklistSteps = stepRows
+                checklistDone = Dictionary(grouping: itemRows, by: \.episodeId).mapValues { Set($0.map(\.stepId)) }
                 await NotificationScheduler.shared.reschedule(model: self)
             }
         } catch {
@@ -249,7 +271,15 @@ final class AppModel {
                 publishDate: draft.publishDate,
                 recordDate: draft.recordDate,
                 pillarId: draft.pillarId,
-                notes: draft.notes
+                notes: draft.notes,
+                priority: draft.priority,
+                stance: draft.stance.trimmingCharacters(in: .whitespacesAndNewlines),
+                stanceConfirmed: draft.stanceConfirmed,
+                keywords: draft.keywords,
+                episodeType: draft.episodeType,
+                targetMinutes: draft.targetMinutes,
+                sponsorship: draft.sponsorship,
+                ownMeasurements: draft.ownMeasurements
             ))
             .eq("id", value: episode.id)
             .execute()
@@ -266,6 +296,148 @@ final class AppModel {
             .eq("id", value: episode.id)
             .execute()
         await loadEpisodes()
+    }
+
+    // MARK: - Etapas, video, checklist y actividad
+
+    func plannedEpisode(_ episode: EpisodeRow) -> PlannedEpisode {
+        episode.planned(timeZone: timeZone)
+    }
+
+    func nextStepFor(_ episode: EpisodeRow) -> NextStep {
+        nextStep(plannedEpisode(episode), today: today)
+    }
+
+    /// Quién puede ejecutar la acción principal (como `canAct` en la web).
+    func canAct(on step: NextStep) -> Bool {
+        if can(.manageEpisodes) { return true }
+        if can(.editVideo) && step.action == .markRecorded { return true }
+        if can(.writeScript) && [.direction, .script, .verification].contains(step.stage) { return true }
+        return false
+    }
+
+    /// Completa la etapa actual (`completeEpisodeStage`).
+    func completeCurrentStage(_ episode: EpisodeRow) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        let planned = plannedEpisode(episode)
+        let step = nextStep(planned, today: today)
+        guard step.available || step.canSkip, step.action != .linkVideo,
+              let change = completeStage(planned)
+        else { throw AppError.stageLocked }
+        let allowed = can(.manageEpisodes) || (can(.editVideo) && episode.stage == .recording)
+        guard allowed, canChangeStatus(membership?.role ?? .viewer, from: episode.status, to: change.status) else {
+            throw AppError.forbiddenEdit
+        }
+        try await client
+            .from("episodes")
+            .update(StatusUpdate(status: change.status, stage: change.stage))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
+    func videoInfo(_ videoId: String) async -> YouTubeVideoInfo? {
+        guard let client = supabase, let channelId = selectedChannelId else { return nil }
+        let rows: [YouTubeVideoInfo]? = try? await client
+            .from("youtube_videos")
+            .select(YouTubeVideoInfo.columns)
+            .eq("channel_id", value: channelId)
+            .eq("video_id", value: videoId)
+            .limit(1)
+            .execute()
+            .value
+        return rows?.first
+    }
+
+    /// Vincula el video de YouTube (`linkEpisodeVideo`). Si la sincronización
+    /// ya lo conoce aplica su estado real; si no, queda Programado.
+    func linkVideo(_ episode: EpisodeRow, input: String) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        guard let videoId = parseYouTubeVideoId(input) else { throw AppError.invalidVideo }
+        let info = await videoInfo(videoId)
+        var linked = plannedEpisode(episode)
+        linked.youtubeVideoId = videoId
+        var update = VideoLinkUpdate(youtubeVideoId: videoId)
+        update.change = stageChangeForLinkedVideo(
+            linked,
+            privacy: info?.privacy,
+            publishAt: info?.publishAt.flatMap(Timestamp.parse)
+        )
+        update.publishedAt = info?.publishedAt
+        update.scheduledAt = info?.publishAt
+        try await client.from("episodes").update(update).eq("id", value: episode.id).execute()
+        await loadEpisodes()
+    }
+
+    func unlinkVideo(_ episode: EpisodeRow) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("episodes")
+            .update(VideoLinkUpdate(youtubeVideoId: nil))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
+    var canToggleChecklist: Bool { can(.manageEpisodes) || can(.editVideo) }
+
+    func steps(_ phase: ChecklistPhase) -> [ChecklistStepRow] {
+        checklistSteps.filter { $0.phase == phase }.sorted { $0.position < $1.position }
+    }
+
+    /// Progreso del checklist del episodio, contando solo pasos activos.
+    func checklistProgress(_ episodeId: String, phase: ChecklistPhase? = nil) -> (done: Int, total: Int) {
+        let active = checklistSteps.filter { phase == nil || $0.phase == phase }
+        let done = checklistDone[episodeId] ?? []
+        return (active.filter { done.contains($0.id) }.count, active.count)
+    }
+
+    /// Marca o desmarca un paso (`toggleChecklistItem`). Se aplica al momento
+    /// en pantalla y se revierte si la base lo rechaza.
+    func toggleChecklist(_ episodeId: String, stepId: String, done: Bool) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard canToggleChecklist else { throw AppError.forbiddenEdit }
+        let previous = checklistDone[episodeId] ?? []
+        var next = previous
+        if done { next.insert(stepId) } else { next.remove(stepId) }
+        checklistDone[episodeId] = next
+        do {
+            if done {
+                try await client
+                    .from("episode_checklist_items")
+                    .upsert(
+                        ChecklistItemInsert(episodeId: episodeId, stepId: stepId, doneBy: userId),
+                        onConflict: "episode_id,step_id",
+                        ignoreDuplicates: true
+                    )
+                    .execute()
+            } else {
+                try await client
+                    .from("episode_checklist_items")
+                    .delete()
+                    .eq("episode_id", value: episodeId)
+                    .eq("step_id", value: stepId)
+                    .execute()
+            }
+        } catch {
+            checklistDone[episodeId] = previous
+            throw error
+        }
+    }
+
+    func activity(_ episodeId: String) async -> [ActivityRow] {
+        guard let client = supabase else { return [] }
+        let rows: [ActivityRow]? = try? await client
+            .from("activity_log")
+            .select(ActivityRow.columns)
+            .eq("episode_id", value: episodeId)
+            .order("created_at", ascending: false)
+            .limit(20)
+            .execute()
+            .value
+        return rows ?? []
     }
 
     func pillar(id: String?) -> PillarRow? {
@@ -286,12 +458,16 @@ enum AppError: LocalizedError {
     case forbidden
     case forbiddenEdit
     case notReady
+    case stageLocked
+    case invalidVideo
 
     var errorDescription: String? {
         switch self {
         case .forbidden: return "Tu rol no puede mover el episodio a ese estado."
         case .forbiddenEdit: return "Tu rol no permite esta acción."
         case .notReady: return "No hay un canal elegido."
+        case .stageLocked: return "Esta etapa no se puede completar todavía."
+        case .invalidVideo: return "No reconocemos ese enlace de YouTube."
         }
     }
 }
