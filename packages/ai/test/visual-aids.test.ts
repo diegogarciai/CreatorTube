@@ -113,7 +113,11 @@ describe("plan de ayudas visuales", () => {
     expect(out.kept[1]).toMatchObject({ elements: [], rows: [], piece: null, scores: null });
     expect(out.kept[0]).toMatchObject({ piece: "bars", vertical: true, durationS: 6 });
     expect(out.dropped).toEqual([
-      { code: "M2", reasons: ["La fila #2 no está Verificada ni Con matiz."] },
+      expect.objectContaining({
+        code: "M2",
+        kind: "M",
+        reasons: ["La fila #2 no está Verificada ni Con matiz."],
+      }),
     ]);
     const user = String((calls[0]!.messages as { content: string }[])[0]!.content);
     expect(user).toContain("## Sección 12 de la guía\n12. AYUDAS VISUALES");

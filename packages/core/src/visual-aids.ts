@@ -166,11 +166,13 @@ export function paragraphOf(paragraphs: readonly string[], anchor: string): numb
   return paragraphs.findIndex((p) => fold(p).includes(a));
 }
 
+export type DroppedAid = { code: string; kind?: AidKind; title?: string; reasons: string[] };
+
 export type PlanCheck = {
   /** Las ayudas que pasan, en orden de guion, con su párrafo. */
   kept: (VisualAid & { paragraph: number })[];
-  /** Las que se descartan y por qué. */
-  dropped: { code: string; reasons: string[] }[];
+  /** Las que se descartan y por qué (con su tipo y título, para mostrarlas). */
+  dropped: DroppedAid[];
 };
 
 /**
@@ -193,7 +195,7 @@ export function checkPlan(
     if (a.paragraph < 0) reasons.push("Su ancla no aparece en el guion verificado.");
     if (a.kind === "M" && scoreTotal(a.scores) < MIN_MOTION_SCORE)
       reasons.push(`Suma ${scoreTotal(a.scores)}/20; una M necesita ${MIN_MOTION_SCORE}.`);
-    if (reasons.length) dropped.push({ code: a.code, reasons });
+    if (reasons.length) dropped.push({ code: a.code, kind: a.kind, title: a.title, reasons });
     return !reasons.length;
   });
 
@@ -208,7 +210,7 @@ export function checkPlan(
       reasons.push("Otra M ya está en ese párrafo o en uno seguido.");
     if (m.piece && motions.some((o) => o.piece === m.piece))
       reasons.push("Esa pieza ya se usa en otra M del episodio.");
-    if (reasons.length) dropped.push({ code: m.code, reasons });
+    if (reasons.length) dropped.push({ code: m.code, kind: m.kind, title: m.title, reasons });
     else motions.push(m);
   }
   // Una sola vertical: la de más puntaje que la pidió.
@@ -229,7 +231,7 @@ export function checkPlan(
       const term = fold(a.title);
       if (a.kind === "C" && terms.has(term)) reasons.push("Ese término ya tiene su etiqueta.");
       if (a.kind === "C" && !reasons.length) terms.add(term);
-      if (reasons.length) dropped.push({ code: a.code, reasons });
+      if (reasons.length) dropped.push({ code: a.code, kind: a.kind, title: a.title, reasons });
       return !reasons.length;
     });
 
