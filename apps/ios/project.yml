@@ -45,6 +45,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         SUPABASE_URL: $(SUPABASE_URL)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+        WEB_URL: $(WEB_URL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gartechs.planificador

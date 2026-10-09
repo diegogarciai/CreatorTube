@@ -90,6 +90,8 @@ public struct PlannedEpisode: Equatable, Sendable {
     public var archivedAt: Date?
     /// Instante del último cambio de estado.
     public var statusChangedAt: Date
+    /// Cuándo se hizo la evaluación a los 7 días.
+    public var evaluatedAt: Date?
 
     public init(
         id: String,
@@ -101,7 +103,8 @@ public struct PlannedEpisode: Equatable, Sendable {
         youtubeVideoId: String? = nil,
         publishedOn: DateKey? = nil,
         archivedAt: Date? = nil,
-        statusChangedAt: Date
+        statusChangedAt: Date,
+        evaluatedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -113,6 +116,7 @@ public struct PlannedEpisode: Equatable, Sendable {
         self.publishedOn = publishedOn
         self.archivedAt = archivedAt
         self.statusChangedAt = statusChangedAt
+        self.evaluatedAt = evaluatedAt
     }
 
     public var isActive: Bool { archivedAt == nil }
@@ -121,3 +125,44 @@ public struct PlannedEpisode: Equatable, Sendable {
     /// ya salió; si no, la planeada.
     public var effectiveDate: DateKey? { publishedOn ?? publishDate }
 }
+
+public enum Priority: String, CaseIterable, Codable, Sendable {
+    case low, normal, high
+
+    public var label: String {
+        switch self {
+        case .low: return "Baja"
+        case .normal: return "Normal"
+        case .high: return "Alta"
+        }
+    }
+}
+
+/// Ficha de entrada: tipo de episodio (`EPISODE_TYPES`).
+public enum EpisodeType: String, CaseIterable, Codable, Sendable {
+    case product, explainer, news, opinion
+
+    public var label: String {
+        switch self {
+        case .product: return "Producto o compra"
+        case .explainer: return "Explicativo"
+        case .news: return "Actualidad con análisis"
+        case .opinion: return "Opinión o debate"
+        }
+    }
+}
+
+/// Patrocinio (`SPONSORSHIPS`). `nil` en el episodio = sin confirmar.
+public enum Sponsorship: String, CaseIterable, Codable, Sendable {
+    case none, sponsor, affiliate
+
+    public var label: String {
+        switch self {
+        case .none: return "No"
+        case .sponsor: return "Patrocinio"
+        case .affiliate: return "Enlaces de afiliado"
+        }
+    }
+}
+
+public let targetMinuteOptions = [5, 8, 10, 12, 14]

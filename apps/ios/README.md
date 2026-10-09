@@ -2,14 +2,32 @@
 
 App nativa en SwiftUI que habla directo con la misma base de Supabase que la web. Usa la clave anon y la sesión del usuario, así que las políticas de RLS aplican igual que en la web: cada persona ve solo sus canales y su rol decide qué puede mover.
 
-## Qué hace (v0.1)
+## Qué hace
 
-- **Entrar** con Google o con el código de 6 a 10 dígitos que llega por correo (el mismo correo del enlace mágico de la web). El registro sigue siendo solo por invitación.
-- **Canal**: recuerda el último canal usado o abre el primero por nombre, igual que `/app` en la web. Si no tienes canales, lista tus invitaciones pendientes.
-- **Inicio**: meta de la semana, racha, cobertura de las próximas 2 semanas, alertas, próximas fechas (14 días) y señales del canal.
-- **Episodios**: agrupados por estado, con búsqueda. Crear (+), editar (título, formato, pilar, fechas y notas), archivar y cambiar el estado, según tu rol.
-- **Calendario**: el mes con puntos por día (relleno = publicar, contorno = grabar). Al tocar un día ves sus episodios y puedes crear uno en esa fecha; debajo aparecen los que no tienen fecha.
-- **Avisos** (menú de cuenta → Avisos…): un resumen diario, a la hora que elijas, con las alertas críticas y de atención del canal para los próximos 7 días. Se recalculan cada vez que abres la app.
+Está a la par con la web en todo lo del día a día. Pestañas: **Inicio**, **Ideas**, **Producción**, **Calendario** y **Más**.
+
+- **Entrar** con Google o con el código del correo. El registro sigue siendo solo por invitación; también se acepta una invitación pegando su enlace.
+- **Inicio**: meta de la semana, racha, cobertura, alertas, próximas fechas y señales del canal.
+- **Ideas**: banco con filtros y puntaje; crear, editar, descartar y «Arrancar episodio».
+- **Producción**: lista o tablero por estado, búsqueda y archivados. Crear, editar y archivar episodios y moverlos de estado según el rol.
+- **Ficha del episodio**:
+  - etapas y siguiente paso, todos los campos y la ficha de entrada;
+  - vincular el video, checklist y actividad;
+  - **Guion**: dirección, etapas, verificación y corridas, con las acciones de IA;
+  - **Producción**: ayudas visuales, miniaturas, recursos y títulos, con las acciones de IA;
+  - **Métricas**: retención por párrafo.
+- **Calendario**: el mes con puntos por día, crear en un día, cambiar fechas y suscribirse al ICS.
+- **Más**:
+  - todos mis canales y búsqueda;
+  - analítica y «Así te fue ayer»;
+  - tareas en curso;
+  - configuración del canal: perfil, ritmo, pilares, checklist, fotos del presentador, ICS, YouTube (sincronizar, desconectar, importar videos);
+  - espacio y equipo: créditos, miembros, invitar, roles;
+  - avisos diarios y nuevo canal.
+
+**Sigue solo en la web**: conectar YouTube (OAuth), la guía del guionista, el kit de marca, editar los textos de una ayuda visual y el panel de administración.
+
+**Lo que usa IA o YouTube** pasa por `POST /api/mobile/<acción>` en la web, con la sesión de la app en `Authorization: Bearer`. Son las mismas acciones del servidor, con los mismos permisos y costos. Si la web todavía no tiene esa ruta, la app avisa que la función no está disponible.
 
 ## Estructura
 
@@ -21,7 +39,7 @@ apps/ios
 └── PlanificadorCore/      Paquete Swift con la lógica pura, port 1:1 de packages/core
 ```
 
-`PlanificadorCore` replica `packages/core/src/{time,planning,signals,thresholds,permissions}.ts` y sus pruebas. **Si cambia una regla en la web (umbrales, alertas, permisos), hay que cambiarla también aquí.** El flujo de CI `iOS` corre esas pruebas en cada cambio de `apps/ios`.
+`PlanificadorCore` replica la lógica pura de la web con sus pruebas: `packages/core/src/{time,planning,signals,thresholds,permissions,episodes,ideas,retention}.ts` y `apps/web/lib/daily-report.ts`. **Si cambia una regla en la web (umbrales, alertas, permisos), hay que cambiarla también aquí.** El flujo de CI `iOS` corre esas pruebas en cada cambio de `apps/ios`.
 
 ## Cómo abrirla en tu Mac
 

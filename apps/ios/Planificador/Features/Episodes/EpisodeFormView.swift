@@ -9,6 +9,17 @@ struct EpisodeDraft {
     var recordDate: DateKey?
     var pillarId: String?
     var notes = ""
+    /// Idea de la que nace el episodio («Arrancar episodio»).
+    var ideaId: String?
+    // Ficha de entrada (solo al editar).
+    var priority: Priority = .normal
+    var stance = ""
+    var stanceConfirmed = false
+    var keywordsText = ""
+    var episodeType: EpisodeType?
+    var targetMinutes = 10
+    var sponsorship: Sponsorship?
+    var ownMeasurements = ""
 
     init() {}
 
@@ -19,6 +30,24 @@ struct EpisodeDraft {
         recordDate = episode.recordDate
         pillarId = episode.pillarId
         notes = episode.notes ?? ""
+        priority = episode.priorityValue
+        stance = episode.stance ?? ""
+        stanceConfirmed = episode.stanceConfirmed ?? false
+        keywordsText = (episode.keywords ?? []).joined(separator: ", ")
+        episodeType = episode.episodeTypeValue
+        targetMinutes = episode.targetMinutes ?? 10
+        sponsorship = episode.sponsorshipValue
+        ownMeasurements = episode.ownMeasurements ?? ""
+    }
+
+    /// Palabras clave separadas por comas (máximo 30, de hasta 80 caracteres).
+    var keywords: [String] {
+        Array(
+            keywordsText.split(separator: ",")
+                .map { String($0.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)) }
+                .filter { !$0.isEmpty }
+                .prefix(30)
+        )
     }
 
     var cleanTitle: String {
@@ -28,6 +57,7 @@ struct EpisodeDraft {
     /// Mismas reglas que `episodeCreateSchema`: título de 1 a 200 caracteres.
     var isValid: Bool {
         !cleanTitle.isEmpty && cleanTitle.count <= 200 && notes.count <= 20_000
+            && stance.count <= 500 && ownMeasurements.count <= 5000
     }
 }
 
@@ -47,16 +77,25 @@ struct EpisodeFormView: View {
     @State private var errorMessage: String?
     @FocusState private var titleFocused: Bool
 
-    init(mode: Mode, initialPublishDate: DateKey? = nil) {
+    init(mode: Mode, initialPublishDate: DateKey? = nil, fromIdea idea: IdeaRow? = nil) {
         self.mode = mode
         switch mode {
         case .create:
             var d = EpisodeDraft()
             d.publishDate = initialPublishDate
+            if let idea {
+                d.title = String(idea.title.prefix(200))
+                d.ideaId = idea.id
+            }
             _draft = State(initialValue: d)
         case .edit(let episode):
             _draft = State(initialValue: EpisodeDraft(episode))
         }
+    }
+
+    /// Opciones de duración, incluyendo la actual si no es una de las típicas.
+    private var minuteOptions: [Int] {
+        Array(Set(targetMinuteOptions + [draft.targetMinutes])).sorted()
     }
 
     private var isEditing: Bool {
@@ -94,6 +133,41 @@ struct EpisodeFormView: View {
                 }
 
                 if isEditing {
+                    Section("Detalles") {
+                        Picker("Prioridad", selection: $draft.priority) {
+                            ForEach(Priority.allCases, id: \.self) { Text($0.label).tag($0) }
+                        }
+                        TextField("Palabras clave, separadas por comas", text: $draft.keywordsText, axis: .vertical)
+                            .lineLimit(1...3)
+                            .textInputAutocapitalization(.never)
+                    }
+
+                    Section {
+                        Picker("Tipo de episodio", selection: $draft.episodeType) {
+                            Text("Que lo elija el guionista").tag(EpisodeType?.none)
+                            ForEach(EpisodeType.allCases, id: \.self) { Text($0.label).tag(EpisodeType?.some($0)) }
+                        }
+                        Picker("Duración objetivo", selection: $draft.targetMinutes) {
+                            ForEach(minuteOptions, id: \.self) { Text("\($0) minutos").tag($0) }
+                        }
+                        TextField("Qué defiende este episodio, en una frase", text: $draft.stance, axis: .vertical)
+                            .lineLimit(1...4)
+                        Toggle("Postura confirmada por mí", isOn: $draft.stanceConfirmed)
+                        Picker("Patrocinio o afiliados", selection: $draft.sponsorship) {
+                            Text("Sin confirmar").tag(Sponsorship?.none)
+                            ForEach(Sponsorship.allCases, id: \.self) { Text($0.label).tag(Sponsorship?.some($0)) }
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mediciones propias").font(.footnote).foregroundStyle(Palette.muted)
+                            TextEditor(text: $draft.ownMeasurements)
+                                .frame(minHeight: 80)
+                        }
+                    } header: {
+                        Text("Ficha de entrada")
+                    } footer: {
+                        Text("Lo que solo tú puedes dar. Lo que dejes vacío lo decide el guionista con las reglas. Si la postura no está confirmada, el guion la marca POSTURA SIN CONFIRMAR.")
+                    }
+
                     Section("Notas") {
                         TextEditor(text: $draft.notes)
                             .frame(minHeight: 120)

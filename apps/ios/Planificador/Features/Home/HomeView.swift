@@ -39,10 +39,7 @@ struct HomeView: View {
                     ErrorBanner(message: error) { await model.loadEpisodes() }
                 }
                 if model.selectedChannel?.onboardingCompletedAt == nil {
-                    Card(title: "Configuración pendiente") {
-                        Text("Termina de configurar este canal en la versión web.")
-                            .font(.callout)
-                    }
+                    OnboardingCard()
                 }
                 if model.episodes.isEmpty && !model.isLoadingEpisodes {
                     emptyState
