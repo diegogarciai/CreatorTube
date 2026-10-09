@@ -887,7 +887,8 @@
     "newsletter_no_segment": "Falta el segmento de Resend en Ajustes › Boletín.",
     "newsletter_schedule": "Elige una fecha entre 5 minutos y 30 días desde ahora.",
     "email_not_configured": "Falta la clave de Resend (RESEND_API_KEY) en Vercel.",
-    "no_email": "Tu cuenta no tiene correo."
+    "no_email": "Tu cuenta no tiene correo.",
+    "newsletter_no_material": "Escribe tus apreciaciones o termina el guion verificado: el boletín sale de ahí."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -1669,8 +1670,7 @@
   },
   "newsletter": {
     "title": "Boletín {name}",
-    "subtitle": "Uno por semana: Claude lo redacta con lo publicado en los últimos 7 días; lo revisas, te mandas una prueba y lo envías o lo programas.",
-    "draft": "Redactar el boletín",
+    "subtitle": "El semanal resume los videos que eliges; el de cada episodio (con tus apreciaciones) se redacta desde su pestaña Difusión. Los revisas, te mandas una prueba y los envías cuando quieras.",
     "redo": "Rehacer el borrador",
     "redoConfirm": "Se reescribe el borrador de esta semana y se pierde lo que editaste. ¿Seguir?",
     "draftingShort": "Redactando…",
@@ -1686,10 +1686,9 @@
       "sender": "el correo del remitente"
     },
     "emptyTitle": "Sin boletín para la semana del {date}",
-    "emptyDesc": "{count, plural, one {Hay # episodio publicado} other {Hay # episodios publicados}} en los últimos 7 días: Claude puede redactar el boletín.",
-    "noEpisodes": "No hay episodios publicados en los últimos 7 días. El boletín sale de lo publicado en la semana.",
+    "emptyDesc": "Elige a la derecha los videos que entran y Claude redacta el resumen con tu voz.",
+    "noEpisodes": "No hay episodios publicados en los últimos 30 días para el resumen semanal.",
     "emptyPast": "Esa semana no tuvo boletín.",
-    "episodes": "Episodios de la semana",
     "history": "Boletines",
     "noHistory": "Todavía no hay boletines.",
     "weekOf": "Semana del {date}",
@@ -1737,6 +1736,24 @@
     "confirmSchedule": "Programar",
     "sent": "Boletín enviado",
     "scheduled": "Boletín programado",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "send": "Enviar boletín",
+    "pickTitle": "Videos de este boletín",
+    "pickDesc": "Elige hasta 5 de los publicados en los últimos 30 días.",
+    "noCandidates": "No hay videos publicados en los últimos 30 días.",
+    "draftWeekly": "{count, plural, =0 {Elige los videos} one {Redactar con # video} other {Redactar con # videos}}",
+    "historyDesc": "Los semanales y los de cada episodio.",
+    "episodeOf": "Episodio: {title}",
+    "episodeHeading": "El borrador",
+    "episodeTitle": "Boletín de este episodio",
+    "episodeDesc": "Tus apreciaciones del episodio, escritas por Claude con tu voz y reforzadas con los comentarios que elijas. Se envía cuando tú lo decidas.",
+    "notes": "Tus apreciaciones",
+    "notesHint": "(opcional: sin notas, salen de tu postura y el guion)",
+    "notesPlaceholder": "Lo que piensas del tema, lo que te sorprendió, lo que no entró en el video, a quién se lo recomiendas…",
+    "commentsTitle": "Comentarios importantes",
+    "commentsHint": "{count} de {max} elegidos · primero los que más aportan",
+    "noComments": "Este episodio todavía no tiene comentarios leídos.",
+    "draftEpisode": "Redactar el boletín",
+    "episodeNone": "Todavía no hay boletín de este episodio."
   }
 }

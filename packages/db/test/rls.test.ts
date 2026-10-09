@@ -1033,6 +1033,25 @@ describe("Boletín semanal", () => {
       "insert into public.distribution_settings (channel_id, newsletter_segment_id) values ($1, '202ab985-8977-433a-a777-51648033c69e')",
       [ch],
     );
+    // Uno por episodio, sin semana; un semanal sin semana no vale.
+    const [ep] = await sql(
+      "insert into public.episodes (channel_id, title) values ($1, 'Episodio') returning id",
+      [ch],
+    );
+    const [byEpisode] = await sql(
+      "insert into public.newsletters (channel_id, kind, episode_id, notes, comment_ids) values ($1, 'episode', $2, 'Mis notas', '{c1,c2}') returning kind, week_start",
+      [ch, ep.id],
+    );
+    expect(byEpisode).toEqual({ kind: "episode", week_start: null });
+    await expect(
+      sql(
+        "insert into public.newsletters (channel_id, kind, episode_id) values ($1, 'episode', $2)",
+        [ch, ep.id],
+      ),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      sql("insert into public.newsletters (channel_id, kind) values ($1, 'weekly')", [ch]),
+    ).rejects.toThrow(/newsletters_kind_scope/);
   });
 });
 

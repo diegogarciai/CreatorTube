@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  commentImportance,
+  importantComments,
   markdownToHtml,
   markdownToText,
   newsletterIssueText,
@@ -71,5 +73,33 @@ describe("boletín", () => {
         "malo (javascript:alert(1))",
       ].join("\n\n"),
     );
+  });
+
+  it("elige los comentarios importantes: tipo y apoyo, sin trolls ni marcados", () => {
+    const c = (id: string, kind: string | null, likes = 0, extra = {}) => ({
+      id,
+      kind: kind as never,
+      flags: [] as string[],
+      likes,
+      replies: 0,
+      ...extra,
+    });
+    const list = [
+      c("elogio", "elogio", 2),
+      c("pregunta", "pregunta_tecnica", 3),
+      c("correccion", "correccion", 0, { correctionValid: true }),
+      c("correccion-mala", "correccion", 0, { correctionValid: false }),
+      c("viral", "elogio", 200),
+      c("troll", "troll_spam", 500),
+      c("marcado", "pregunta_tecnica", 50, { flags: ["datos_personales"] }),
+    ];
+    expect(importantComments(list, 4).map((x) => x.id)).toEqual([
+      "viral",
+      "pregunta",
+      "correccion",
+      "elogio",
+    ]);
+    expect(commentImportance(list[5]!)).toBe(-1);
+    expect(importantComments(list, 10)).toHaveLength(5);
   });
 });

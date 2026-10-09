@@ -203,26 +203,32 @@ La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings
 
 ### Boletín y resumen semanal (paso 5)
 
-**Boletín (§21, hecho):**
+**Boletín (§21, hecho):** hay dos, y los dos se escriben con la voz de Diego, en primera persona.
 
-- **Dónde:** la sección «Boletín» del menú. Hay uno por semana (la semana local del canal), con su historial.
-- **Redacción:** a pedido, con «Redactar el boletín» (unos 15 créditos, etapa Difusión). Claude usa:
-  - los episodios publicados en los últimos 7 días (hasta 3): el guion verificado, la postura, la tabla de verificación (solo las cifras verificadas o con matiz) y lo que preguntó la audiencia;
-  - las secciones 2 y 21 de la guía.
+- **El de cada episodio:** el botón «Enviar boletín» de la cabecera lleva a la tarjeta del boletín, en la pestaña Difusión.
+  - Diego escribe sus apreciaciones (opcional) y elige hasta 12 comentarios importantes. Vienen marcados los 6 que más aportan: primero las correcciones, las preguntas y los desacuerdos, ordenados por likes; los trolls y los comentarios marcados no aparecen.
+  - Claude desarrolla esas apreciaciones sin contradecirlas y las refuerza con los comentarios, sin nombres. Sin notas, las saca de la postura y del guion.
+  - Se envía cuando Diego lo decide. Hay uno por episodio.
+- **El semanal:** en la sección «Boletín», Diego elige hasta 5 videos publicados en los últimos 30 días, y Claude redacta un resumen de esos. Toma solo, de cada video, sus 3 comentarios más importantes. Hay uno por semana.
+- **Material de los dos:** el guion verificado, la postura, la tabla de verificación (solo cifras verificadas o con matiz), la lectura de comentarios y las secciones 2 y 21 de la guía. Cada redacción cuesta unos 15 créditos, en la etapa Difusión.
+- **Cómo se guarda:** la web deja el borrador con lo que eligió Diego, unido a la tarea por `task_id`, y la tarea lo completa.
 - **Formato:**
-  - asunto de 55 caracteres como máximo y preheader de 90 como máximo;
+  - asunto de 55 caracteres como máximo y preheader de 90;
   - cuerpo de 400 a 700 palabras, en markdown sencillo;
-  - botón de 4 palabras como máximo, que lleva al episodio que elige Claude;
-  - «el punto» de 140 caracteres como máximo;
-  - si algo no cumple, se corrige una vez; lo que siga sin cumplir se marca en el editor y bloquea el envío.
+  - botón de 4 palabras como máximo;
+  - «el punto» de 140 caracteres como máximo.
+
+  Si algo no cumple, se corrige una vez. Lo que siga sin cumplir se marca en el editor y bloquea el envío.
+
 - **Diseño:** 600 px con el acento del kit de marca, preheader oculto y el enlace de baja de Resend (`{{{RESEND_UNSUBSCRIBE_URL}}}`).
 - **Envío (permiso `publish`):**
   - se edita con vista previa en vivo;
   - «Enviarme una prueba» lo manda solo a quien lo pide;
-  - «Enviar ahora» o «Programar» (de 5 minutos a 30 días) piden confirmación y crean el Broadcast en Resend con `send: true` al segmento del canal;
+  - «Enviar ahora» o «Programar» (de 5 minutos a 30 días) piden confirmación y crean el Broadcast en Resend con `send: true`, al segmento del canal;
   - después ya no se edita; una programación se cancela en Resend.
+- **Historial:** la sección «Boletín» lista los semanales y los de cada episodio.
 - **Ajustes › Boletín:** el nombre, el remitente (un correo del dominio verificado en Resend) y el ID del segmento.
-- **Pendiente:** el envío automático cada semana (que se redacte y salga solo, por ejemplo el lunes). Por ahora todo es a pedido, como pidió Diego.
+- **Pendiente:** el envío automático cada semana. Por ahora todo es a pedido.
 
 **Resumen semanal (hecho):**
 

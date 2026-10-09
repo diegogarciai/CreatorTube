@@ -1,69 +1,96 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
+import { NEWSLETTER_MAX_EPISODES } from "@planificador/core";
 import { Button } from "@/components/ui/button";
 import { draftNewsletter } from "@/lib/actions/newsletter";
-import { createClient } from "@/lib/supabase/browser";
 import { NEWSLETTER_ESTIMATE_CREDITS } from "@/lib/tasks";
 import { useActionError } from "@/lib/use-action-error";
+import { useNewsletterTaskWatch } from "./use-task-watch";
 
-/** «Redactar el boletín»: Claude lo escribe con lo publicado en la semana. */
-export function DraftNewsletterButton({
+export interface CandidateEpisode {
+  id: string;
+  title: string;
+  /** Fecha de publicación ya formateada. */
+  published: string;
+}
+
+/**
+ * El semanal: Diego elige los videos que entran (hasta 5) y Claude redacta el
+ * resumen. Rehacer pisa lo editado.
+ */
+export function WeeklyDraft({
   channelId,
+  candidates,
+  initial,
   active,
   redo,
-  variant = "secondary",
 }: {
   channelId: string;
+  candidates: CandidateEpisode[];
+  initial: string[];
   active: boolean;
-  /** Ya hay borrador: rehacerlo pisa lo editado. */
-  redo?: boolean;
-  variant?: "primary" | "secondary";
+  redo: boolean;
 }) {
   const t = useTranslations("newsletter");
   const errorText = useActionError();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const supabase = useMemo(() => createClient(), []);
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(async () => {
-      const { data } = await supabase
-        .from("tasks")
-        .select("status")
-        .eq("channel_id", channelId)
-        .eq("kind", "newsletter")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data && data.status !== "queued" && data.status !== "running") router.refresh();
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [active, supabase, channelId, router]);
+  const [picked, setPicked] = useState<string[]>(initial);
+  useNewsletterTaskWatch(channelId, null, active);
   const busy = pending || active;
+  const toggle = (id: string) =>
+    setPicked(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
   return (
-    <Button
-      variant={variant}
-      disabled={busy}
-      title={t("estimate", { credits: NEWSLETTER_ESTIMATE_CREDITS })}
-      onClick={() =>
-        (!redo || confirm(t("redoConfirm"))) &&
-        start(async () => {
-          const res = await draftNewsletter(channelId);
-          if (res.ok) {
-            toast.success(t("draftStarted"));
-            router.refresh();
-          } else toast.error(errorText(res.error));
-        })
-      }
-      data-testid="draft-newsletter"
-    >
-      {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-      {busy ? t("draftingShort") : redo ? t("redo") : t("draft")}
-    </Button>
+    <div className="space-y-3 px-5 pb-4" data-testid="weekly-draft">
+      {candidates.length ? (
+        <ul className="space-y-1.5 text-sm">
+          {candidates.map((e) => (
+            <li key={e.id}>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={picked.includes(e.id)}
+                  disabled={
+                    busy || (!picked.includes(e.id) && picked.length >= NEWSLETTER_MAX_EPISODES)
+                  }
+                  onChange={() => toggle(e.id)}
+                  aria-label={e.title}
+                />
+                <span>
+                  {e.title} <span className="text-xs text-muted">· {e.published}</span>
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">{t("noCandidates")}</p>
+      )}
+      <Button
+        size="sm"
+        disabled={busy || picked.length === 0}
+        title={t("estimate", { credits: NEWSLETTER_ESTIMATE_CREDITS })}
+        onClick={() =>
+          (!redo || confirm(t("redoConfirm"))) &&
+          start(async () => {
+            const res = await draftNewsletter(channelId, picked);
+            if (res.ok) {
+              toast.success(t("draftStarted"));
+              router.refresh();
+            } else toast.error(errorText(res.error));
+          })
+        }
+        data-testid="draft-newsletter"
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+        {busy ? t("draftingShort") : redo ? t("redo") : t("draftWeekly", { count: picked.length })}
+      </Button>
+    </div>
   );
 }

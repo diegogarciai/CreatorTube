@@ -1,7 +1,61 @@
+import type { CommentKind } from "./comments";
+
 /**
- * Boletín semanal (Fase 4 · paso 5, §21 de la guía): los topes de formato y el
- * cuerpo en markdown sencillo, que se convierte a HTML y a texto para el correo.
+ * Boletín (Fase 4 · paso 5, §21 de la guía): el semanal, que resume los videos
+ * elegidos, y el de cada episodio, con las apreciaciones del presentador. Los
+ * topes de formato, los comentarios importantes y el cuerpo en markdown
+ * sencillo, que se convierte a HTML y a texto para el correo.
  */
+
+/** Videos que entran, como máximo, en el boletín semanal. */
+export const NEWSLETTER_MAX_EPISODES = 5;
+/** Comentarios que se pueden elegir para el boletín de un episodio. */
+export const NEWSLETTER_MAX_COMMENTS = 12;
+/** Los que vienen marcados de entrada. */
+export const NEWSLETTER_DEFAULT_COMMENTS = 6;
+
+export type NewsletterComment = {
+  kind: CommentKind | null;
+  flags: readonly string[];
+  likes: number;
+  replies: number;
+  /** En una corrección: si la audiencia tiene razón. */
+  correctionValid?: boolean | null;
+};
+
+const KIND_WEIGHT: Partial<Record<CommentKind, number>> = {
+  correccion: 5,
+  pregunta_tecnica: 4,
+  desacuerdo: 4,
+  experiencia: 3,
+  pedido_tema: 3,
+  elogio: 1,
+};
+
+/**
+ * Qué tanto aporta un comentario al boletín: pesa su tipo (correcciones,
+ * preguntas y desacuerdos primero) y cuánto lo apoyó la gente. Los trolls y
+ * los marcados (datos personales, enlaces raros, riesgo legal) no entran (-1).
+ */
+export function commentImportance(c: NewsletterComment): number {
+  if (c.kind === "troll_spam" || c.flags.length) return -1;
+  let base = (c.kind && KIND_WEIGHT[c.kind]) ?? 1;
+  if (c.kind === "correccion" && c.correctionValid === false) base = 2;
+  return base + 2 * Math.log2(1 + Math.max(0, c.likes)) + 0.5 * Math.max(0, c.replies);
+}
+
+/** Los comentarios más importantes, de mayor a menor (sin trolls ni marcados). */
+export function importantComments<T extends NewsletterComment>(
+  comments: readonly T[],
+  max: number,
+): T[] {
+  return comments
+    .map((c) => ({ c, score: commentImportance(c) }))
+    .filter((x) => x.score >= 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, max)
+    .map((x) => x.c);
+}
 
 export const NEWSLETTER_LIMITS = {
   subject: 55,
