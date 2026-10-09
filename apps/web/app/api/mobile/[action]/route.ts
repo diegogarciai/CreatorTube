@@ -10,6 +10,16 @@ import {
 } from "@/lib/actions/comments";
 import { addCompetitor, competitorVideoToIdea, removeCompetitor } from "@/lib/actions/competitors";
 import { auditMonth, auditTopicToIdea, evaluateEpisode } from "@/lib/actions/evaluation";
+import {
+  addGear,
+  deleteGear,
+  gearPhotoToEpisodeRef,
+  linkEpisodeGear,
+  pasteGearList,
+  setGearStatus,
+  unlinkEpisodeGear,
+  updateGear,
+} from "@/lib/actions/gear";
 import { searchTermToIdea, suggestIdeas } from "@/lib/actions/ideas";
 import {
   draftEpisodeNewsletter,
@@ -134,6 +144,15 @@ const ACTIONS: Record<string, (...args: any[]) => Promise<unknown>> = {
   sendNewsletterTest,
   sendNewsletter,
   updateNewsletterSettings,
+  // Mi equipo: inventario (la foto la sube la app a {canal}/gear/) y equipo del episodio
+  addGear,
+  updateGear,
+  setGearStatus,
+  deleteGear,
+  pasteGearList,
+  linkEpisodeGear,
+  unlinkEpisodeGear,
+  gearPhotoToEpisodeRef,
   updateMember,
   removeMember,
 };
