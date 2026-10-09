@@ -52,12 +52,22 @@ public func commentImportance(_ c: NewsletterComment) -> Double {
 
 /// Los comentarios más importantes, de mayor a menor (sin trolls ni marcados).
 public func importantComments(_ comments: [NewsletterComment], max: Int) -> [NewsletterComment] {
-    comments.enumerated()
-        .map { (offset: $0.offset, comment: $0.element, score: commentImportance($0.element)) }
-        .filter { $0.score >= 0 }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : $0.offset < $1.offset }
-        .prefix(max)
-        .map(\.comment)
+    struct Scored {
+        let offset: Int
+        let comment: NewsletterComment
+        let score: Double
+    }
+    var scored: [Scored] = []
+    for (offset, comment) in comments.enumerated() {
+        let score = commentImportance(comment)
+        if score >= 0 { scored.append(Scored(offset: offset, comment: comment, score: score)) }
+    }
+    // Orden estable: a igual puntaje, el que venía primero.
+    scored.sort { a, b in
+        if a.score != b.score { return a.score > b.score }
+        return a.offset < b.offset
+    }
+    return scored.prefix(max).map { $0.comment }
 }
 
 public enum NewsletterLimits {
