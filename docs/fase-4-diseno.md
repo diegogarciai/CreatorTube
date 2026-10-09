@@ -8,6 +8,8 @@ Fuentes:
 
 **Criterio de salida (especificación):** paridad completa con el panel actual. Hasta entonces, el panel sigue en uso.
 
+**Cierre (9 oct 2026):** Diego cerró la Fase 4 con lo que la app ya hace en el día a día, sin esperar la paridad completa. Lo que falta para igualar el panel está en la §7, «Pendiente al cerrar la Fase 4».
+
 ## 1. Alcance
 
 | Entra en la Fase 4                                                | Queda para después                                        |
@@ -41,15 +43,15 @@ Fuentes:
 
 ## 3. Pasos (cada uno en su PR)
 
-| Paso | Qué                                                                               | Estado    |
-| ---- | --------------------------------------------------------------------------------- | --------- |
-| 1    | Este documento; analítica de canal y episodio; retención con el párrafo del guion | Hecho     |
-| 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
-| 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Hecho     |
-| 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
-| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Hecho     |
-| 6    | Redes y cápsulas: posts de texto por red                                          | Hecho     |
-| 7    | Paridad con el panel (prueba de salida)                                           | Pendiente |
+| Paso | Qué                                                                               | Estado                                     |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1    | Este documento; analítica de canal y episodio; retención con el párrafo del guion | Hecho                                      |
+| 2    | Impresiones y CTR con la Reporting API                                            | Hecho                                      |
+| 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Hecho                                      |
+| 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho                                      |
+| 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Hecho                                      |
+| 6    | Redes y cápsulas: posts de texto por red                                          | Hecho                                      |
+| 7    | Paridad con el panel (prueba de salida)                                           | Cerrado por decisión de Diego (9 oct 2026) |
 
 ## 4. Analítica y retención (paso 1)
 
@@ -295,3 +297,16 @@ Además de las ideas propias, el banco se llena desde lo que ya mide la app. Cad
 | Auditoría mensual            | Unos US$0,50 por canal al mes                        |
 | Comentarios, boletín y redes | Unos US$0,10 a US$0,20 por episodio (Haiku)          |
 | Boletín y resumen semanal    | Resend: gratis hasta 3.000 correos al mes; Pro US$20 |
+
+## 7. Pendiente al cerrar la Fase 4
+
+Lo que hace el panel y la app todavía no (especificación, p. 1–9). Queda para cuando Diego lo pida:
+
+- **Editar el guion a mano.** Comentarios por párrafo e historial con deshacer. Hoy el guion solo se regenera con IA. Ya existe el registro de quién cambió qué (`activity_log`).
+- **«Publicar ya».** Pasar el video de privado a público desde la app (`videos.update`). Necesita el permiso de escritura (`youtube.force-ssl`, el mismo de comentarios) y su revisión con Google.
+- **Subir la miniatura a YouTube.** Subir la miniatura elegida (`thumbnails.set`). Necesita `youtube.upload` o `force-ssl`. Hoy se descarga.
+- **Aviso al terminar una tarea.** Un correo cuando termina una tarea larga (guion, render, miniaturas), con Resend.
+- **Verificación subrayada dentro del guion.** Hoy se ve y se decide en la tabla de verificación.
+- **Envío automático del boletín semanal.** Que se redacte solo el lunes y espere aprobación, o que salga solo. Hoy es a pedido.
+
+También sigue pospuesta la prueba de salida de la Fase 3: un episodio producido de punta a punta.

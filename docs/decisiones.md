@@ -55,3 +55,7 @@ Las fechas de grabación y publicación se guardan como fechas locales del canal
 - Pantalla completa de equipo y panel de administración con consumo: la Fase 1 trae lo mínimo para invitar, cambiar rol y quitar.
 - Resumen semanal por correo, comentarios, boletín y analítica: Fase 4.
 - Comentarios sobre párrafos del guion e historial con deshacer: con el editor de guion (Fase 2). El registro de quién cambió qué ya existe (`activity_log`).
+
+## Cierre de la Fase 4 (9 oct 2026)
+
+La Fase 4 se cierra sin la paridad completa con el panel que pedía la especificación, por decisión de Diego. La paridad deja de ser el criterio de salida. Lo que falta (editar el guion a mano, «Publicar ya», subir la miniatura, el aviso al terminar una tarea, la verificación subrayada y el envío automático del boletín) queda anotado en `docs/fase-4-diseno.md` §7 y se hace cuando él lo pida.
