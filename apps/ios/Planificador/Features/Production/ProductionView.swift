@@ -20,6 +20,14 @@ struct ProductionView: View {
     @State private var bundle = ProductionBundle()
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var pickedIdeas: [String] = []
+    @State private var noteTarget: ThumbnailAssetRow?
+    @State private var noteText = ""
+    @State private var textTarget: ThumbnailAssetRow?
+    @State private var newText = ""
+    @State private var newAccent = ""
+
+    private var canWrite: Bool { model.can(.writeScript) }
 
     var body: some View {
         List {
@@ -30,8 +38,6 @@ struct ProductionView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
-            } footer: {
-                Text("Proponer, aprobar, generar y renderizar se hace por ahora desde la web.")
             }
 
             if let errorMessage {
@@ -47,6 +53,31 @@ struct ProductionView: View {
         }
         .navigationTitle("Producción")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Regenerar miniatura", isPresented: Binding(get: { noteTarget != nil }, set: { if !$0 { noteTarget = nil } })) {
+            TextField("Qué cambiar (opcional)", text: $noteText)
+            Button("Regenerar (≈ \(CreditEstimate.thumbnails) créditos)") {
+                if let target = noteTarget { perform { try await model.regenerateThumbnail(episode.id, design: target.designIdx, note: noteText) } }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se genera otra versión de la miniatura \(noteTarget?.letter ?? "").")
+        }
+        .alert("Cambiar el texto", isPresented: Binding(get: { textTarget != nil }, set: { if !$0 { textTarget = nil } })) {
+            TextField("Texto (hasta 40)", text: $newText)
+            TextField("Palabra en naranja", text: $newAccent)
+            Button("Aplicar (≈ \(CreditEstimate.thumbnailText) créditos)") {
+                if let target = textTarget {
+                    let text = String(newText.trimmingCharacters(in: .whitespaces).prefix(40))
+                    let accent = String(newAccent.trimmingCharacters(in: .whitespaces).prefix(40))
+                    if !text.isEmpty && !accent.isEmpty {
+                        perform { try await model.editThumbnailText(target.id, text: text, accent: accent, mirror: false) }
+                    }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Misma imagen de fondo con otro texto.")
+        }
         .overlay { if isLoading { ProgressView() } }
         .refreshable { await load() }
         .task(id: episode.id) {
@@ -62,6 +93,49 @@ struct ProductionView: View {
 
     @ViewBuilder
     private var aidsSection: some View {
+        if canWrite {
+            Section {
+                if bundle.aids.isEmpty {
+                    ServerActionButton(
+                        title: "Proponer plan", systemImage: "sparkles", prominent: true,
+                        cost: CreditEstimate.visualPlan,
+                        action: { try await model.proposeVisualPlan(episode.id) },
+                        onDone: { await load() }
+                    )
+                } else {
+                    if bundle.aids.contains(where: { $0.status == "approved" }) {
+                        ServerActionButton(
+                            title: "Renderizar las aprobadas", systemImage: "film", prominent: true,
+                            action: { try await model.renderApprovedAids(episode.id) },
+                            onDone: { await load() }
+                        )
+                    }
+                    ServerActionButton(
+                        title: "Rehacer plan", systemImage: "arrow.clockwise",
+                        cost: CreditEstimate.visualPlan,
+                        confirm: "Se reemplazan las ayudas propuestas y descartadas; las aprobadas se conservan si siguen en el guion.",
+                        action: { try await model.proposeVisualPlan(episode.id) },
+                        onDone: { await load() }
+                    )
+                    if !bundle.renders.isEmpty {
+                        ServerActionButton(
+                            title: "Borrar renders", systemImage: "trash", role: .destructive,
+                            confirm: "Se borran todos los videos renderizados de este episodio.",
+                            action: { try await model.deleteRenders(episode.id) },
+                            onDone: { await load() }
+                        )
+                    }
+                    ServerActionButton(
+                        title: "Borrar plan", systemImage: "trash", role: .destructive,
+                        confirm: "Se borra el plan de ayudas visuales. Si hay renders, primero hay que borrarlos.",
+                        action: { try await model.deletePlan(episode.id) },
+                        onDone: { await load() }
+                    )
+                }
+            } footer: {
+                Text("El plan sale del guion verificado: motion graphics (M), etiquetas de concepto (C) y listas (L). Aprueba las que se hacen y renderízalas.")
+            }
+        }
         if bundle.aids.isEmpty {
             Section { Text("Todavía no hay plan de ayudas visuales.").foregroundStyle(Palette.muted) }
         } else {
@@ -80,6 +154,32 @@ struct ProductionView: View {
                         if let definition = aid.definition, !definition.isEmpty { Text(definition).font(.callout) }
                         if let seconds = aid.durationS {
                             Text("\(seconds) s").font(.caption).foregroundStyle(Palette.muted)
+                        }
+                        if canWrite {
+                            HStack(spacing: 16) {
+                                if aid.status != "approved" {
+                                    ServerActionButton(title: "Aprobar", systemImage: "checkmark.circle",
+                                                       action: { try await model.setAidStatus(aid.id, "approved") },
+                                                       onDone: { await load() })
+                                }
+                                if aid.status != "discarded" {
+                                    ServerActionButton(title: "Descartar", systemImage: "xmark.circle",
+                                                       action: { try await model.setAidStatus(aid.id, "discarded") },
+                                                       onDone: { await load() })
+                                }
+                                if aid.status != "proposed" {
+                                    ServerActionButton(title: "Volver a propuesta", systemImage: "arrow.uturn.backward",
+                                                       action: { try await model.setAidStatus(aid.id, "proposed") },
+                                                       onDone: { await load() })
+                                }
+                            }
+                            .font(.caption)
+                            if aid.status == "approved" && !bundle.renders(for: aid).isEmpty {
+                                ServerActionButton(title: "Renderizar de nuevo", systemImage: "film",
+                                                   action: { try await model.renderAid(aid.id) },
+                                                   onDone: { await load() })
+                                    .font(.caption)
+                            }
                         }
                     }
                     ForEach(bundle.renders(for: aid)) { render in
@@ -120,6 +220,7 @@ struct ProductionView: View {
     @ViewBuilder
     private var thumbnailsSection: some View {
         let designs = Dictionary(grouping: bundle.thumbnails, by: \.designIdx).sorted { $0.key < $1.key }
+        ideasSection
         PhotoGridView(
             title: "Fotos del producto",
             footer: "Fotos reales del producto para las miniaturas que lo muestran.",
@@ -139,6 +240,78 @@ struct ProductionView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Textos para las miniaturas: proponer 30 y elegir 3 de esquemas distintos.
+    @ViewBuilder
+    private var ideasSection: some View {
+        if canWrite {
+            Section {
+                if bundle.ideas.isEmpty {
+                    ServerActionButton(
+                        title: "Proponer 30 textos", systemImage: "sparkles", prominent: true,
+                        cost: CreditEstimate.thumbnailIdeas,
+                        action: { try await model.proposeThumbnailIdeas(episode.id) },
+                        onDone: { await load() }
+                    )
+                } else {
+                    ForEach(bundle.ideas) { idea in
+                        let index = pickedIdeas.firstIndex(of: idea.id)
+                        Button {
+                            togglePick(idea)
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                ZStack {
+                                    Circle().stroke(index != nil ? Palette.accent : Palette.border, lineWidth: 2)
+                                    if let index {
+                                        Text(["A", "B", "C"][index]).font(.caption.bold()).foregroundStyle(Palette.accent)
+                                    }
+                                }
+                                .frame(width: 24, height: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(idea.text).font(.callout.weight(.semibold)).foregroundStyle(Palette.text)
+                                    Text(idea.title).font(.caption).foregroundStyle(Palette.muted).lineLimit(2)
+                                    HStack(spacing: 6) {
+                                        Text(idea.schemeLabel)
+                                        Text(idea.hasFace ? "Con cara" : "Sin cara")
+                                        if let slot = idea.slot { Text("En la tarjeta \(["A", "B", "C"][min(slot, 2)])") }
+                                    }
+                                    .font(.caption2)
+                                    .foregroundStyle(Palette.muted)
+                                }
+                            }
+                        }
+                    }
+                    if pickedIdeas.count == 3 {
+                        ServerActionButton(
+                            title: "Generar miniaturas con estas 3", systemImage: "photo.stack", prominent: true,
+                            cost: CreditEstimate.thumbnails,
+                            action: { try await model.generateFromIdeas(episode.id, ideaIds: pickedIdeas) },
+                            onDone: { pickedIdeas = []; await load() }
+                        )
+                    }
+                    ServerActionButton(
+                        title: "Rehacer los textos", systemImage: "arrow.clockwise",
+                        cost: CreditEstimate.thumbnailIdeas,
+                        confirm: "Se reemplaza la lista; los textos que están en las tarjetas se conservan.",
+                        action: { try await model.proposeThumbnailIdeas(episode.id) },
+                        onDone: { await load() }
+                    )
+                }
+            } header: {
+                Text("Textos para las miniaturas" + (bundle.ideas.isEmpty ? "" : " · \(pickedIdeas.count) de 3 elegidos"))
+            } footer: {
+                Text("Marca 3 de esquemas distintos, al menos uno con cara y uno sin cara, y genera sus miniaturas. Hace falta el guion con su Publicación y las fotos del presentador.")
+            }
+        }
+    }
+
+    private func togglePick(_ idea: ThumbnailIdeaRow) {
+        if let i = pickedIdeas.firstIndex(of: idea.id) {
+            pickedIdeas.remove(at: i)
+        } else if pickedIdeas.count < 3 {
+            pickedIdeas.append(idea.id)
         }
     }
 
@@ -172,6 +345,24 @@ struct ProductionView: View {
             }
             if let error = version.error, version.status == "failed" {
                 Text(error).font(.caption).foregroundStyle(Palette.critical)
+            }
+            if canWrite && version.status == "ready" {
+                HStack(spacing: 16) {
+                    if !version.chosen {
+                        ServerActionButton(title: "Elegir", systemImage: "star",
+                                           action: { try await model.chooseThumbnail(version.id) },
+                                           onDone: { await load() })
+                    }
+                    Button { noteText = ""; noteTarget = version } label: { Label("Regenerar", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.borderless)
+                    Button {
+                        newText = version.text?.lines?.joined(separator: " ") ?? ""
+                        newAccent = version.text?.accent ?? ""
+                        textTarget = version
+                    } label: { Label("Cambiar texto", systemImage: "textformat") }
+                        .buttonStyle(.borderless)
+                }
+                .font(.caption)
             }
         }
         .padding(.vertical, 4)
@@ -245,6 +436,17 @@ struct ProductionView: View {
                         .accessibilityLabel("Copiar título")
                     }
                 }
+            }
+        }
+    }
+
+    private func perform(_ action: @escaping () async throws -> Void) {
+        Task {
+            do {
+                try await action()
+                await load()
+            } catch {
+                errorMessage = error.localizedDescription
             }
         }
     }

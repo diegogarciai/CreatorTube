@@ -41,7 +41,23 @@ struct ChannelSettingsView: View {
                     if let error = connection?.lastError, !error.isEmpty {
                         Text(error).font(.caption).foregroundStyle(Palette.critical)
                     }
-                    Button("Abrir en la web para conectar o sincronizar") {
+                    if connection?.status == "active" {
+                        ServerActionButton(title: "Sincronizar ahora", systemImage: "arrow.triangle.2.circlepath",
+                                           action: { try await model.syncChannelNow() },
+                                           onDone: { await load() })
+                        if model.can(.manageEpisodes) {
+                            NavigationLink { ImportVideosView() } label: {
+                                Label("Importar videos de YouTube", systemImage: "square.and.arrow.down.on.square")
+                            }
+                        }
+                        if canEdit {
+                            ServerActionButton(title: "Desconectar", systemImage: "bolt.horizontal.circle", role: .destructive,
+                                               confirm: "Se revocará el acceso con Google y se borrarán los datos de YouTube del canal.",
+                                               action: { try await model.disconnectYouTube() },
+                                               onDone: { await load() })
+                        }
+                    }
+                    Button(connection?.status == "active" ? "Reconectar en la web" : "Conectar YouTube en la web") {
                         openURL(AppConfig.webURL.appendingPathComponent("c/\(details.id)/ajustes"))
                     }
                 } header: {

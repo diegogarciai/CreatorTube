@@ -1,3 +1,4 @@
+import PlanificadorCore
 import Supabase
 import SwiftUI
 
@@ -127,5 +128,98 @@ extension AppModel {
 
     func deletePodcast(_ episodeId: String) async throws {
         try await ServerAPI.run("deletePodcast", [.string(episodeId)])
+    }
+}
+
+// MARK: - Ayudas visuales, miniaturas, YouTube y equipo
+
+extension AppModel {
+    func proposeVisualPlan(_ episodeId: String) async throws {
+        try await ServerAPI.run("proposeVisualPlan", [.string(episodeId)])
+    }
+
+    /// `proposed`, `approved` o `discarded`.
+    func setAidStatus(_ aidId: String, _ status: String) async throws {
+        try await ServerAPI.run("setAidStatus", [.string(aidId), .string(status)])
+    }
+
+    func renderApprovedAids(_ episodeId: String) async throws {
+        try await ServerAPI.run("renderApprovedAids", [.string(episodeId)])
+    }
+
+    func renderAid(_ aidId: String) async throws {
+        try await ServerAPI.run("renderAid", [.string(aidId)])
+    }
+
+    func deleteRenders(_ episodeId: String, aidId: String? = nil) async throws {
+        var args: [JSONAny] = [.string(episodeId)]
+        if let aidId { args.append(.string(aidId)) }
+        try await ServerAPI.run("deleteRenders", args)
+    }
+
+    func deletePlan(_ episodeId: String) async throws {
+        try await ServerAPI.run("deletePlan", [.string(episodeId)])
+    }
+
+    func proposeThumbnailIdeas(_ episodeId: String) async throws {
+        try await ServerAPI.run("proposeThumbnailIdeas", [.string(episodeId)])
+    }
+
+    /// Las 3 ideas elegidas van a las tarjetas A, B y C, en ese orden.
+    func generateFromIdeas(_ episodeId: String, ideaIds: [String]) async throws {
+        try await ServerAPI.run("generateFromIdeas", [.string(episodeId), .object(["ideaIds": .array(ideaIds.map { .string($0) })])])
+    }
+
+    /// Regenera la tarjeta con una nota opcional.
+    func regenerateThumbnail(_ episodeId: String, design: Int, note: String?) async throws {
+        var input: [String: JSONAny] = ["designs": .array([.integer(design)])]
+        if let note, !note.isEmpty { input["note"] = .string(note) }
+        try await ServerAPI.run("generateThumbnails", [.string(episodeId), .object(input)])
+    }
+
+    func editThumbnailText(_ assetId: String, text: String, accent: String, mirror: Bool) async throws {
+        try await ServerAPI.run("editThumbnailText", [
+            .string(assetId),
+            .object(["text": .string(text), "accent": .string(accent), "mirror": .bool(mirror)]),
+        ])
+    }
+
+    func chooseThumbnail(_ assetId: String) async throws {
+        try await ServerAPI.run("chooseThumbnail", [.string(assetId)])
+    }
+
+    func deleteThumbnailIdeas(_ episodeId: String) async throws {
+        try await ServerAPI.run("deleteIdeas", [.string(episodeId)])
+    }
+
+    func deleteThumbnails(_ episodeId: String) async throws {
+        try await ServerAPI.run("deleteThumbnails", [.string(episodeId)])
+    }
+
+    func refreshAnalytics() async throws {
+        guard let channelId = selectedChannelId else { throw AppError.notReady }
+        try await ServerAPI.run("refreshAnalytics", [.string(channelId)])
+    }
+
+    func syncChannelNow() async throws {
+        guard let channelId = selectedChannelId else { throw AppError.notReady }
+        try await ServerAPI.run("syncChannelNow", [.string(channelId)])
+        await loadEpisodes()
+    }
+
+    func disconnectYouTube() async throws {
+        guard let channelId = selectedChannelId else { throw AppError.notReady }
+        try await ServerAPI.run("disconnectYouTube", [.string(channelId)])
+    }
+
+    func updateMember(workspaceId: String, userId: String, role: Role, channelIds: [String]?) async throws {
+        try await ServerAPI.run("updateMember", [
+            .string(workspaceId), .string(userId),
+            .object(["role": .string(role.rawValue), "channelIds": channelIds.map { ids in JSONAny.array(ids.map { JSONAny.string($0) }) } ?? JSONAny.null]),
+        ])
+    }
+
+    func removeMember(workspaceId: String, userId: String) async throws {
+        try await ServerAPI.run("removeMember", [.string(workspaceId), .string(userId)])
     }
 }

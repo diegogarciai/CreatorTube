@@ -148,6 +148,35 @@ struct ThumbnailAssetRow: Decodable, Identifiable, Hashable {
     }
 }
 
+/// Un texto propuesto para las miniaturas, con su esquema de la guía.
+struct ThumbnailIdeaRow: Decodable, Identifiable, Hashable {
+    let id: String
+    let scheme: String
+    let title: String
+    let angle: String?
+    let text: String
+    let accent: String?
+    let slot: Int?
+
+    static let columns = "id, scheme, title, angle, text, accent, slot"
+
+    /// Esquemas de la guía de miniaturas (`THUMBNAIL_SCHEMES`).
+    var schemeLabel: String {
+        switch scheme {
+        case "A": return "A · La pregunta"
+        case "B": return "B · El dato"
+        case "C": return "C · El veredicto"
+        case "D": return "D · El duelo"
+        case "E": return "E · El detalle"
+        case "F": return "F · En uso"
+        default: return scheme
+        }
+    }
+
+    /// Con cara: A, C, D y F; sin cara: B y E.
+    var hasFace: Bool { !["B", "E"].contains(scheme) }
+}
+
 struct ThumbnailIdeaTitle: Decodable, Hashable {
     let title: String
     let text: String
@@ -169,6 +198,7 @@ struct ProductionBundle {
     var aids: [VisualAidRow] = []
     var renders: [AidRenderRow] = []
     var thumbnails: [ThumbnailAssetRow] = []
+    var ideas: [ThumbnailIdeaRow] = []
     var titles: [TitleOption] = []
     /// URL firmada por ruta del bucket.
     var urls: [String: URL] = [:]
@@ -208,18 +238,19 @@ extension AppModel {
             .eq("episode_id", value: episode.id).eq("kind", value: "thumbnail")
             .order("created_at", ascending: false).limit(60)
             .execute().value
-        async let ideasQuery: [ThumbnailIdeaTitle] = client
-            .from("thumbnail_ideas").select("title, text, slot")
+        async let ideasQuery: [ThumbnailIdeaRow] = client
+            .from("thumbnail_ideas").select(ThumbnailIdeaRow.columns)
             .eq("episode_id", value: episode.id)
-            .filter("slot", operator: "not.is", value: "null")
-            .order("slot")
+            .order("position")
             .execute().value
 
         var bundle = ProductionBundle()
         bundle.aids = try await aidsQuery
         bundle.renders = try await rendersQuery
         bundle.thumbnails = try await thumbsQuery
-        let ideas = try await ideasQuery
+        let allIdeas = try await ideasQuery
+        bundle.ideas = allIdeas
+        let ideas = allIdeas.filter { $0.slot != nil }.sorted { ($0.slot ?? 0) < ($1.slot ?? 0) }
 
         // Títulos: los del JSON de Publicación y los de las miniaturas A, B y C.
         var titles: [TitleOption] = []

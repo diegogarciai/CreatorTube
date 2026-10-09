@@ -26,7 +26,7 @@ struct AnalyticsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Todavía no hay analítica del canal").font(.headline)
-                        Text("Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Conecta YouTube y actualiza desde la web.")
+                        Text("Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora».")
                             .font(.callout)
                             .foregroundStyle(Palette.muted)
                     }
@@ -37,6 +37,13 @@ struct AnalyticsView: View {
             recentSection
         }
         .navigationTitle("Analítica")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                ServerActionButton(title: "Actualizar ahora", systemImage: "arrow.clockwise",
+                                   action: { try await model.refreshAnalytics() },
+                                   onDone: { await load() })
+            }
+        }
         .overlay { if isLoading { ProgressView() } }
         .task(id: model.selectedChannelId) { await load() }
         .refreshable { await load() }

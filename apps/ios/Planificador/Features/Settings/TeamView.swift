@@ -14,6 +14,7 @@ struct TeamView: View {
     @State private var showingInvite = false
     @State private var errorMessage: String?
     @State private var confirmLeave = false
+    @State private var editingMember: MemberRow?
 
     private var myRole: Role? { model.memberships.first { $0.workspaceId == workspace.id }?.role }
     private var canManage: Bool { myRole.map { can($0, .manageMembers) } ?? false }
@@ -47,6 +48,10 @@ struct TeamView: View {
                         }
                         Spacer()
                         Badge(text: member.role.label, tone: member.role == .owner ? .accent : .neutral)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if canManage && member.role != .owner && member.userId != model.userId { editingMember = member }
                     }
                 }
             }
@@ -93,6 +98,9 @@ struct TeamView: View {
         .refreshable { await load() }
         .sheet(isPresented: $showingInvite, onDismiss: { Task { await load() } }) {
             InviteView(workspace: workspace)
+        }
+        .sheet(item: $editingMember, onDismiss: { Task { await load() } }) { member in
+            MemberEditView(workspace: workspace, member: member)
         }
         .confirmationDialog("¿Salir de «\(workspace.name)»? Dejarás de ver sus canales.", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Salir", role: .destructive) {
@@ -215,6 +223,69 @@ struct InviteView: View {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+/// Cambiar el rol y los canales de un miembro, o quitarlo (`updateMember` y
+/// `removeMember`, que piden el servidor).
+struct MemberEditView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let workspace: WorkspaceRef
+    let member: MemberRow
+
+    @State private var role: Role = .viewer
+    @State private var allChannels = true
+    @State private var channelIds: Set<String> = []
+
+    private var roles: [Role] { invitableRoles(model.memberships.first { $0.workspaceId == workspace.id }?.role) }
+    private var workspaceChannels: [ChannelRow] { model.channels.filter { $0.workspaceId == workspace.id } }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Rol", selection: $role) {
+                        ForEach(roles, id: \.self) { Text($0.label).tag($0) }
+                    }
+                }
+                if workspaceChannels.count > 1 {
+                    Section("Canales") {
+                        Toggle("Todos los canales", isOn: $allChannels)
+                        if !allChannels {
+                            ForEach(workspaceChannels) { channel in
+                                Toggle(channel.name, isOn: Binding(
+                                    get: { channelIds.contains(channel.id) },
+                                    set: { on in if on { channelIds.insert(channel.id) } else { channelIds.remove(channel.id) } }
+                                ))
+                            }
+                        }
+                    }
+                }
+                Section {
+                    ServerActionButton(title: "Guardar cambios", systemImage: "checkmark", prominent: true,
+                                       action: {
+                                           try await model.updateMember(workspaceId: workspace.id, userId: member.userId, role: role,
+                                                                        channelIds: allChannels ? nil : Array(channelIds))
+                                       },
+                                       onDone: { dismiss() })
+                    ServerActionButton(title: "Quitar del espacio", systemImage: "person.badge.minus", role: .destructive,
+                                       confirm: "Dejará de ver los canales de «\(workspace.name)».",
+                                       action: { try await model.removeMember(workspaceId: workspace.id, userId: member.userId) },
+                                       onDone: { dismiss() })
+                }
+            }
+            .navigationTitle(member.profile?.displayName ?? "Miembro")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
+            }
+            .onAppear {
+                role = member.role
+                allChannels = member.channelIds?.isEmpty ?? true
+                channelIds = Set(member.channelIds ?? [])
+            }
         }
     }
 }
