@@ -40,6 +40,8 @@ export interface MobileTicket {
   workspaceId: string;
   userId: string;
   channelId?: string;
+  /** "comments": pide además el permiso para responder comentarios. */
+  scope?: "comments";
   /** Vencimiento en milisegundos desde época. */
   exp: number;
 }
