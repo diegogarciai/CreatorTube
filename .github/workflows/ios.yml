@@ -35,8 +35,13 @@ jobs:
         working-directory: apps/ios
     steps:
       - uses: actions/checkout@v4
-      - run: brew install xcodegen
-      - run: xcodegen generate
+      # El mismo script que corre Xcode Cloud: arma Secrets.xcconfig, genera el
+      # proyecto y resuelve los paquetes. Aquí con valores de prueba.
+      - name: Preparar como Xcode Cloud
+        env:
+          SUPABASE_URL: https://ci.supabase.co
+          SUPABASE_ANON_KEY: ci
+        run: ci_scripts/ci_post_clone.sh
       # En Release, como el archivo que se sube a TestFlight.
       - name: Compilar para el simulador
         run: |

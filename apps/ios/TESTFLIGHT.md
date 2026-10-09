@@ -54,6 +54,45 @@ Si prefieres llevar el número de build a mano, súbelo en `CURRENT_PROJECT_VERS
 
 Cada build vence a los 90 días en TestFlight.
 
+## 4. Automático con Xcode Cloud
+
+Con Xcode Cloud, Apple compila y sube a TestFlight cada vez que unes algo a `main` que toque `apps/ios`. Tú no archivas nada; el equipo recibe la versión nueva en unos 20 o 30 minutos. La membresía de Apple Developer incluye 25 horas de compilación al mes, y cada build toma unos 10 o 15 minutos.
+
+El proyecto ya trae `ci_scripts/ci_post_clone.sh`. Xcode Cloud lo corre al clonar el repo:
+
+- escribe `Secrets.xcconfig` con las variables del workflow;
+- genera el `.xcodeproj` con XcodeGen;
+- resuelve los paquetes.
+
+El CI de GitHub corre el mismo script en cada cambio, así que si se rompe se ve ahí primero.
+
+### Configurarlo (una sola vez)
+
+1. Ten `main` al día y el proyecto abierto en Xcode, con `xcodegen generate` corrido.
+2. **Product → Xcode Cloud → Create Workflow**, elige **Planificador** y pulsa **Next**. Luego **Edit Workflow**.
+3. **General**: nombre `TestFlight`.
+4. **Environment**:
+   - Xcode: **Latest Release**.
+   - En **Environment Variables**, agrega:
+     - `SUPABASE_URL`: la URL completa, con `https://`.
+     - `SUPABASE_ANON_KEY`: la clave anon. Marca **Secret**.
+     - `DEVELOPMENT_TEAM`: tu Team ID, el mismo de `Secrets.xcconfig`.
+5. **Start Conditions**:
+   - Borra la que trae.
+   - Agrega **Branch Changes**: rama `main`.
+   - En **Files and Folders** elige **Start a build if any changes are in…** y pon `apps/ios`.
+6. **Actions**:
+   - Borra las que trae.
+   - Agrega **Archive**, plataforma **iOS**.
+   - En **Deployment Preparation**, elige **TestFlight (Internal Testing Only)**.
+7. **Post-Actions**: agrega **TestFlight Internal Testing** y elige tu grupo, por ejemplo «Equipo».
+8. **Save**. Xcode pide dar acceso a GitHub: **Grant Access**, instala la app de Xcode Cloud en `diegogarciai/CreatorTube` y vuelve a Xcode.
+9. Para la primera build: **Product → Xcode Cloud → Start Build**, workflow `TestFlight`, rama `main`. El avance se ve en Xcode, en el **Report navigator** (⌘9) → **Cloud**, o en App Store Connect → tu app → **Xcode Cloud**.
+
+### Número de build
+
+Xcode Cloud pone el número de build solo. Si choca con uno que subiste a mano, ve a App Store Connect → tu app → **Xcode Cloud** → **Settings** → **Build Number** y pon como siguiente número uno mayor que el último que subiste.
+
 ## Si algo falla
 
 | Mensaje | Qué hacer |
@@ -64,6 +103,9 @@ Cada build vence a los 90 días en TestFlight.
 | Correo «ITMS-91053: Missing API declaration» | La app usa una API nueva con motivo declarado. Agrégala a `PrivacyInfo.xcprivacy`. |
 | Archive aparece gris en el menú | El destino es un simulador. Elige **Any iOS Device (arm64)**. |
 | La app instalada muestra «Falta configurar Supabase» | `Secrets.xcconfig` estaba vacío al archivar. Rellénalo, regenera y vuelve a subir. |
+| Xcode Cloud: «faltan SUPABASE_URL o SUPABASE_ANON_KEY» | Agrega las variables en **Environment** del workflow. |
+| Xcode Cloud: «a resolved file is required» o «project not found» | No corrió `ci_post_clone.sh`. Revisa que esté en `apps/ios/ci_scripts/` en `main`. |
+| Xcode Cloud: «Signing requires a development team» | Falta la variable `DEVELOPMENT_TEAM` en el workflow. |
 
 ## Antes de publicar en la App Store
 
