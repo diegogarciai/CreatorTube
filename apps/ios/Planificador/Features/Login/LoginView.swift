@@ -158,18 +158,41 @@ struct LoginView: View {
     }
 }
 
-/// Pantalla cuando la app no tiene la URL o la clave de Supabase.
+/// Pantalla cuando la app no tiene la URL o la clave de Supabase, o la URL
+/// llegó mal escrita. Muestra lo que leyó para que el error sea evidente.
 struct ConfigMissingView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            LogoView(size: 48)
-            Text("Falta configurar Supabase")
-                .font(.headline)
-            Text("Copia Config/Secrets.example.xcconfig como Config/Secrets.xcconfig, pon la URL y la clave anon del proyecto y vuelve a compilar.")
-                .font(.callout)
-                .multilineTextAlignment(.center)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                LogoView(size: 48)
+                Text("Falta configurar Supabase")
+                    .font(.title2.bold())
+                Text("Abre apps/ios/Config/Secrets.xcconfig y deja estas dos líneas con tus datos:")
+                    .font(.callout)
+                Text("SUPABASE_URL = https:/$()/TU-PROYECTO.supabase.co\nSUPABASE_ANON_KEY = tu-clave-anon")
+                    .font(.caption.monospaced())
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Palette.surfaceMuted, in: RoundedRectangle(cornerRadius: 8))
+                Text("Ojo: la URL va con /$()/ en lugar de //. En ese archivo, // empieza un comentario y la URL queda cortada.")
+                    .font(.callout)
+                    .foregroundStyle(Palette.warn)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Lo que la app leyó:")
+                        .font(.footnote.weight(.semibold))
+                    Text("URL: \(AppConfig.rawSupabaseURL.isEmpty ? "(vacía)" : AppConfig.rawSupabaseURL)")
+                    Text("Clave anon: \(AppConfig.supabaseAnonKey == nil ? "(vacía)" : "presente")")
+                }
+                .font(.footnote.monospaced())
                 .foregroundStyle(Palette.muted)
+
+                Text("Después de guardar, en Xcode usa Product → Clean Build Folder y vuelve a pulsar ▶.")
+                    .font(.callout)
+            }
+            .padding(24)
         }
-        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.background)
     }
 }

@@ -23,13 +23,13 @@ struct RootView: View {
         } else {
             switch model.phase {
             case .loading:
-                ProgressView()
+                LoadingView()
             case .signedOut:
                 LoginView()
             case .signedIn:
                 if model.channels.isEmpty {
                     if model.isLoadingWorkspace {
-                        ProgressView()
+                        LoadingView()
                     } else if let error = model.workspaceError {
                         ErrorBanner(message: error) { await model.loadWorkspace() }
                             .padding()
@@ -75,5 +75,17 @@ struct MainTabView: View {
                 }
         }
         .tabItem { Label(title, systemImage: systemImage) }
+    }
+}
+
+/// Pantalla de carga con fondo propio (no negro) y el logo.
+struct LoadingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            LogoView(size: 56)
+            ProgressView()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.background)
     }
 }

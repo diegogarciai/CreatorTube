@@ -72,6 +72,9 @@ final class AppModel {
     /// Escucha la sesión de Supabase durante toda la vida de la app.
     func start() async {
         guard let client = supabase else { return }
+        // Sin sesión guardada se muestra Entrar de inmediato, sin esperar el
+        // primer evento de Supabase.
+        if client.auth.currentSession == nil { phase = .signedOut }
         for await (event, session) in client.auth.authStateChanges {
             switch event {
             case .initialSession, .signedIn, .userUpdated:
