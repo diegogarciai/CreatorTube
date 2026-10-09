@@ -440,6 +440,49 @@ final class AppModel {
         return rows ?? []
     }
 
+    // MARK: - Fechas y archivados
+
+    enum DateField: String {
+        case publish = "publish_date"
+        case record = "record_date"
+    }
+
+    /// Cambia la fecha de publicación o grabación (`rescheduleEpisode`). `nil` la quita.
+    func reschedule(_ episode: EpisodeRow, field: DateField, to date: DateKey?) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("episodes")
+            .update(DateUpdate(field: field.rawValue, date: date))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
+    /// Episodios archivados del canal (vista «Archivados» de Producción).
+    func archivedEpisodes() async throws -> [EpisodeRow] {
+        guard let client = supabase, let channelId = selectedChannelId else { return [] }
+        return try await client
+            .from("episodes")
+            .select(EpisodeRow.columns)
+            .eq("channel_id", value: channelId)
+            .filter("archived_at", operator: "not.is", value: "null")
+            .order("archived_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func restoreEpisode(_ episode: EpisodeRow) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("episodes")
+            .update(ArchiveUpdate(archivedAt: nil))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
     func pillar(id: String?) -> PillarRow? {
         guard let id else { return nil }
         return pillars.first { $0.id == id }

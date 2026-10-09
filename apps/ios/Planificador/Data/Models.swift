@@ -36,6 +36,7 @@ struct ChannelRow: Decodable, Identifiable, Hashable {
     let weeklyGoal: Int
     let onboardingCompletedAt: String?
     let disconnectedAt: String?
+    let icsToken: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -47,10 +48,17 @@ struct ChannelRow: Decodable, Identifiable, Hashable {
         case weeklyGoal = "weekly_goal"
         case onboardingCompletedAt = "onboarding_completed_at"
         case disconnectedAt = "disconnected_at"
+        case icsToken = "ics_token"
     }
 
     static let columns =
-        "id, workspace_id, name, youtube_handle, thumbnail_url, timezone, weekly_goal, onboarding_completed_at, disconnected_at"
+        "id, workspace_id, name, youtube_handle, thumbnail_url, timezone, weekly_goal, onboarding_completed_at, disconnected_at, ics_token"
+
+    /// Calendario ICS del canal (`/api/ics/<token>.ics`), para suscribirse.
+    var icsURL: URL? {
+        guard let icsToken, !icsToken.isEmpty else { return nil }
+        return AppConfig.webURL.appendingPathComponent("api/ics/\(icsToken).ics")
+    }
 }
 
 struct EpisodeRow: Decodable, Identifiable, Hashable {
@@ -415,6 +423,24 @@ struct ArchiveUpdate: Encodable {
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(archivedAt, forKey: .archivedAt)
+    }
+}
+
+/// Cambiar la fecha de publicación o de grabación (`rescheduleEpisode`).
+struct DateUpdate: Encodable {
+    let field: String
+    let date: DateKey?
+
+    struct Key: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        try c.encode(date, forKey: Key(stringValue: field))
     }
 }
 

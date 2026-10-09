@@ -95,3 +95,13 @@ extension SignalLevel {
         }
     }
 }
+
+extension Color {
+    /// Color desde `#RRGGBB` (colores de pilares y de la marca).
+    init?(hex: String) {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") { value.removeFirst() }
+        guard value.count == 6, let number = UInt32(value, radix: 16) else { return nil }
+        self.init(uiColor: UIColor(hex: number))
+    }
+}

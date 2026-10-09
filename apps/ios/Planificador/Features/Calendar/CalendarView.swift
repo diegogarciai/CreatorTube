@@ -1,5 +1,6 @@
 import PlanificadorCore
 import SwiftUI
+import UIKit
 
 /// Calendario del mes (`components/calendar/month-calendar.tsx`) adaptado al
 /// teléfono: la cuadrícula marca los días con puntos y, al tocar un día, se
@@ -9,6 +10,8 @@ struct CalendarView: View {
     @State private var month: DateKey?
     @State private var selectedDay: DateKey?
     @State private var isCreating = false
+    @State private var rescheduling: RescheduleTarget?
+    @Environment(\.openURL) private var openURL
 
     private static let weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
     /// Estados en los que todavía se muestra la fecha de grabación.
@@ -52,6 +55,51 @@ struct CalendarView: View {
         .refreshable { await model.loadEpisodes() }
         .sheet(isPresented: $isCreating) {
             EpisodeFormView(mode: .create, initialPublishDate: selectedDay ?? today)
+        }
+        .sheet(item: $rescheduling) { target in
+            RescheduleSheet(target: target)
+                .presentationDetents([.medium, .large])
+        }
+        .toolbar {
+            if let url = model.selectedChannel?.icsURL {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            if let webcal = URL(string: url.absoluteString.replacingOccurrences(of: "https://", with: "webcal://")
+                                .replacingOccurrences(of: "http://", with: "webcal://")) {
+                                openURL(webcal)
+                            }
+                        } label: {
+                            Label("Suscribirse en Calendario", systemImage: "calendar.badge.plus")
+                        }
+                        Button {
+                            UIPasteboard.general.string = url.absoluteString
+                        } label: {
+                            Label("Copiar enlace ICS", systemImage: "doc.on.doc")
+                        }
+                    } label: {
+                        Image(systemName: "calendar.badge.plus")
+                    }
+                    .accessibilityLabel("Suscribirse al calendario")
+                }
+            }
+        }
+    }
+
+    /// Menú para cambiar o quitar fechas (como arrastrar en el calendario web).
+    @ViewBuilder
+    private func dateMenu(_ episode: EpisodeRow) -> some View {
+        if model.can(.manageEpisodes) {
+            Button {
+                rescheduling = RescheduleTarget(episode: episode, field: .publish)
+            } label: {
+                Label("Cambiar fecha de publicación", systemImage: "play.fill")
+            }
+            Button {
+                rescheduling = RescheduleTarget(episode: episode, field: .record)
+            } label: {
+                Label("Cambiar fecha de grabación", systemImage: "circle.fill")
+            }
         }
     }
 
@@ -138,6 +186,7 @@ struct CalendarView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .contextMenu { dateMenu(entry.episode) }
                 }
             }
             if model.can(.manageEpisodes) {
@@ -171,7 +220,85 @@ struct CalendarView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .contextMenu { dateMenu(episode) }
                 }
+            }
+            if model.can(.manageEpisodes) && !episodes.isEmpty {
+                Text("Mantén pulsado un episodio para cambiar sus fechas.")
+                    .font(.caption)
+                    .foregroundStyle(Palette.muted)
+            }
+        }
+    }
+}
+
+struct RescheduleTarget: Identifiable {
+    let episode: EpisodeRow
+    let field: AppModel.DateField
+
+    var id: String { "\(episode.id)-\(field.rawValue)" }
+}
+
+/// Elegir o quitar la fecha de publicación o grabación de un episodio.
+struct RescheduleSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let target: RescheduleTarget
+
+    @State private var date = Date()
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    private var current: DateKey? {
+        target.field == .publish ? target.episode.publishDate : target.episode.recordDate
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(target.episode.title).font(.headline)
+                    DatePicker(
+                        target.field == .publish ? "Publicación" : "Grabación",
+                        selection: $date,
+                        displayedComponents: .date
+                    )
+                    .datePickerStyle(.graphical)
+                    .environment(\.locale, Locale(identifier: "es"))
+                }
+                if current != nil {
+                    Section {
+                        Button("Quitar fecha", role: .destructive) { save(nil) }
+                    }
+                }
+                if let errorMessage {
+                    Section { Text(errorMessage).foregroundStyle(Palette.critical) }
+                }
+            }
+            .navigationTitle(target.field == .publish ? "Fecha de publicación" : "Fecha de grabación")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Guardar") { save(CalendarBridge.dateKey(from: date)) }
+                        .disabled(isSaving)
+                }
+            }
+            .onAppear {
+                if let current { date = CalendarBridge.date(from: current) }
+            }
+        }
+    }
+
+    private func save(_ key: DateKey?) {
+        Task {
+            isSaving = true
+            defer { isSaving = false }
+            do {
+                try await model.reschedule(target.episode, field: target.field, to: key)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
             }
         }
     }

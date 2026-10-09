@@ -3,6 +3,10 @@
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
 
+// Dirección de la web (enlaces de invitación, calendario ICS y, más adelante,
+// las funciones de IA). Se puede cambiar en Secrets.xcconfig.
+WEB_URL = https:/$()/app.gartechs.com
+
 // Equipo de Apple para firmar en un iPhone. Va en Secrets.xcconfig para que
 // no se pierda al regenerar el proyecto con xcodegen.
 DEVELOPMENT_TEAM =

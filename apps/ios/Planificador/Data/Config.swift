@@ -22,6 +22,14 @@ enum AppConfig {
         return url
     }
 
+    /// Dirección de la web (sin barra final).
+    static var webURL: URL {
+        let raw = ((Bundle.main.object(forInfoDictionaryKey: "WEB_URL") as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = raw.hasSuffix("/") ? String(raw.dropLast()) : raw
+        return URL(string: trimmed).flatMap { $0.host == nil ? nil : $0 } ?? URL(string: "https://app.gartechs.com")!
+    }
+
     /// Adonde vuelve el inicio de sesión con Google. Debe estar en la lista de
     /// "Redirect URLs" de Supabase (Authentication → URL Configuration).
     static let oauthRedirect = URL(string: "planificador://auth-callback")!
