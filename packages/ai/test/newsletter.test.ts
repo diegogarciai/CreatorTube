@@ -40,6 +40,7 @@ const good = {
   point: "Para estudiar alcanza con 16 GB.",
 };
 const input = {
+  mode: "weekly" as const,
   channelName: "Gartechs",
   newsletterName: "El Punto",
   guide: "21. BOLETÍN\nUna idea por semana.",
@@ -51,6 +52,7 @@ const input = {
       script: "La batería duró 18 horas.",
       claims: [],
       audience: ["¿Sirve para editar video?"],
+      comments: ["Yo lo uso para Lightroom y va sobrado."],
     },
     {
       title: "iPad Air",
@@ -59,6 +61,7 @@ const input = {
       script: "Otro guion.",
       claims: [],
       audience: [],
+      comments: [],
     },
   ],
   today: "2026-10-09",
@@ -73,6 +76,9 @@ describe("boletín semanal", () => {
     expect(user).toContain("21. BOLETÍN");
     expect(user).toContain("### Episodio 1: MacBook Air M4");
     expect(user).toContain("- ¿Sirve para editar video?");
+    expect(user).toContain("## Los videos que eligió Diego");
+    expect(user).toContain("- Yo lo uso para Lightroom y va sobrado.");
+    expect(String(calls[0]!.system)).toContain("resume los videos que Diego eligió");
     expect(out.draft).toMatchObject({ subject: good.subject, ctaText: "Ver el episodio" });
     expect(out.ctaEpisode).toBe(1);
     expect(out.repaired).toBe(false);
@@ -93,5 +99,23 @@ describe("boletín semanal", () => {
     // El botón se queda en el episodio que había (acotado a la lista).
     expect(out.ctaEpisode).toBe(1);
     expect(out.usage.input_tokens).toBe(200);
+  });
+
+  it("el de un episodio lleva las notas de Diego y sus instrucciones", async () => {
+    const { client: c, calls } = client([good]);
+    await writeNewsletter(
+      c,
+      { model: "m" },
+      {
+        ...input,
+        mode: "episode",
+        notes: "Me sorprendió que el ventilador no hiciera falta.",
+        episodes: [input.episodes[0]!],
+      },
+    );
+    const user = String((calls[0]!.messages as { content: string }[])[0]!.content);
+    expect(user).toContain("## Las notas de Diego (sus apreciaciones)\nMe sorprendió");
+    expect(user).toContain("## El episodio");
+    expect(String(calls[0]!.system)).toContain("son las apreciaciones de Diego");
   });
 });

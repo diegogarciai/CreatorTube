@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Mail } from "lucide-react";
 import {
   checklistProgress,
   localDateKey,
@@ -36,6 +36,10 @@ import { loadVisualAidsView } from "@/lib/data/visual-aids";
 import { loadEpisodeComments } from "@/lib/data/comments";
 import { CommentsPanel } from "@/components/episodes/comments-panel";
 import { SocialPostsPanel } from "@/components/episodes/social-posts-panel";
+import { EpisodeNewsletterPanel } from "@/components/newsletter/episode-panel";
+import { NewsletterSetupNotice } from "@/components/newsletter/setup-notice";
+import { buttonClass } from "@/components/ui/button";
+import { effectiveStatus, loadEpisodeNewsletter, loadNewsletterSetup } from "@/lib/data/newsletter";
 import { loadEpisodeSocials } from "@/lib/data/social-posts";
 import { loadEpisodeMetrics } from "@/lib/data/analytics";
 import { EpisodeMetricsPanel } from "@/components/analytics/episode-metrics";
@@ -198,6 +202,13 @@ export default async function EpisodePage({
           youtubeVideoId: row.youtube_video_id,
         })
       : null;
+  const [newsletter, newsletterSetup] =
+    tab === "distribution"
+      ? await Promise.all([
+          loadEpisodeNewsletter(channelId, episodeId),
+          loadNewsletterSetup(channelId),
+        ])
+      : [null, null];
   // Lo generado del episodio: qué bloquea cada «Rehacer» y «Borrar».
   const deps =
     tab === "script" || tab === "production"
@@ -216,6 +227,11 @@ export default async function EpisodePage({
     : null;
 
   const tz = ctx.channel.timezone;
+  const dateTime = new Intl.DateTimeFormat("es", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: tz,
+  });
   const episode = toPlannedEpisode(row, tz);
   const step = nextStep(episode, localDateKey(new Date(), tz));
   const done = new Set((doneRows.data ?? []).map((r) => r.step_id));
@@ -298,6 +314,15 @@ export default async function EpisodePage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {ctx.can("publish") ? (
+            <Link
+              href={`/c/${channelId}/episodios/${row.id}?tab=distribution#boletin`}
+              className={buttonClass("secondary", "sm")}
+              data-testid="send-newsletter"
+            >
+              <Mail className="size-3.5" /> {t("newsletter.send")}
+            </Link>
+          ) : null}
           {canManage || ctx.can("edit_video") ? (
             <StatusSelect episodeId={row.id} status={row.status} role={ctx.role} />
           ) : null}
@@ -579,6 +604,61 @@ export default async function EpisodePage({
                   canPublish={ctx.can("publish")}
                   canConfigure={ctx.can("configure_channel")}
                 />
+              ) : null}
+              {newsletter && newsletterSetup ? (
+                <div>
+                  {ctx.can("publish") ? (
+                    <NewsletterSetupNotice
+                      channelId={channelId}
+                      missing={newsletterSetup.missing}
+                    />
+                  ) : null}
+                  <EpisodeNewsletterPanel
+                    key={newsletter.newsletter?.updated_at ?? "nuevo"}
+                    channelId={channelId}
+                    episodeId={row.id}
+                    notes={newsletter.newsletter?.notes ?? ""}
+                    candidates={newsletter.candidates}
+                    selected={newsletter.selected}
+                    newsletter={
+                      newsletter.newsletter
+                        ? {
+                            id: newsletter.newsletter.id,
+                            heading: t("newsletter.episodeHeading"),
+                            status: effectiveStatus(newsletter.newsletter, new Date()),
+                            subject: newsletter.newsletter.subject,
+                            preheader: newsletter.newsletter.preheader,
+                            body: newsletter.newsletter.body,
+                            ctaText: newsletter.newsletter.cta_text,
+                            ctaUrl: newsletter.newsletter.cta_url ?? "",
+                            point: newsletter.newsletter.point,
+                            scheduledAt: newsletter.newsletter.scheduled_at
+                              ? dateTime.format(new Date(newsletter.newsletter.scheduled_at))
+                              : null,
+                            sentAt: newsletter.newsletter.sent_at
+                              ? dateTime.format(new Date(newsletter.newsletter.sent_at))
+                              : null,
+                            testSentAt: newsletter.newsletter.test_sent_at
+                              ? dateTime.format(new Date(newsletter.newsletter.test_sent_at))
+                              : null,
+                          }
+                        : null
+                    }
+                    brand={newsletterSetup.brand}
+                    canPublish={ctx.can("publish")}
+                    canSend={ctx.can("publish") && newsletterSetup.missing.length === 0}
+                    drafting={
+                      newsletter.task?.status === "queued" || newsletter.task?.status === "running"
+                    }
+                    failed={
+                      newsletter.task?.status === "failed"
+                        ? newsletter.task.error?.startsWith("errors.")
+                          ? t(newsletter.task.error as "errors.busy")
+                          : ""
+                        : null
+                    }
+                  />
+                </div>
               ) : null}
               {comments ? (
                 <CommentsPanel

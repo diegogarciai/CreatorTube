@@ -1572,7 +1572,7 @@ export type Database = {
           id: string;
           channel_id: string;
           workspace_id: string;
-          week_start: string;
+          week_start: string | null;
           status: string;
           subject: string;
           preheader: string;
@@ -1588,12 +1588,17 @@ export type Database = {
           test_sent_at: string | null;
           created_at: string;
           updated_at: string;
+          kind: string;
+          episode_id: string | null;
+          notes: string;
+          comment_ids: string[];
+          task_id: string | null;
         };
         Insert: {
           id?: string;
           channel_id: string;
           workspace_id?: string;
-          week_start: string;
+          week_start?: string | null;
           status?: string;
           subject?: string;
           preheader?: string;
@@ -1609,12 +1614,17 @@ export type Database = {
           test_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          kind?: string;
+          episode_id?: string | null;
+          notes?: string;
+          comment_ids?: string[];
+          task_id?: string | null;
         };
         Update: {
           id?: string;
           channel_id?: string;
           workspace_id?: string;
-          week_start?: string;
+          week_start?: string | null;
           status?: string;
           subject?: string;
           preheader?: string;
@@ -1630,6 +1640,11 @@ export type Database = {
           test_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          kind?: string;
+          episode_id?: string | null;
+          notes?: string;
+          comment_ids?: string[];
+          task_id?: string | null;
         };
         Relationships: [
           {
@@ -1637,6 +1652,20 @@ export type Database = {
             columns: ["channel_id"];
             isOneToOne: false;
             referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "newsletters_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: true;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "newsletters_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
             referencedColumns: ["id"];
           },
           {

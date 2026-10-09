@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
 
 export interface NewsletterView extends NewsletterDraft {
   id: string;
-  weekStart: string;
+  /** El título de la tarjeta («Semana del 5 de octubre», «Boletín de este episodio»). */
+  heading: string;
   status: "draft" | "scheduled" | "sent" | string;
   ctaUrl: string;
   scheduledAt: string | null;
@@ -122,7 +123,7 @@ export function NewsletterEditor({
         </p>
       ) : null}
       <Card>
-        <CardHeader title={t("weekOf", { date: n.weekStart })} />
+        <CardHeader title={n.heading} />
         <CardBody>
           <fieldset disabled={locked || pending} className="space-y-4">
             <Field
