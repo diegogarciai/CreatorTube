@@ -12,14 +12,13 @@ struct ScriptView: View {
     @State private var stage: ScriptStage = .script
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var answering = false
+    @State private var deciding: VerificationItemRow?
+
+    private var canWrite: Bool { model.can(.writeScript) }
 
     var body: some View {
         List {
-            Section {
-                Label("Generar, rehacer y decidir la verificación se hace por ahora desde la web. Aquí puedes leer, copiar y compartir todo.", systemImage: "info.circle")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.muted)
-            }
 
             if let errorMessage {
                 Section { ErrorBanner(message: errorMessage) { await load() } }
@@ -38,9 +37,20 @@ struct ScriptView: View {
                 if bundle.current == nil {
                     Text("Todavía no hay guion para este episodio.")
                         .foregroundStyle(Palette.muted)
+                    if canWrite, let direction = bundle.direction, direction.status == "answered" || direction.status == "skipped" {
+                        ServerActionButton(
+                            title: "Generar guion", systemImage: "sparkles", prominent: true,
+                            cost: CreditEstimate.script,
+                            action: { try await model.startScript(episode.id) },
+                            onDone: { await load() }
+                        )
+                    }
                 } else {
                     ForEach(stage.steps, id: \.self) { spec in
                         stepRow(spec)
+                    }
+                    if canWrite && bundle.current?.isActive == false {
+                        scriptActions
                     }
                 }
             } header: {
@@ -77,6 +87,18 @@ struct ScriptView: View {
         }
         .navigationTitle("Guion")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Escribe el dato", isPresented: Binding(get: { deciding != nil }, set: { if !$0 { deciding = nil } })) {
+            TextField("p. ej. 1.099 dólares en Estados Unidos", text: $valueInput)
+            Button("Guardar dato") {
+                if let item = deciding {
+                    let value = String(valueInput.trimmingCharacters(in: .whitespaces).prefix(300))
+                    if !value.isEmpty { decide(item, "value", value: value) }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text(deciding?.claim ?? "")
+        }
         .overlay { if isLoading { ProgressView() } }
         .refreshable { await load() }
         .task(id: episode.id) {
@@ -93,8 +115,49 @@ struct ScriptView: View {
 
     @ViewBuilder
     private var directionSection: some View {
+        if bundle.direction == nil && canWrite {
+            Section {
+                ServerActionButton(
+                    title: "Preparar preguntas de dirección", systemImage: "questionmark.bubble", prominent: true,
+                    cost: CreditEstimate.direction,
+                    action: { try await model.prepareDirection(episode.id) },
+                    onDone: { await load() }
+                )
+                if bundle.current == nil {
+                    ServerActionButton(
+                        title: "Saltar la dirección y generar el guion", systemImage: "sparkles",
+                        cost: CreditEstimate.script,
+                        action: {
+                            try await model.saveDirection(episode.id, answers: [:], extra: "", skip: true)
+                            try await model.startScript(episode.id)
+                        },
+                        onDone: { await load() }
+                    )
+                }
+            } header: {
+                Text("Dirección")
+            } footer: {
+                Text("Antes de escribir, la IA lee el tema y te hace de 6 a 9 preguntas. El guion sale de tus respuestas.")
+            }
+        }
         if let direction = bundle.direction {
             Section {
+                if canWrite && (direction.status == "ready" || direction.status == "answered") && !direction.questions.isEmpty {
+                    Button {
+                        answering = true
+                    } label: {
+                        Label(direction.status == "ready" ? "Responder preguntas" : "Cambiar respuestas", systemImage: "square.and.pencil")
+                    }
+                }
+                if canWrite && direction.status != "generating" && bundle.current == nil {
+                    ServerActionButton(
+                        title: "Rehacer la dirección", systemImage: "arrow.clockwise",
+                        cost: CreditEstimate.direction,
+                        confirm: "Se preparan preguntas nuevas y se pierden las respuestas actuales.",
+                        action: { try await model.prepareDirection(episode.id) },
+                        onDone: { await load() }
+                    )
+                }
                 if !direction.reading.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Cómo leí el tema:").font(.footnote.weight(.semibold))
@@ -138,6 +201,9 @@ struct ScriptView: View {
                     Text(direction.statusLabel)
                 }
             }
+            .sheet(isPresented: $answering) {
+                DirectionFormView(episodeId: episode.id, direction: direction, onDone: { await load() })
+            }
         }
     }
 
@@ -152,6 +218,19 @@ struct ScriptView: View {
                 StepTextView(title: spec.label, text: body, plain: spec.plain, targetMinutes: episode.targetMinutes)
             } label: {
                 stepLabel(spec, status: status, detail: wordsDetail(spec, body))
+            }
+            .contextMenu { redoMenu(spec) }
+        } else if status == "failed" || status == "incomplete" {
+            VStack(alignment: .leading, spacing: 4) {
+                stepLabel(spec, status: status, detail: nil)
+                if let error = row?.error { Text(error).font(.caption).foregroundStyle(Palette.critical) }
+                if canWrite && bundle.current?.isActive == false {
+                    ServerActionButton(
+                        title: "Rehacer desde este paso", systemImage: "arrow.clockwise",
+                        action: { try await model.startScript(episode.id, from: spec.key) },
+                        onDone: { await load() }
+                    )
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -169,6 +248,81 @@ struct ScriptView: View {
                     Text(error).font(.caption).foregroundStyle(Palette.critical)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func redoMenu(_ spec: ScriptStepSpec) -> some View {
+        if canWrite && bundle.current?.isActive == false {
+            Button {
+                Task { await redo(from: spec.key) }
+            } label: {
+                Label("Rehacer desde este paso", systemImage: "arrow.clockwise")
+            }
+        }
+    }
+
+    /// Acciones del guion cuando no hay nada generándose.
+    @ViewBuilder
+    private var scriptActions: some View {
+        let verifiedDone = bundle.steps.contains { $0.step == "fix" && $0.status == "succeeded" }
+        let podcastDone = bundle.steps.contains { $0.step == "podcast_script" && $0.status == "succeeded" }
+        if bundle.current?.effectiveStatus == "paused" {
+            // En pausa: o espera las decisiones de la verificación (sigue en
+            // «Guion verificado») o quedaron ___DATO pendientes (sigue en «Motion»).
+            let from = verifiedDone ? "motion" : "fix"
+            ServerActionButton(
+                title: verifiedDone ? "Seguir con los datos pendientes" : "Seguir con mis decisiones",
+                systemImage: "play.fill", prominent: true,
+                cost: CreditEstimate.fixRedo,
+                action: { try await model.startScript(episode.id, from: from) },
+                onDone: { await load() }
+            )
+        } else if verifiedDone && bundle.verification.contains(where: { $0.decision != nil }) {
+            ServerActionButton(
+                title: "Rehacer el guion verificado con mis decisiones", systemImage: "arrow.clockwise",
+                cost: CreditEstimate.fixRedo,
+                action: { try await model.startScript(episode.id, from: "fix") },
+                onDone: { await load() }
+            )
+        }
+        if verifiedDone && !podcastDone && stage == .podcast {
+            ServerActionButton(
+                title: "Generar podcast", systemImage: "mic", prominent: true,
+                cost: CreditEstimate.podcast,
+                action: { try await model.startScript(episode.id, from: "podcast_script") },
+                onDone: { await load() }
+            )
+        }
+        ServerActionButton(
+            title: "Rehacer todo", systemImage: "arrow.triangle.2.circlepath",
+            cost: CreditEstimate.script,
+            confirm: "Se vuelve a generar el guion completo, desde el Estudio.",
+            action: { try await model.startScript(episode.id) },
+            onDone: { await load() }
+        )
+        if podcastDone && stage == .podcast {
+            ServerActionButton(
+                title: "Borrar podcast", systemImage: "trash", role: .destructive,
+                confirm: "Se borra el guion y la descripción del podcast.",
+                action: { try await model.deletePodcast(episode.id) },
+                onDone: { await load() }
+            )
+        }
+        ServerActionButton(
+            title: "Borrar guion", systemImage: "trash", role: .destructive,
+            confirm: "Se borra el guion con todas sus etapas. Si hay miniaturas o ayudas visuales que dependen de él, primero hay que borrarlas.",
+            action: { try await model.deleteScript(episode.id) },
+            onDone: { await load() }
+        )
+    }
+
+    private func redo(from step: String) async {
+        do {
+            try await model.startScript(episode.id, from: step)
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -228,11 +382,36 @@ struct ScriptView: View {
                             .font(.caption)
                             .foregroundStyle(Palette.accent)
                     }
+                    if canWrite && item.needsDecision && bundle.current?.isActive == false {
+                        Menu {
+                            Button("Reescribir con lo confirmado") { decide(item, "rewrite") }
+                            Button("Eliminar la línea") { decide(item, "remove") }
+                            Button("Dejar DATO POR CONFIRMAR") { decide(item, "mark") }
+                            Button("Escribir el dato…") { valueInput = item.decisionValue ?? ""; deciding = item }
+                            Button("Que decida Claude") { decide(item, nil) }
+                        } label: {
+                            Label("¿Qué hacemos con esta línea?", systemImage: "questionmark.circle")
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
                 }
                 .padding(.vertical, 2)
             }
         } header: {
             Text("Verificación")
+        }
+    }
+
+    @State private var valueInput = ""
+
+    private func decide(_ item: VerificationItemRow, _ decision: String?, value: String? = nil) {
+        Task {
+            do {
+                try await model.decideClaim(episode.id, idx: item.idx, decision: decision, value: value)
+                await load()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

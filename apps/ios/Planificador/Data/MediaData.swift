@@ -74,7 +74,7 @@ extension AppModel {
     private func upload(_ jpeg: Data, to path: String) async throws {
         guard let client = supabase else { throw AppError.notReady }
         _ = try await client.storage.from(mediaBucket)
-            .upload(path: path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
+            .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
     }
 
     private func removeFile(_ path: String) async {

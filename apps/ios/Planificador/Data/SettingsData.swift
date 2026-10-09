@@ -27,7 +27,7 @@ struct ChannelDetails: Decodable, Hashable {
     let icsToken: String?
     let youtubeHandle: String?
     /// El jsonb completo, para no perder claves que la app no conoce.
-    let profileRaw: [String: AnyJSON]
+    let profileRaw: [String: JSONAny]
 
     enum CodingKeys: String, CodingKey {
         case id, name, language, timezone, formats, profile
@@ -57,7 +57,7 @@ struct ChannelDetails: Decodable, Hashable {
         formats = try c.decodeIfPresent([String].self, forKey: .formats) ?? ["long"]
         icsToken = try c.decodeIfPresent(String.self, forKey: .icsToken)
         youtubeHandle = try c.decodeIfPresent(String.self, forKey: .youtubeHandle)
-        profileRaw = (try? c.decodeIfPresent([String: AnyJSON].self, forKey: .profile)) ?? [:]
+        profileRaw = (try? c.decodeIfPresent([String: JSONAny].self, forKey: .profile)) ?? [:]
     }
 
     var profile: ChannelProfile {
@@ -80,7 +80,7 @@ struct ProfileUpdate: Encodable {
     let language: String
     let timezone: String
     let codePrefix: String
-    let profile: [String: AnyJSON]
+    let profile: [String: JSONAny]
 
     enum CodingKeys: String, CodingKey {
         case name, language, timezone, profile

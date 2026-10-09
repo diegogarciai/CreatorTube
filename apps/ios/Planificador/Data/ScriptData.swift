@@ -241,6 +241,11 @@ struct VerificationItemRow: Decodable, Hashable, Identifiable {
         }
     }
 
+    /// Pide una salida de la regla 10.4 (`needsDecision` de la web).
+    var needsDecision: Bool {
+        kind != "opinion" && (status == "unverifiable" || status == "contradicted" || status == "pending")
+    }
+
     var decisionLabel: String? {
         switch decision {
         case "rewrite": return "Reescribir con lo confirmado"
