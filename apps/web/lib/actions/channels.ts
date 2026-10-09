@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { redirect } from "next/navigation";
 import {
   can,
@@ -12,6 +13,7 @@ import {
   pillarSchema,
   motionSeconds,
   reorderSteps,
+  socialsToJson,
   validateGuide,
   writerGuideSchema,
   type ChecklistStep,
@@ -373,6 +375,33 @@ export async function publishWriterGuide(channelId: string, input: unknown): Pro
       sections: parsed.sections.map(({ key, title, body }) => ({ key, title, body })),
       stage_sections: stages,
     });
+    if (error) throw error;
+    revalidateChannel(channelId);
+  });
+}
+
+const socialsSchema = z
+  .array(
+    z.object({
+      label: z.string().trim().min(1).max(40),
+      url: z.union([z.literal(""), z.url().max(300)]),
+    }),
+  )
+  .max(12);
+
+/** Las redes del canal (Ajustes › Redes): de ahí salen los posts de cada episodio. */
+export async function updateSocials(channelId: string, input: unknown): Promise<ActionResult> {
+  return run(async () => {
+    await requireChannelPermission(channelId, "configure_channel");
+    const rows = socialsSchema.parse(
+      Array.isArray(input)
+        ? input.map((r) => ({ ...r, url: typeof r?.url === "string" ? r.url.trim() : r?.url }))
+        : input,
+    );
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from("distribution_settings")
+      .upsert({ channel_id: channelId, socials: socialsToJson(rows) });
     if (error) throw error;
     revalidateChannel(channelId);
   });

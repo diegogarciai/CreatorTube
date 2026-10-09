@@ -63,3 +63,6 @@ export const VISUAL_PLAN_ESTIMATE_CREDITS = 20;
 
 /** Leer comentarios: una clasificación de unos 40 comentarios por llamada. */
 export const COMMENTS_ESTIMATE_CREDITS = 10;
+
+/** Posts para redes: una llamada con el guion, los reels y 3 cápsulas por red. */
+export const SOCIAL_POSTS_ESTIMATE_CREDITS = 15;

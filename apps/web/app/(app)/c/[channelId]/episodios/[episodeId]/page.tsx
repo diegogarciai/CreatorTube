@@ -35,6 +35,8 @@ import { loadTitleOptions } from "@/lib/data/titles";
 import { loadVisualAidsView } from "@/lib/data/visual-aids";
 import { loadEpisodeComments } from "@/lib/data/comments";
 import { CommentsPanel } from "@/components/episodes/comments-panel";
+import { SocialPostsPanel } from "@/components/episodes/social-posts-panel";
+import { loadEpisodeSocials } from "@/lib/data/social-posts";
 import { loadEpisodeMetrics } from "@/lib/data/analytics";
 import { EpisodeMetricsPanel } from "@/components/analytics/episode-metrics";
 import { episodeDependents } from "@/lib/data/dependents";
@@ -176,6 +178,15 @@ export default async function EpisodePage({
   ]);
   const comments =
     tab === "distribution" ? await loadEpisodeComments({ id: episodeId, channelId }) : null;
+  const socials =
+    tab === "distribution"
+      ? await loadEpisodeSocials({
+          id: episodeId,
+          channelId,
+          scriptRunId: row.current_script_run_id,
+          youtubeVideoId: row.youtube_video_id,
+        })
+      : null;
   // Lo generado del episodio: qué bloquea cada «Rehacer» y «Borrar».
   const deps =
     tab === "script" || tab === "production"
@@ -548,15 +559,26 @@ export default async function EpisodePage({
                 />
               </CardBody>
             </Card>
-            {comments ? (
-              <CommentsPanel
-                episodeId={row.id}
-                channelId={channelId}
-                view={comments}
-                canPublish={ctx.can("publish")}
-                hasVideo={Boolean(row.youtube_video_id)}
-              />
-            ) : null}
+            <div className="min-w-0 space-y-6">
+              {socials ? (
+                <SocialPostsPanel
+                  episodeId={row.id}
+                  channelId={channelId}
+                  view={socials}
+                  canPublish={ctx.can("publish")}
+                  canConfigure={ctx.can("configure_channel")}
+                />
+              ) : null}
+              {comments ? (
+                <CommentsPanel
+                  episodeId={row.id}
+                  channelId={channelId}
+                  view={comments}
+                  canPublish={ctx.can("publish")}
+                  hasVideo={Boolean(row.youtube_video_id)}
+                />
+              ) : null}
+            </div>
           </div>
         ) : tab === "metrics" && video.data && metrics ? (
           <EpisodeMetricsPanel

@@ -769,6 +769,50 @@ describe("Fase 4 · comentarios", () => {
   });
 });
 
+describe("Fase 4 · redes", () => {
+  it("los posts se leen con permiso, los escribe el servidor y van uno por red y tipo", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch, "Con posts");
+    const add = (network: string, kind: string) =>
+      sql(
+        `insert into public.social_posts (channel_id, episode_id, network, kind, text)
+         values ($1, $2, $3, $4, 'Texto') returning workspace_id`,
+        [ch, ep, network, kind],
+      );
+    const [row] = await add("x", "dato");
+    expect(row.workspace_id).toBe(ws);
+    await add("x", "mito");
+    await expect(add("x", "dato")).rejects.toThrow(/duplicate key/);
+    await expect(add("x", "otro")).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, (q) =>
+        q(
+          "select kind from public.social_posts where episode_id = $1 and network = 'x' order by kind",
+          [ep],
+        ),
+      );
+    expect(await read(owner.id)).toEqual([{ kind: "dato" }, { kind: "mito" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q("update public.social_posts set text = 'y' where episode_id = $1 returning 1", [ep]),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.social_posts (channel_id, episode_id, network, kind) values ($1, $2, 'threads', 'dato')",
+          [ch, ep],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

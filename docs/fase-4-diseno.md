@@ -48,7 +48,7 @@ Fuentes:
 | 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Pendiente |
 | 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
 | 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Pendiente |
-| 6    | Redes y cápsulas: posts de texto por red                                          | Pendiente |
+| 6    | Redes y cápsulas: posts de texto por red                                          | Hecho     |
 | 7    | Paridad con el panel (prueba de salida)                                           | Pendiente |
 
 ## 4. Analítica y retención (paso 1)
@@ -219,9 +219,24 @@ La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings
 
 ### Redes y cápsulas (paso 6)
 
-- Posts de texto por red (las que estén en `distribution_settings.socials`), desde la postura, los reels R1–R3 y el dato principal.
-- Se editan, se copian y se marcan publicados; el estado queda por red.
-- Corren en el modelo de la etapa Difusión (Haiku), por unos US$0,10 a US$0,20 por episodio.
+**Redes del canal:** se cargan en Ajustes › Redes (la red y el enlace al perfil) y se guardan en `distribution_settings.socials` como `{ nombre: enlace }`, la misma forma que ya lee el guion. Hay un catálogo con la forma de cada red (X, Threads, Bluesky, LinkedIn, Instagram, Facebook, TikTok); una red fuera del catálogo usa reglas genéricas.
+
+**Las cápsulas:** de cada episodio, a pedido desde la pestaña Difusión («Generar posts»), salen 3 posts de texto por red:
+
+- **dato:** el dato principal, solo de afirmaciones verificadas (o matizadas, con su matiz);
+- **mito:** una creencia común que el episodio desmiente, con lo que dice el guion;
+- **postura:** la postura del episodio, en primera persona.
+
+**Cómo se escriben:**
+
+1. La tarea `social_posts` (Trigger.dev, etapa de IA **Difusión**) lee el guion verificado, los reels R1–R3, la postura (`assets_json`, o la del episodio), la tabla de verificación y la sección 13 de la guía.
+2. Claude escribe solo las cápsulas que faltan, con el tope de caracteres, los hashtags y el estilo de cada red, sin emojis ni enlaces.
+3. El enlace al video no va en el texto: la app lo agrega al copiar, y ya está descontado del tope (en X cuenta 23).
+4. Los posts que no cumplen la forma se piden de nuevo una vez con el motivo; si siguen mal, el panel los marca en rojo.
+
+**En el panel:** cada cápsula se edita (con su contador), se copia con o sin el enlace, se marca publicada (con el enlace al post, opcional) o se descarta; el estado queda por red. «Rehacer» de una red borra sus posts no publicados (pide confirmación si hay ediciones) y los escribe de nuevo; lo publicado no se toca.
+
+**Tabla:** `social_posts` (uno por episodio, red y tipo), con RLS de lectura; la escribe el servidor. No son datos de YouTube, así que no entran en la purga.
 
 ## 6. Costos estimados
 

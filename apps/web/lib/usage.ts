@@ -32,7 +32,7 @@ export function stageOfKind(kind: string): UsageStage {
   if (kind.startsWith("thumbnail_")) return "thumbnails";
   if (kind === "visual_plan") return "visual_aids";
   if (kind === "render_aids") return "render";
-  if (kind === "comments") return "distribution";
+  if (kind === "comments" || kind === "social_posts") return "distribution";
   if (kind.startsWith("script_")) {
     const step = kind.slice("script_".length);
     if (isScriptStep(step)) return stepSpec(step).stage;

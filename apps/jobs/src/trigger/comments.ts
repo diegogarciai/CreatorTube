@@ -1,10 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
-import { classifyComments, usdToCredits, type Claim, type StreamClient } from "@planificador/ai";
+import { classifyComments, usdToCredits, type StreamClient } from "@planificador/ai";
 import { sectionsText, type CommentReading, type GuideSection } from "@planificador/core";
 import type { Json } from "@planificador/db";
 import { loadAiSettings } from "../lib/ai-settings";
+import { claimFromRow } from "../lib/claims";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
 import { runTracked } from "../lib/task-row";
 
@@ -101,23 +102,7 @@ export async function runComments(taskId: string, db: ServiceClient, anthropic: 
       const out = await classifyComments(anthropic, ai.config("distribution"), {
         episodeTitle: episode.title,
         script,
-        claims: claims.map(
-          (r): Claim => ({
-            idx: r.idx,
-            kind: r.kind as Claim["kind"],
-            claim: r.claim,
-            line: r.line,
-            occurrences: r.occurrences,
-            status: r.status as Claim["status"],
-            nature: r.nature as Claim["nature"],
-            url: r.url,
-            sourceTitle: r.source_title,
-            quote: r.quote,
-            date: r.data_date,
-            value: r.value,
-            note: r.note,
-          }),
-        ),
+        claims: claims.map(claimFromRow),
         guide,
         comments: comments.map((c) => ({ id: c.comment_id, text: c.text, likes: c.like_count })),
         previous: (previous?.reading as unknown as CommentReading | null) ?? null,

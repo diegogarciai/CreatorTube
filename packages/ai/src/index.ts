@@ -11,3 +11,4 @@ export * from "./gemini";
 export * from "./thumbnails";
 export * from "./visual-aids";
 export * from "./comments";
+export * from "./socials";
