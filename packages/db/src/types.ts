@@ -254,6 +254,7 @@ export type Database = {
           quota_used: number;
           created_at: string;
           updated_at: string;
+          reporting: Json;
         };
         Insert: {
           channel_id: string;
@@ -272,6 +273,7 @@ export type Database = {
           quota_used?: number;
           created_at?: string;
           updated_at?: string;
+          reporting?: Json;
         };
         Update: {
           channel_id?: string;
@@ -290,6 +292,7 @@ export type Database = {
           quota_used?: number;
           created_at?: string;
           updated_at?: string;
+          reporting?: Json;
         };
         Relationships: [
           {
@@ -2593,6 +2596,99 @@ export type Database = {
           },
         ];
       };
+      youtube_video_reach_daily: {
+        Row: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          workspace_id: string;
+          impressions: number;
+          ctr: number;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          workspace_id?: string;
+          impressions?: number;
+          ctr?: number;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          video_id?: string;
+          day?: string;
+          workspace_id?: string;
+          impressions?: number;
+          ctr?: number;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_reach_daily_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_video_reach_daily_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      youtube_video_reach_sources: {
+        Row: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          traffic_source: string;
+          workspace_id: string;
+          impressions: number;
+          clicks: number;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          video_id: string;
+          day: string;
+          traffic_source: string;
+          workspace_id?: string;
+          impressions?: number;
+          clicks?: number;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          video_id?: string;
+          day?: string;
+          traffic_source?: string;
+          workspace_id?: string;
+          impressions?: number;
+          clicks?: number;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_video_reach_sources_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_video_reach_sources_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       youtube_video_retention: {
         Row: {
           channel_id: string;
@@ -2842,6 +2938,24 @@ export type Database = {
       purge_youtube_data: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
+      };
+      reach_by_day: {
+        Args: { p_channel: string; p_from: string };
+        Returns: { day: string; impressions: number; clicks: number }[];
+      };
+      reach_by_source: {
+        Args: { p_channel: string; p_from: string; p_to: string; p_video?: string };
+        Returns: { traffic_source: string; impressions: number; clicks: number }[];
+      };
+      reach_by_video: {
+        Args: { p_channel: string; p_videos: string[] };
+        Returns: {
+          video_id: string;
+          impressions: number;
+          clicks: number;
+          week_impressions: number;
+          week_clicks: number;
+        }[];
       };
       regenerate_ics_token: {
         Args: { ch: string };

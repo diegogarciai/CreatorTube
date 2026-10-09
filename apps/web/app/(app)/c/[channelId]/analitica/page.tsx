@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { youTubeWatchUrl } from "@planificador/core";
 import { DailyChart } from "@/components/analytics/daily-chart";
+import { ctrLabel, ReachCard } from "@/components/analytics/reach-card";
 import { RefreshAnalyticsButton } from "@/components/analytics/refresh-button";
 import { YesterdayPanel } from "@/components/analytics/yesterday-panel";
 import { clockLabel, percentLabel, StatTiles } from "@/components/analytics/stat-tiles";
@@ -100,6 +101,17 @@ export default async function AnalyticsPage({
                 <DailyChart points={analytics.daily} label={t("analytics.tile.views")} />
               </CardBody>
             </Card>
+            <ReachCard
+              title={t("analytics.reachTitle")}
+              description={t("analytics.reachDesc", {
+                date: analytics.reach
+                  ? fmt.format(new Date(`${analytics.reach.lastDay}T12:00:00Z`))
+                  : "—",
+              })}
+              totals={analytics.reach?.current ?? null}
+              previous={analytics.reach?.previous}
+              sources={analytics.reach?.sources ?? []}
+            />
             <Card>
               <CardHeader
                 title={t("analytics.episodesTitle")}
@@ -107,7 +119,7 @@ export default async function AnalyticsPage({
               />
               {analytics.episodes.length ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm" data-testid="episode-analytics">
+                  <table className="w-full min-w-[900px] text-sm" data-testid="episode-analytics">
                     <thead>
                       <tr className="border-b border-border text-left text-xs text-muted">
                         <th className="px-5 py-2 font-medium">{t("analytics.col.episode")}</th>
@@ -122,6 +134,12 @@ export default async function AnalyticsPage({
                         </th>
                         <th className="px-3 py-2 text-right font-medium">
                           {t("analytics.col.duration")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.impressions")}
+                        </th>
+                        <th className="px-3 py-2 text-right font-medium">
+                          {t("analytics.col.ctr")}
                         </th>
                         <th className="px-3 py-2 text-right font-medium">
                           {t("analytics.col.likes")}
@@ -157,6 +175,12 @@ export default async function AnalyticsPage({
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {clockLabel(e.total.averageViewDurationS)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {e.reach ? int.format(e.reach.total.impressions) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {e.reach ? ctrLabel(e.reach.total.ctr) : "—"}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
                             {int.format(e.total.likes)}

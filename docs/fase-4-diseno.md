@@ -44,7 +44,7 @@ Fuentes:
 | Paso | Qué                                                                               | Estado    |
 | ---- | --------------------------------------------------------------------------------- | --------- |
 | 1    | Este documento; analítica de canal y episodio; retención con el párrafo del guion | Hecho     |
-| 2    | Impresiones y CTR con la Reporting API                                            | Pendiente |
+| 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
 | 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Pendiente |
 | 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Pendiente |
 | 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Pendiente |
@@ -109,14 +109,38 @@ Fuentes:
 
 ## 5. Lo que viene (pasos 2 a 6)
 
-### Impresiones y CTR (paso 2)
+### Impresiones, CTR y fuentes de tráfico (paso 2)
 
-- **Fuente:** no están en la Analytics API; salen de la Reporting API, que no gasta cuota de la Data API y usa el mismo permiso.
-- **Cómo se trae:**
-  1. Al conectar un canal se crea su trabajo de reporte.
-  2. Los archivos llegan hasta con 48 horas de atraso y YouTube los guarda 60 días.
-  3. Se descargan a diario y se archivan en la base (`youtube_reach_daily`), por video y por día.
-- **Dónde se ven:** en Analítica y en la pestaña Métricas.
+**Fuente:** la YouTube Reporting API. No están en la Analytics API. La Reporting API no gasta cuota de la Data API y usa el mismo permiso `yt-analytics.readonly`.
+
+| Reporte                     | Qué trae                                                                  | Tabla                         |
+| --------------------------- | ------------------------------------------------------------------------- | ----------------------------- |
+| `channel_reach_basic_a1`    | Impresiones de la miniatura y su CTR, por video y por día                 | `youtube_video_reach_daily`   |
+| `channel_reach_combined_a1` | Lo mismo, por fuente de tráfico y dispositivo (se suman los dispositivos) | `youtube_video_reach_sources` |
+
+**Cómo se trae** (`syncReach` en `packages/youtube/src/reporting.ts`):
+
+1. La primera vez se crea un trabajo de reporte por tipo, o se reutiliza uno que ya exista. Queda guardado en `channel_connections.reporting`, junto con el último reporte leído.
+2. YouTube genera un CSV por día con hasta 48 h de atraso. Al crear el trabajo, genera también los días anteriores.
+3. Cada sincronización (el cron diario y «Actualizar ahora») baja los reportes nuevos, del más viejo al más nuevo. Un reporte regenerado de un día reemplaza al anterior.
+4. YouTube guarda los reportes unos 60 días; aquí quedan archivados.
+
+**Detalles de los datos:**
+
+- **CTR:** se guarda de 0 a 1. En las fuentes se guardan los clics (impresiones × CTR), así se pueden sumar entre días.
+- **CTR de varios días o videos:** clics ÷ impresiones, calculado por la app y marcado así en pantalla.
+- **Fuentes:** se muestran con su nombre en español (búsqueda, sugeridos, inicio y exploración, notificaciones, externo, Shorts…). Un código desconocido queda como «Otra fuente».
+- **Sumas en la base:** `reach_by_day`, `reach_by_video` y `reach_by_source` (security invoker, con las políticas de lectura). Así se evita el límite de filas de las consultas.
+- **Desconexión:** al desconectar el canal, la purga también borra el alcance.
+
+**Dónde se ve:**
+
+- **Analítica:** la tarjeta «Alcance de las miniaturas»:
+  - impresiones y CTR de los últimos 28 días con datos, con su variación;
+  - «De dónde vienen las impresiones», con impresiones, parte y CTR por fuente;
+  - las columnas «Impresiones» y «CTR» en la tabla de episodios.
+- **Pestaña Métricas:** la misma tarjeta, con las cifras del episodio desde que se publicó.
+- **Sin reportes todavía:** un aviso de que llegan con hasta 48 h de atraso.
 
 ### Evaluación a 7 días y auditoría (paso 3)
 
@@ -177,7 +201,7 @@ Fuentes:
 | Qué                          | Estimado                                             |
 | ---------------------------- | ---------------------------------------------------- |
 | Analítica y retención        | Gratis: cuota propia de la Analytics API             |
-| Impresiones y CTR            | Gratis: Reporting API                                |
+| Impresiones, CTR y fuentes   | Gratis: Reporting API                                |
 | Evaluación a 7 días          | Una llamada a Claude por episodio                    |
 | Auditoría mensual            | Unos US$0,50 por canal al mes                        |
 | Comentarios, boletín y redes | Unos US$0,10 a US$0,20 por episodio (Haiku)          |

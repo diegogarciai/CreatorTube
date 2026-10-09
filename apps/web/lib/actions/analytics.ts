@@ -5,11 +5,16 @@ import { requireChannelPermission } from "../auth";
 import { createAdminClient } from "../supabase/admin";
 import { errorMessage, type ActionResult } from "../utils";
 import { syncChannelById } from "../youtube";
-import { ANALYTICS_COOLDOWN_MS, analyticsFetchedAt, syncAnalyticsById } from "../youtube-analytics";
+import {
+  ANALYTICS_COOLDOWN_MS,
+  analyticsFetchedAt,
+  syncAnalyticsById,
+  syncReachById,
+} from "../youtube-analytics";
 
 /**
  * «Actualizar ahora» en Analítica: sincroniza los videos y trae la analítica
- * del canal. No repite antes de 15 minutos (YouTube actualiza una vez al día).
+ * y el alcance del canal. No repite antes de 15 minutos (YouTube actualiza una vez al día).
  */
 export async function refreshAnalytics(channelId: string): Promise<ActionResult> {
   try {
@@ -23,6 +28,9 @@ export async function refreshAnalytics(channelId: string): Promise<ActionResult>
     const res = await syncAnalyticsById(admin, channelId);
     if (!res) return { ok: false, error: "errors.youtube_not_connected" };
     if (!res.ok) return { ok: false, error: res.error ?? "errors.unknown" };
+    // El alcance llega aparte (Reporting API): si falla, la analítica ya quedó.
+    const reach = await syncReachById(admin, channelId);
+    if (reach && !reach.ok) console.error("alcance", channelId, reach.error);
     revalidatePath(`/c/${channelId}`, "layout");
     return { ok: true };
   } catch (err) {

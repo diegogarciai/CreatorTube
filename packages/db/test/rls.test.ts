@@ -632,6 +632,80 @@ describe("Fase 4 · fotos de contadores («Así te fue ayer»)", () => {
   });
 });
 
+describe("Fase 4 · alcance (impresiones, CTR y fuentes)", () => {
+  it("se lee con permiso del canal, la escribe el servidor y se purga al desconectar", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const [row] = await sql(
+      "insert into public.youtube_video_reach_daily (channel_id, video_id, day, impressions, ctr) values ($1, 'aaaaaaaaaaa', '2026-10-05', 1000, 0.054) returning workspace_id",
+      [ch],
+    );
+    expect(row.workspace_id).toBe(ws);
+    await sql(
+      "insert into public.youtube_video_reach_sources (channel_id, video_id, day, traffic_source, impressions, clicks) values ($1, 'aaaaaaaaaaa', '2026-10-05', '5', 800, 50)",
+      [ch],
+    );
+    await expect(
+      sql(
+        "insert into public.youtube_video_reach_daily (channel_id, video_id, day, ctr) values ($1, 'b', '2026-10-05', 5.4)",
+        [ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, async (q) => ({
+        reach: await q(
+          "select impressions from public.youtube_video_reach_daily where channel_id = $1",
+          [ch],
+        ),
+        sources: await q(
+          "select traffic_source from public.youtube_video_reach_sources where channel_id = $1",
+          [ch],
+        ),
+      }));
+    expect(await read(owner.id)).toEqual({
+      reach: [{ impressions: "1000" }],
+      sources: [{ traffic_source: "5" }],
+    });
+    expect(await read(outsider.id)).toEqual({ reach: [], sources: [] });
+    // Las sumas respetan las políticas: el ajeno no ve nada.
+    const sums = (uid: string) =>
+      as(uid, async (q) => ({
+        day: await q(
+          "select day::text, impressions, clicks from public.reach_by_day($1, '2026-10-01')",
+          [ch],
+        ),
+        source: await q(
+          "select traffic_source, impressions from public.reach_by_source($1, '2026-10-01', '2026-10-31', 'aaaaaaaaaaa')",
+          [ch],
+        ),
+      }));
+    expect(await sums(owner.id)).toEqual({
+      day: [{ day: "2026-10-05", impressions: "1000", clicks: "54.000" }],
+      source: [{ traffic_source: "5", impressions: "800" }],
+    });
+    expect(await sums(outsider.id)).toEqual({ day: [], source: [] });
+    await expect(
+      as(owner.id, (q) =>
+        q(
+          "insert into public.youtube_video_reach_daily (channel_id, video_id, day) values ($1, 'c', '2026-10-06')",
+          [ch],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await sql("update public.channels set disconnected_at = now() where id = $1", [ch]);
+    await sql("select public.purge_youtube_data()");
+    expect(
+      await sql(
+        "select (select count(*) from public.youtube_video_reach_daily where channel_id = $1) + (select count(*) from public.youtube_video_reach_sources where channel_id = $1) as n",
+        [ch],
+      ),
+    ).toEqual([{ n: "0" }]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });
