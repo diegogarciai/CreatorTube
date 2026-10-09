@@ -81,7 +81,10 @@ final class AppModel {
         if client.auth.currentSession == nil { phase = .signedOut }
         for await (event, session) in client.auth.authStateChanges {
             switch event {
-            case .initialSession, .signedIn, .userUpdated:
+            // La sesión inicial puede venir vencida: se entra igual, porque
+            // Supabase la renueva antes de consultar. Si la renovación falla
+            // por un token inválido, llega `.signedOut`.
+            case .initialSession, .signedIn, .userUpdated, .tokenRefreshed:
                 if let session {
                     let changedUser = userId != session.user.id.uuidString.lowercased()
                     email = session.user.email
@@ -100,7 +103,7 @@ final class AppModel {
     }
 
     func signOut() async {
-        try? await supabase?.auth.signOut()
+        _ = try? await supabase?.auth.signOut()
         reset()
     }
 
@@ -259,7 +262,7 @@ final class AppModel {
             .value
         // Como la web: la idea pasa a «En marcha» al convertirse en episodio.
         if let ideaId = draft.ideaId {
-            try? await client.from("ideas").update(IdeaStatusUpdate(status: .inProgress)).eq("id", value: ideaId).execute()
+            _ = try? await client.from("ideas").update(IdeaStatusUpdate(status: .inProgress)).eq("id", value: ideaId).execute()
         }
         await loadEpisodes()
         return inserted.id
