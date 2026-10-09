@@ -7,13 +7,19 @@ import { AuditCard } from "@/components/analytics/audit-card";
 import { DailyChart } from "@/components/analytics/daily-chart";
 import { ctrLabel, ReachCard } from "@/components/analytics/reach-card";
 import { RefreshAnalyticsButton } from "@/components/analytics/refresh-button";
+import { SearchTermsCard } from "@/components/analytics/search-terms-card";
 import { YesterdayPanel } from "@/components/analytics/yesterday-panel";
 import { clockLabel, percentLabel, StatTiles } from "@/components/analytics/stat-tiles";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getChannelContext, getSupabase } from "@/lib/auth";
-import { loadChannelAnalytics, loadYesterday, type PeriodTotals } from "@/lib/data/analytics";
+import {
+  loadChannelAnalytics,
+  loadSearchTerms,
+  loadYesterday,
+  type PeriodTotals,
+} from "@/lib/data/analytics";
 import { loadAudits } from "@/lib/data/evaluation";
 
 export const metadata: Metadata = { title: "Analítica" };
@@ -31,7 +37,7 @@ export default async function AnalyticsPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const [analytics, yesterday, { data: videos }, audits] = await Promise.all([
+  const [analytics, yesterday, { data: videos }, audits, search] = await Promise.all([
     loadChannelAnalytics(channelId),
     loadYesterday(channelId),
     supabase
@@ -43,6 +49,7 @@ export default async function AnalyticsPage({
       .order("published_at", { ascending: false, nullsFirst: true })
       .limit(20),
     loadAudits(channelId),
+    loadSearchTerms(channelId),
   ]);
   const fmt = new Intl.DateTimeFormat("es", {
     dateStyle: "medium",
@@ -115,6 +122,14 @@ export default async function AnalyticsPage({
               previous={analytics.reach?.previous}
               sources={analytics.reach?.sources ?? []}
             />
+            {search.terms.length ? (
+              <SearchTermsCard
+                channelId={channelId}
+                terms={search.terms}
+                periodEnd={search.periodEnd}
+                canIdea={ctx.can("write_script")}
+              />
+            ) : null}
             <Card>
               <CardHeader
                 title={t("analytics.episodesTitle")}

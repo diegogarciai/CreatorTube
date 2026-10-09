@@ -468,7 +468,8 @@ struct IdeaRow: Decodable, Identifiable, Hashable {
         id = try c.decode(String.self, forKey: .id)
         title = try c.decode(String.self, forKey: .title)
         notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
-        origin = try c.decode(IdeaOrigin.self, forKey: .origin)
+        // Un origen que esta versión no conoce no rompe la lista.
+        origin = (try? c.decode(IdeaOrigin.self, forKey: .origin)) ?? .recommendation
         status = try c.decode(IdeaStatus.self, forKey: .status)
         createdAt = try c.decode(String.self, forKey: .createdAt)
         // jsonb {"demand": 3, ...}; claves desconocidas se ignoran.

@@ -114,3 +114,14 @@ describe("ideas y esquemas", () => {
     ).toThrow();
   });
 });
+
+describe("búsquedas cubiertas", () => {
+  it("una búsqueda está cubierta si un título o palabra clave tiene sus palabras", async () => {
+    const { termCovered } = await import("../src");
+    const texts = ["MacBook Air M4: ¿vale la pena?", "batería macbook air m4"];
+    expect(termCovered("macbook air m4 batería", texts)).toBe(true);
+    expect(termCovered("Macbook air vs Dell XPS", texts)).toBe(false);
+    expect(termCovered("la de", texts)).toBe(true);
+    expect(termCovered("iphone 17", [])).toBe(false);
+  });
+});

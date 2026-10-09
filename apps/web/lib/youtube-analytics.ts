@@ -81,6 +81,35 @@ function analyticsStore(admin: Admin, timezone: string): AnalyticsStore {
       );
       if (error) throw error;
     },
+    async saveSearchTerms(channelId, terms, periodEnd, fetchedAt) {
+      const { error: delError } = await admin
+        .from("youtube_search_terms")
+        .delete()
+        .eq("channel_id", channelId);
+      if (delError) throw delError;
+      if (!terms.length) return;
+      // La misma búsqueda puede venir con mayúsculas distintas: se suman.
+      const byTerm = new Map<string, { views: number; watchMinutes: number }>();
+      for (const t of terms) {
+        const key = t.term.toLowerCase().slice(0, 300);
+        const cur = byTerm.get(key) ?? { views: 0, watchMinutes: 0 };
+        byTerm.set(key, {
+          views: cur.views + t.views,
+          watchMinutes: cur.watchMinutes + t.watchMinutes,
+        });
+      }
+      const { error } = await admin.from("youtube_search_terms").insert(
+        [...byTerm].map(([term, v]) => ({
+          channel_id: channelId,
+          term,
+          views: v.views,
+          watch_minutes: v.watchMinutes,
+          period_end: periodEnd,
+          fetched_at: fetchedAt.toISOString(),
+        })),
+      );
+      if (error) throw error;
+    },
     async saveRetention(channelId, videoId, points, fetchedAt) {
       const { error } = await admin.from("youtube_video_retention").upsert({
         channel_id: channelId,

@@ -76,3 +76,38 @@ export async function setIdeaStatus(
     return { ok: false, error: errorMessage(err) };
   }
 }
+
+/** Pasa a Ideas una búsqueda de YouTube que trae gente al canal (origen «Búsqueda en YouTube»). */
+export async function searchTermToIdea(
+  channelId: string,
+  term: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const ctx = await requireChannelPermission(channelId, "write_script");
+    const supabase = await getSupabase();
+    const { data: row } = await supabase
+      .from("youtube_search_terms")
+      .select("term, views, period_end")
+      .eq("channel_id", channelId)
+      .eq("term", term)
+      .maybeSingle();
+    if (!row) throw new Error("errors.not_found");
+    const title = row.term.charAt(0).toUpperCase() + row.term.slice(1);
+    const { data, error } = await supabase
+      .from("ideas")
+      .insert({
+        channel_id: channelId,
+        title: title.slice(0, 200),
+        notes: `Búsqueda de YouTube que trajo ${row.views} ${row.views === 1 ? "vista" : "vistas"} al canal en los 28 días hasta el ${row.period_end}.`,
+        origin: "search",
+        created_by: ctx.userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    revalidatePath(`/c/${channelId}/ideas`);
+    return { ok: true, data: { id: data.id } };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}

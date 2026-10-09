@@ -37,6 +37,13 @@ export interface DailyMetrics {
   shares: number;
 }
 
+/** Una búsqueda de YouTube que trajo gente al canal. */
+export interface SearchTerm {
+  term: string;
+  views: number;
+  watchMinutes: number;
+}
+
 /** Un punto de la curva de retención: `r` (0 a 1) es la parte del video. */
 export interface RetentionPoint {
   r: number;
@@ -131,6 +138,29 @@ export class YouTubeAnalyticsClient {
           : Number(r.relativeRetentionPerformance),
     }));
   }
+
+  /**
+   * Las búsquedas de YouTube que trajeron gente al canal en el período (las
+   * 25 con más vistas: el tope de esa dimensión).
+   */
+  async searchTerms(from: string, to: string): Promise<SearchTerm[]> {
+    const rows = await this.query({
+      startDate: from,
+      endDate: to,
+      metrics: "views,estimatedMinutesWatched",
+      dimensions: "insightTrafficSourceDetail",
+      filters: "insightTrafficSourceType==YT_SEARCH",
+      sort: "-views",
+      maxResults: "25",
+    });
+    return rows
+      .map((r) => ({
+        term: String(r.insightTrafficSourceDetail ?? "").trim(),
+        views: Number(r.views ?? 0) || 0,
+        watchMinutes: Number(r.estimatedMinutesWatched ?? 0) || 0,
+      }))
+      .filter((r) => r.term);
+  }
 }
 
 /** Días AAAA-MM-DD en UTC. */
@@ -160,6 +190,13 @@ export interface AnalyticsStore extends Pick<SyncStore, "saveTokens" | "markNeed
     points: RetentionPoint[],
     fetchedAt: Date,
   ): Promise<void>;
+  /** Reemplaza las búsquedas del canal (las del período que termina en `periodEnd`). */
+  saveSearchTerms(
+    channelId: string,
+    terms: SearchTerm[],
+    periodEnd: string,
+    fetchedAt: Date,
+  ): Promise<void>;
 }
 
 export interface AnalyticsResult {
@@ -168,6 +205,8 @@ export interface AnalyticsResult {
   channelDays: number;
   videos: number;
   retention: number;
+  /** Búsquedas guardadas (null si la consulta falló; no frena lo demás). */
+  searchTerms: number | null;
   requests: number;
   error: string | null;
   needsReauth: boolean;
@@ -184,6 +223,8 @@ export const ANALYTICS_WINDOWS = {
   /** Videos con curva de retención: publicados hace entre 2 y 60 días. */
   retentionFrom: 2,
   retentionTo: 60,
+  /** Búsquedas que traen gente: los últimos días. */
+  searchTerms: 28,
 } as const;
 
 /**
@@ -208,6 +249,7 @@ export async function syncAnalytics(
     channelDays: 0,
     videos: 0,
     retention: 0,
+    searchTerms: null,
     requests: 0,
     error: null,
     needsReauth: false,
@@ -226,6 +268,15 @@ export async function syncAnalytics(
     const days = await client.channelDaily(from, today);
     await opts.store.saveChannelDays(conn.channelId, days, now);
     result.channelDays = days.length;
+
+    // Las búsquedas que traen gente (si falla, sigue con lo demás).
+    try {
+      const terms = await client.searchTerms(isoDay(addDays(now, -W.searchTerms)), today);
+      await opts.store.saveSearchTerms(conn.channelId, terms, today, now);
+      result.searchTerms = terms.length;
+    } catch (err) {
+      if (err instanceof YouTubeApiError && err.unauthorized) throw err;
+    }
 
     const videos = await opts.store.publishedVideos(conn.channelId, addDays(now, -W.videoDaily));
     for (const v of videos) {

@@ -93,7 +93,13 @@ describe("cliente de la Analytics API", () => {
 });
 
 function memoryStore(last: string | null, videos: { id: string; publishedAt: Date }[]) {
-  const saved = { channel: 0, videoDays: [] as string[], retention: [] as string[], reauth: "" };
+  const saved = {
+    channel: 0,
+    videoDays: [] as string[],
+    retention: [] as string[],
+    reauth: "",
+    terms: [] as { term: string; views: number }[],
+  };
   const store: AnalyticsStore = {
     saveTokens: vi.fn(async () => {}),
     markNeedsReauth: vi.fn(async (_c, e) => void (saved.reauth = e)),
@@ -102,6 +108,7 @@ function memoryStore(last: string | null, videos: { id: string; publishedAt: Dat
     publishedVideos: async () => videos,
     saveVideoDays: async (_c, id) => void saved.videoDays.push(id),
     saveRetention: async (_c, id) => void saved.retention.push(id),
+    saveSearchTerms: async (_c, terms) => void (saved.terms = terms),
   };
   return { store, saved };
 }
@@ -135,7 +142,7 @@ describe("sincronización de la analítica", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
       now,
     });
-    expect(res).toMatchObject({ ok: true, videos: 2, retention: 1, requests: 4 });
+    expect(res).toMatchObject({ ok: true, videos: 2, retention: 1, requests: 5 });
     expect(urls[0]!.searchParams.get("startDate")).toBe("2026-07-10");
     expect(saved.videoDays).toEqual(["nuevo", "semana"]);
     expect(saved.retention).toEqual(["semana"]);
@@ -152,6 +159,56 @@ describe("sincronización de la analítica", () => {
     });
     const url = new URL(String(fetchImpl.mock.calls[0]![0]));
     expect(url.searchParams.get("startDate")).toBe("2026-10-01");
+  });
+
+  it("guarda las búsquedas que traen gente; si esa consulta falla, sigue", async () => {
+    const urls: URL[] = [];
+    const terms = {
+      columnHeaders: [
+        { name: "insightTrafficSourceDetail" },
+        { name: "views" },
+        { name: "estimatedMinutesWatched" },
+      ],
+      rows: [
+        ["macbook air m4 bateria", 120, 600],
+        ["", 5, 1],
+      ],
+    };
+    const fetchImpl = vi.fn(async (u: string) => {
+      const url = new URL(u);
+      urls.push(url);
+      return url.searchParams.get("dimensions") === "insightTrafficSourceDetail"
+        ? json(terms)
+        : json(dailyBody([]));
+    });
+    const { store, saved } = memoryStore("2026-10-06", []);
+    const res = await syncAnalytics(conn, {
+      oauth: { clientId: "c", clientSecret: "s" },
+      store,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now,
+    });
+    const q = urls.find((u) => u.searchParams.get("dimensions") === "insightTrafficSourceDetail")!;
+    expect(q.searchParams.get("filters")).toBe("insightTrafficSourceType==YT_SEARCH");
+    expect(q.searchParams.get("maxResults")).toBe("25");
+    expect(q.searchParams.get("startDate")).toBe("2026-09-10");
+    expect(res.searchTerms).toBe(1);
+    expect(saved.terms).toEqual([
+      { term: "macbook air m4 bateria", views: 120, watchMinutes: 600 },
+    ]);
+
+    const failing = vi.fn(async (u: string) =>
+      new URL(u).searchParams.get("dimensions") === "insightTrafficSourceDetail"
+        ? json({ error: { message: "Consulta no admitida" } }, 400)
+        : json(dailyBody([])),
+    );
+    const res2 = await syncAnalytics(conn, {
+      oauth: { clientId: "c", clientSecret: "s" },
+      store: memoryStore("2026-10-06", []).store,
+      fetchImpl: failing as unknown as typeof fetch,
+      now,
+    });
+    expect(res2).toMatchObject({ ok: true, searchTerms: null });
   });
 
   it("un 401 marca la conexión para volver a autorizar", async () => {

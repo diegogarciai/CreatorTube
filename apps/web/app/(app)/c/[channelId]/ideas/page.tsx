@@ -94,7 +94,9 @@ export default async function IdeasPage({
                     ? "warn"
                     : idea.origin === "recommendation"
                       ? "accent"
-                      : "neutral"
+                      : idea.origin === "search"
+                        ? "ok"
+                        : "neutral"
                 }
               >
                 {t(`ideas.originValue.${idea.origin}`)}

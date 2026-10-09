@@ -2819,6 +2819,51 @@ export type Database = {
           },
         ];
       };
+      youtube_search_terms: {
+        Row: {
+          channel_id: string;
+          term: string;
+          workspace_id: string;
+          views: number;
+          watch_minutes: number;
+          period_end: string;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          term: string;
+          workspace_id?: string;
+          views?: number;
+          watch_minutes?: number;
+          period_end: string;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          term?: string;
+          workspace_id?: string;
+          views?: number;
+          watch_minutes?: number;
+          period_end?: string;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_search_terms_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_search_terms_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       youtube_video_daily_stats: {
         Row: {
           channel_id: string;
@@ -3310,7 +3355,7 @@ export type Database = {
         | "evaluation";
       episode_status: "planned" | "script" | "to_record" | "editing" | "scheduled" | "published";
       episode_type: "product" | "explainer" | "news" | "opinion";
-      idea_origin: "recommendation" | "own" | "pain_point";
+      idea_origin: "recommendation" | "own" | "pain_point" | "search";
       idea_status: "new" | "in_progress" | "discarded";
       invitation_kind: "platform" | "workspace";
       script_stage: "study" | "script" | "verification" | "publication" | "podcast";
