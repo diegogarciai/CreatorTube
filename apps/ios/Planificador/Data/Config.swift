@@ -44,5 +44,12 @@ enum AppConfig {
 /// Cliente único de Supabase. `nil` si falta la configuración.
 let supabase: SupabaseClient? = {
     guard let url = AppConfig.supabaseURL, let key = AppConfig.supabaseAnonKey else { return nil }
-    return SupabaseClient(supabaseURL: url, supabaseKey: key)
+    // La sesión guardada se entrega de inmediato al abrir la app, aunque haya
+    // vencido; Supabase la renueva sola antes de la primera consulta. Es el
+    // comportamiento que será el único en la próxima versión mayor.
+    return SupabaseClient(
+        supabaseURL: url,
+        supabaseKey: key,
+        options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true))
+    )
 }()

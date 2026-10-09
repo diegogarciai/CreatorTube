@@ -93,7 +93,7 @@ extension AppModel {
         let steps = defaultChecklist.enumerated().map { index, step in
             ChecklistStepWrite(channelId: created.id, label: step.label, phase: step.phase, position: index)
         }
-        try? await client.from("checklist_steps").insert(steps).execute()
+        _ = try? await client.from("checklist_steps").insert(steps).execute()
         await loadWorkspace()
         await selectChannel(created.id)
     }
