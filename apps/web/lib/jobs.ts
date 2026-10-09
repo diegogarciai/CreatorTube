@@ -8,6 +8,7 @@ import type {
   pingTask,
   renderAidsTask,
   scriptTask,
+  socialPostsTask,
   thumbnailIdeasTask,
   thumbnailsTask,
   visualPlanTask,
@@ -29,6 +30,7 @@ interface JobPayloads {
   visual_plan: typeof visualPlanTask;
   render_aids: typeof renderAidsTask;
   comments: typeof commentsTask;
+  social_posts: typeof socialPostsTask;
 }
 
 export interface JobScope {

@@ -8,6 +8,7 @@ export type { directionTask } from "./trigger/direction";
 export type { pingTask } from "./trigger/ping";
 export type { renderAidsTask } from "./trigger/render-aids";
 export type { scriptTask } from "./trigger/script";
+export type { socialPostsTask } from "./trigger/social-posts";
 export type { thumbnailIdeasTask } from "./trigger/thumbnail-ideas";
 export type { thumbnailsTask } from "./trigger/thumbnails";
 export type { visualPlanTask } from "./trigger/visual-plan";
@@ -25,5 +26,6 @@ export const JOB_KINDS = [
   "visual_plan",
   "render_aids",
   "comments",
+  "social_posts",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];

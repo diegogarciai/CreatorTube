@@ -1786,6 +1786,76 @@ export type Database = {
           },
         ];
       };
+      social_posts: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          episode_id: string;
+          network: string;
+          kind: string;
+          text: string;
+          status: string;
+          post_url: string | null;
+          published_at: string | null;
+          published_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          episode_id: string;
+          network: string;
+          kind: string;
+          text?: string;
+          status?: string;
+          post_url?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          episode_id?: string;
+          network?: string;
+          kind?: string;
+          text?: string;
+          status?: string;
+          post_url?: string | null;
+          published_at?: string | null;
+          published_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_posts_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_posts_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tasks: {
         Row: {
           id: string;

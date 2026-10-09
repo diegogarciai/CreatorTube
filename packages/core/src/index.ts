@@ -15,3 +15,4 @@ export * from "./youtube-url";
 export * from "./visual-aids";
 export * from "./retention";
 export * from "./comments";
+export * from "./socials";

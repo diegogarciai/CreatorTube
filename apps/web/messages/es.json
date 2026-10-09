@@ -322,7 +322,7 @@
     "tabPlaceholder": {
       "script": "Preguntas de dirección, guion en 5 etapas y verificación con fuentes. Llega en la Fase 2.",
       "production": "Plan de ayudas visuales, motion graphics y miniaturas. Llega en la Fase 3.",
-      "distribution": "Respuestas a comentarios, boletín y redes. Llega en la Fase 4.",
+      "distribution": "Posts para redes y respuestas a comentarios.",
       "metrics": "La evaluación a 7 días llega en el paso 3 de la Fase 4."
     },
     "activityAction": {
@@ -458,6 +458,55 @@
       "riesgo_legal": "Riesgo legal"
     }
   },
+  "socials": {
+    "title": "Posts para redes",
+    "description": "3 cápsulas por red: el dato, el mito y la postura del episodio. Se copian con el enlace al video y se marcan publicadas a mano.",
+    "generate": "Generar posts",
+    "estimate": "Unos {credits} créditos",
+    "started": "Escribiendo los posts…",
+    "working": "Escribiendo los posts. Tarda menos de un minuto.",
+    "failed": "No se pudieron escribir los posts.",
+    "noNetworks": "El canal todavía no tiene redes.",
+    "toSettings": "Agrégalas en Ajustes › Redes",
+    "noScript": "Los posts salen del guion verificado: todavía no está.",
+    "empty": "Todavía no hay posts para este episodio.",
+    "withLink": "Copiar con el enlace al video (cuenta en el tope)",
+    "profile": "Perfil",
+    "published": "{count} de {total} publicados",
+    "redo": "Rehacer",
+    "redoConfirm": "Hay posts editados en esta red. ¿Reescribir los que no están publicados?",
+    "orphans": "Redes que ya no están en Ajustes",
+    "kind": {
+      "dato": "Dato",
+      "mito": "Mito",
+      "postura": "Postura"
+    },
+    "status": {
+      "suggested": "Sugerido",
+      "edited": "Editado",
+      "published": "Publicado",
+      "dismissed": "Descartado"
+    },
+    "openPost": "Ver post",
+    "textLabel": "Post para {network}",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "save": "Guardar",
+    "savedToast": "Post guardado",
+    "mark": "Marcar publicado",
+    "unmark": "Desmarcar",
+    "urlPrompt": "Enlace al post en {network} (opcional):",
+    "markedToast": "Marcado como publicado",
+    "dismiss": "Descartar",
+    "undismiss": "Recuperar",
+    "network": "Red",
+    "other": "Otra…",
+    "name": "Nombre de la red",
+    "url": "Enlace al perfil",
+    "remove": "Quitar",
+    "none": "Sin redes todavía.",
+    "add": "Agregar red"
+  },
   "analytics": {
     "title": "Analítica",
     "emptyTitle": "Todavía no hay analítica del canal",
@@ -581,7 +630,9 @@
     "disconnectConfirm": "Se revocará el acceso con Google y se borrarán los datos de YouTube del canal. ¿Continuar?",
     "readOnly": "Tu rol puede ver esta configuración pero no cambiarla.",
     "writerGuide": "Guía del guionista",
-    "writerGuideDesc": "Las reglas que siguen las preguntas de dirección y las 5 etapas del guion. Cada etapa recibe solo las secciones que usa."
+    "writerGuideDesc": "Las reglas que siguen las preguntas de dirección y las 5 etapas del guion. Cada etapa recibe solo las secciones que usa.",
+    "socials": "Redes",
+    "socialsDesc": "Las redes del canal: de cada episodio salen 3 posts por red (Difusión). El guion también las usa en la descripción."
   },
   "workspace": {
     "title": "Espacio y equipo",
@@ -698,7 +749,11 @@
     "comments_scope": "Activa las respuestas a comentarios en Ajustes del canal para publicar desde la app.",
     "reply_published": "Esa respuesta ya está publicada en YouTube.",
     "analytics_recent": "La analítica se actualizó hace menos de 15 minutos. YouTube la actualiza una vez al día.",
-    "youtube_not_connected": "Conecta el canal de YouTube en Ajustes para ver la analítica."
+    "youtube_not_connected": "Conecta el canal de YouTube en Ajustes para ver la analítica.",
+    "socials_none": "Agrega las redes del canal en Ajustes › Redes.",
+    "socials_no_script": "Primero hace falta el guion verificado del episodio.",
+    "socials_complete": "Ya están todos los posts. Usa «Rehacer» en una red para escribirla de nuevo.",
+    "post_published": "Ese post ya está marcado como publicado."
   },
   "episodeType": {
     "product": "Producto o compra",
@@ -759,7 +814,8 @@
       "thumbnail_ideas": "Textos para miniaturas",
       "visual_plan": "Plan de ayudas visuales",
       "comments": "Respuestas a comentarios",
-      "render_aids": "Render de ayudas visuales"
+      "render_aids": "Render de ayudas visuales",
+      "social_posts": "Posts para redes"
     },
     "status": {
       "queued": "En cola",
@@ -980,7 +1036,7 @@
       "youtube_import": "Importación de YouTube",
       "thumbnails": "Miniaturas (brief y calificación)",
       "visual_aids": "Ayudas visuales",
-      "distribution": "Difusión (comentarios)"
+      "distribution": "Difusión (comentarios y redes)"
     }
   },
   "usage": {
