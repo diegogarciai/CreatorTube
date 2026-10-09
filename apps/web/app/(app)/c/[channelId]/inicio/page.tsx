@@ -32,28 +32,38 @@ export default async function HomePage({ params }: { params: Promise<{ channelId
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("home");
   const supabase = await getSupabase();
-  const [rows, pillars, { count: newIdeas }, { data: loans }] = await Promise.all([
-    getEpisodes(channelId),
-    getPillars(channelId),
-    supabase
-      .from("ideas")
-      .select("id", { count: "exact", head: true })
-      .eq("channel_id", channelId)
-      .eq("status", "new"),
-    supabase
-      .from("gear")
-      .select("id, name, brand, model, ownership, return_by, status")
-      .eq("channel_id", channelId)
-      .eq("ownership", "loan")
-      .eq("status", "active")
-      .not("return_by", "is", null),
-  ]);
+  const [rows, pillars, { count: newIdeas }, { data: loans }, { data: covered }] =
+    await Promise.all([
+      getEpisodes(channelId),
+      getPillars(channelId),
+      supabase
+        .from("ideas")
+        .select("id", { count: "exact", head: true })
+        .eq("channel_id", channelId)
+        .eq("status", "new"),
+      supabase
+        .from("gear")
+        .select("id, name, brand, model, ownership, return_by, status")
+        .eq("channel_id", channelId)
+        .eq("ownership", "loan")
+        .eq("status", "active")
+        .not("return_by", "is", null),
+      // Préstamos que ya protagonizan un episodio publicado: ya tienen su video.
+      supabase
+        .from("episode_gear")
+        .select("gear_id, episode:episodes!inner(status)")
+        .eq("channel_id", channelId)
+        .eq("role", "protagonist")
+        .eq("episode.status", "published"),
+    ]);
+  const withVideo = new Set((covered ?? []).map((c) => c.gear_id));
   const lowBank = ctx.can("write_script") && (newIdeas ?? 0) < IDEAS_LOW_BANK;
   const tz = ctx.channel.timezone;
   const now = new Date();
   const todayKey = localDateKey(now, tz);
   // Préstamos de marcas por devolver pronto (o vencidos).
   const dueLoans = (loans ?? [])
+    .filter((g) => !withVideo.has(g.id))
     .map((g) => ({
       id: g.id,
       label: gearLabel(g),

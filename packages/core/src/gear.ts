@@ -92,3 +92,54 @@ export const gearSchema = z
   });
 export type GearInput = z.input<typeof gearSchema>;
 export type GearData = z.output<typeof gearSchema>;
+
+/** protagonist: el video es sobre ese equipo · tool: se usó para grabarlo. */
+export const GEAR_ROLES = ["protagonist", "tool"] as const;
+export type GearRole = (typeof GEAR_ROLES)[number];
+
+export interface EpisodeGear {
+  label: string;
+  brand: string;
+  role: GearRole;
+  ownership: GearOwnership;
+  affiliateUrl: string | null;
+}
+
+/** La aclaración de lo que vino de una marca (regla de YouTube de contenido patrocinado). */
+export function gearDisclosure(
+  g: Pick<EpisodeGear, "label" | "brand" | "ownership">,
+): string | null {
+  const brand = g.brand.trim() || "La marca";
+  switch (g.ownership) {
+    case "loan":
+      return `${brand} me prestó el ${g.label} para este video; lo devuelvo y la marca no revisó ni aprobó lo que digo.`;
+    case "gift":
+      return `${brand} me regaló el ${g.label}; la marca no revisó ni aprobó lo que digo.`;
+    case "sponsored":
+      return `Este video tiene patrocinio de ${brand} (${g.label}).`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * El bloque de equipo para la descripción de YouTube: lo que se reseñó, con
+ * qué se grabó, los enlaces de afiliado y las aclaraciones. Vacío si no hay equipo.
+ */
+export function gearDescriptionBlock(items: readonly EpisodeGear[]): string {
+  if (!items.length) return "";
+  const line = (g: EpisodeGear) => `- ${g.label}${g.affiliateUrl ? `: ${g.affiliateUrl}` : ""}`;
+  const reviewed = items.filter((g) => g.role === "protagonist");
+  const tools = items.filter((g) => g.role === "tool");
+  const out = ["EQUIPO DE ESTE VIDEO"];
+  if (reviewed.length) out.push("Lo que reseñé:", ...reviewed.map(line));
+  if (tools.length) out.push("Con qué lo grabé:", ...tools.map(line));
+  const notes = items.flatMap((g) => gearDisclosure(g) ?? []);
+  if (notes.length) out.push("", ...notes.map((n) => `Transparencia: ${n}`));
+  if (items.some((g) => g.affiliateUrl))
+    out.push(
+      "",
+      "Algunos enlaces son de afiliado: si compras con ellos, el canal recibe una comisión sin costo extra para ti.",
+    );
+  return out.join("\n");
+}

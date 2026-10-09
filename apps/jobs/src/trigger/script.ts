@@ -36,9 +36,12 @@ import {
 } from "@planificador/ai";
 import {
   DEFAULT_STAGE_SECTIONS,
+  gearLabel,
   localDateKey,
   sectionsText,
   statusIndex,
+  type GearOwnership,
+  type GearRole,
   type GuideSection,
   type StageSections,
 } from "@planificador/core";
@@ -726,6 +729,7 @@ async function loadStageBase(db: ServiceClient, run: RunRow) {
     { data: version },
     { data: dist },
     { data: pillars },
+    { data: gearLinks },
   ] = await Promise.all([
     db.from("channels").select("name, timezone, profile").eq("id", run.channel_id).single(),
     db
@@ -751,6 +755,10 @@ async function loadStageBase(db: ServiceClient, run: RunRow) {
       .eq("channel_id", run.channel_id)
       .is("archived_at", null)
       .order("position"),
+    db
+      .from("episode_gear")
+      .select("role, gear:gear(name, brand, model, ownership, affiliate_url)")
+      .eq("episode_id", run.episode_id),
   ]);
   if (!channel || !episode) throw new Error("No se encontró el episodio");
   if (!version) throw new Error("La corrida no tiene guía del guionista");
@@ -825,6 +833,19 @@ async function loadStageBase(db: ServiceClient, run: RunRow) {
     episodeType: episode.episode_type,
     ownMeasurements: episode.own_measurements,
     sponsorship: episode.sponsorship,
+    gear: (gearLinks ?? []).flatMap((l) =>
+      l.gear
+        ? [
+            {
+              label: gearLabel(l.gear),
+              brand: l.gear.brand,
+              role: l.role as GearRole,
+              ownership: l.gear.ownership as GearOwnership,
+              affiliateUrl: l.gear.affiliate_url,
+            },
+          ]
+        : [],
+    ),
     directionBlock: run.direction_block.trim() || null,
     channel: {
       newsletter: dist?.newsletter_name ?? null,

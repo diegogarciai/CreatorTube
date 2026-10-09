@@ -82,9 +82,18 @@ export function GearCard({
             <Badge>{t(`status.${g.status}`)}</Badge>
           ) : null}
         </div>
-        {months !== null ? (
-          <p className="text-xs text-muted">{t("months", { count: months })}</p>
-        ) : null}
+        <p className="text-xs text-muted">
+          {[
+            months !== null ? t("months", { count: months }) : null,
+            g.status === "review"
+              ? null
+              : g.episodes
+                ? t("inEpisodes", { count: g.episodes })
+                : t("noVideo"),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
         {g.notes ? <p className="line-clamp-2 text-xs text-muted">{g.notes}</p> : null}
         {canEdit ? (
           <div className="flex flex-wrap items-center gap-1 pt-1">

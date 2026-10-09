@@ -450,3 +450,36 @@ describe("llamada en streaming", () => {
     expect(bad.calls).toHaveLength(1);
   });
 });
+
+describe("mi equipo en el guion", () => {
+  const gear = [
+    {
+      label: "DJI Mini 4 Pro",
+      brand: "DJI",
+      role: "protagonist" as const,
+      ownership: "own" as const,
+      affiliateUrl: "https://amzn.to/dji",
+    },
+    {
+      label: "Sony ZV-E10 II",
+      brand: "Sony",
+      role: "tool" as const,
+      ownership: "loan" as const,
+      affiliateUrl: null,
+    },
+  ];
+
+  it("la ficha lleva el equipo y la aclaración; Publicación además el bloque de la descripción", () => {
+    const study = buildStepPrompt("dossier", { ...ctx, gear }).shared;
+    expect(study).toContain(
+      "- Equipo del presentador en este episodio (lo tiene a mano: pruebas propias reales): DJI Mini 4 Pro (protagonista) · Sony ZV-E10 II (herramienta de grabación)",
+    );
+    expect(study).toContain("Sony me prestó el Sony ZV-E10 II");
+    expect(study).not.toContain("EQUIPO DE ESTE VIDEO");
+    const pub = buildStepPrompt("assets", { ...ctx, gear }).shared;
+    expect(pub).toContain(
+      "EQUIPO DE ESTE VIDEO\nLo que reseñé:\n- DJI Mini 4 Pro: https://amzn.to/dji",
+    );
+    expect(buildStepPrompt("dossier", ctx).shared).not.toContain("Equipo del presentador");
+  });
+});

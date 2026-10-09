@@ -3,7 +3,12 @@ import { addUsage, emptyUsage, type UsageTotals } from "./cost";
 import { EPISODE_TYPE_LABELS } from "./direction";
 import { isTransientAiError } from "./errors";
 import { AiRefusalError, type AiConfig } from "./generate";
-import type { GuideStage } from "@planificador/core";
+import {
+  gearDescriptionBlock,
+  gearDisclosure,
+  type EpisodeGear,
+  type GuideStage,
+} from "@planificador/core";
 
 /**
  * Guion en etapas (documento "Las 5 etapas del guion"): cada etapa recibe solo
@@ -369,6 +374,8 @@ export interface StageContext {
   episodeType: keyof typeof EPISODE_TYPE_LABELS | null;
   ownMeasurements: string;
   sponsorship: "none" | "sponsor" | "affiliate" | null;
+  /** «Mi equipo» del episodio: protagonistas y herramientas. */
+  gear?: EpisodeGear[];
   /** Bloque «DIRECCIÓN DEL EPISODIO»; null si el presentador saltó la entrevista. */
   directionBlock: string | null;
   /** Solo para Guion, Publicación y Podcast. */
@@ -455,6 +462,26 @@ export function buildStepPrompt(
     `- Mediciones propias: ${ctx.ownMeasurements.trim() || "no hay medición propia"}`,
     `- Patrocinio o afiliados: ${sponsorship}`,
   ];
+  const gear = ctx.gear ?? [];
+  if (gear.length) {
+    const role = (g: EpisodeGear) =>
+      g.role === "protagonist" ? "protagonista" : "herramienta de grabación";
+    parts.push(
+      `- Equipo del presentador en este episodio (lo tiene a mano: pruebas propias reales): ${gear
+        .map((g) => `${g.label} (${role(g)})`)
+        .join(" · ")}`,
+    );
+    const notes = gear.flatMap((g) => gearDisclosure(g) ?? []);
+    if (notes.length)
+      parts.push(
+        `- Contenido de marca: el guion lo aclara al inicio, con la voz del presentador, y la descripción lo incluye (regla de YouTube): ${notes.join(" ")}`,
+      );
+    if (stage === "publication")
+      parts.push(
+        "- Bloque de equipo para el final de la descripción (va tal cual, sin cambiarlo):",
+        gearDescriptionBlock(gear),
+      );
+  }
 
   if (ctx.channel) {
     parts.push(

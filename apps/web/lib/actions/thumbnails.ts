@@ -16,6 +16,7 @@ import {
   validateSchemeText,
   type SchemeId,
   type ThumbnailOptions,
+  MAX_PRODUCT_REFS,
 } from "@planificador/core";
 import { getChannelContext, getSupabase, PermissionError, requireUser } from "../auth";
 import { startJob } from "../jobs";
@@ -34,8 +35,6 @@ import { errorMessage, type ActionResult } from "../utils";
  * Las filas de `episode_assets` las escribe el servidor: aquí se revisan el
  * permiso y las reglas de la guía, y se lanza la tarea.
  */
-
-const MAX_PRODUCT_REFS = 3;
 
 async function loadEpisode(episodeId: string) {
   const user = await requireUser();

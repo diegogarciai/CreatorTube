@@ -1835,6 +1835,28 @@
       "retired": "Ya no lo tengo",
       "returned": "Devuelto",
       "review": "Por revisar"
-    }
+    },
+    "episodeTitle": "Equipo del episodio",
+    "episodeDesc": "Qué protagoniza el video y con qué lo grabaste. Sale en la descripción y, si algo vino de una marca, el guion incluye la aclaración.",
+    "episodeNone": "Este episodio todavía no tiene equipo.",
+    "pickGear": "Elige un equipo…",
+    "role": "Papel",
+    "roleValue": {
+      "protagonist": "Protagonista",
+      "tool": "Herramienta"
+    },
+    "link": "Agregar",
+    "unlink": "Quitar del episodio",
+    "photoToRef": "Usar su foto en las miniaturas",
+    "photoToRefDone": "Foto agregada a las fotos del producto",
+    "goToGear": "Registra tu equipo en «Mi equipo»",
+    "descriptionTitle": "Equipo en la descripción",
+    "descriptionDesc": "Pégalo al final de la descripción de YouTube: lo que reseñaste, con qué lo grabaste, tus enlaces de afiliado y las aclaraciones.",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "inEpisodes": "{count, plural, one {En # episodio} other {En # episodios}}",
+    "noVideo": "Sin video todavía",
+    "filterNoVideo": "Solo los que no tienen video",
+    "filterAll": "Ver todos"
   }
 }

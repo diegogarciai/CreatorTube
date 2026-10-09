@@ -206,6 +206,9 @@ export function isMediaPathOf(path: string, channelId: string, folder: MediaFold
 }
 
 /** Ruta nueva de una foto del producto: `{canal}/episodes/{episodio}/refs/{id}.{ext}`. */
+/** Fotos del producto por episodio (referencias para las miniaturas). */
+export const MAX_PRODUCT_REFS = 3;
+
 export function episodeRefPath(channelId: string, episodeId: string, mime: string, id: string) {
   const ext = EXT[mime as keyof typeof EXT];
   if (!ext || ext === "svg") throw new Error("errors.invalid_file_type");

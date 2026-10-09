@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { GEAR_STATUSES, gearSchema, isMediaPathOf } from "@planificador/core";
+import {
+  episodeRefPath,
+  GEAR_ROLES,
+  GEAR_STATUSES,
+  gearLabel,
+  gearSchema,
+  isMediaPathOf,
+  MAX_PRODUCT_REFS,
+} from "@planificador/core";
 import { getSupabase, requireChannelPermission } from "../auth";
 import { startJob } from "../jobs";
 import { MEDIA_BUCKET } from "../media";
@@ -182,6 +190,104 @@ export async function pasteGearList(channelId: string, text: unknown): Promise<A
       },
     );
     revalidate(channelId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+const roleSchema = z.enum(GEAR_ROLES);
+
+/** El episodio y su canal, con el permiso de manejar episodios. */
+async function episodeGuard(episodeId: string) {
+  const supabase = await getSupabase();
+  const { data: ep } = await supabase
+    .from("episodes")
+    .select("id, channel_id")
+    .eq("id", episodeId)
+    .single();
+  if (!ep) throw new Error("errors.not_found");
+  const { ctx, admin } = await guard(ep.channel_id);
+  return { ctx, admin, channelId: ep.channel_id };
+}
+
+const revalidateEpisode = (channelId: string, episodeId: string) => {
+  revalidatePath(`/c/${channelId}/episodios/${episodeId}`);
+  revalidate(channelId);
+};
+
+/** Une un equipo al episodio (o cambia su papel: protagonista o herramienta). */
+export async function linkEpisodeGear(
+  episodeId: string,
+  gearId: string,
+  role: unknown,
+): Promise<ActionResult> {
+  try {
+    const r = roleSchema.parse(role);
+    const { admin, channelId } = await episodeGuard(episodeId);
+    const { error } = await admin
+      .from("episode_gear")
+      .upsert(
+        { episode_id: episodeId, gear_id: gearId, channel_id: channelId, role: r },
+        { onConflict: "episode_id,gear_id" },
+      );
+    if (error) throw error;
+    revalidateEpisode(channelId, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Quita un equipo del episodio. */
+export async function unlinkEpisodeGear(episodeId: string, gearId: string): Promise<ActionResult> {
+  try {
+    const { admin, channelId } = await episodeGuard(episodeId);
+    const { error } = await admin
+      .from("episode_gear")
+      .delete()
+      .eq("episode_id", episodeId)
+      .eq("gear_id", gearId);
+    if (error) throw error;
+    revalidateEpisode(channelId, episodeId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Copia la foto del equipo a las fotos del producto del episodio (miniaturas). */
+export async function gearPhotoToEpisodeRef(
+  episodeId: string,
+  gearId: string,
+): Promise<ActionResult> {
+  try {
+    const { admin, channelId } = await episodeGuard(episodeId);
+    const { data: g } = await admin
+      .from("gear")
+      .select("name, brand, model, photo_path")
+      .eq("id", gearId)
+      .eq("channel_id", channelId)
+      .single();
+    if (!g?.photo_path) return { ok: false, error: "errors.not_found" };
+    const { count } = await admin
+      .from("episode_refs")
+      .select("id", { count: "exact", head: true })
+      .eq("episode_id", episodeId);
+    if ((count ?? 0) >= MAX_PRODUCT_REFS) return { ok: false, error: "errors.too_many_refs" };
+    const ext = g.photo_path.split(".").pop() ?? "jpg";
+    const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+    const path = episodeRefPath(channelId, episodeId, mime, crypto.randomUUID());
+    const { error: copyError } = await admin.storage.from(MEDIA_BUCKET).copy(g.photo_path, path);
+    if (copyError) throw copyError;
+    const { error } = await admin
+      .from("episode_refs")
+      .insert({ episode_id: episodeId, channel_id: channelId, path, label: gearLabel(g) });
+    if (error) {
+      await admin.storage.from(MEDIA_BUCKET).remove([path]);
+      throw error;
+    }
+    revalidateEpisode(channelId, episodeId);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };

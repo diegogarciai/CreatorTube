@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Package } from "lucide-react";
 import { localDateKey } from "@planificador/core";
@@ -16,8 +17,15 @@ export const metadata: Metadata = { title: "Mi equipo" };
  * «Mi equipo»: los dispositivos del canal (propios o de marcas). De aquí salen
  * ideas de episodios que solo este canal puede hacer.
  */
-export default async function GearPage({ params }: { params: Promise<{ channelId: string }> }) {
+export default async function GearPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ channelId: string }>;
+  searchParams: Promise<{ sin?: string }>;
+}) {
   const { channelId } = await params;
+  const onlyNoVideo = (await searchParams).sin === "1";
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations("gear");
   const supabase = await getSupabase();
@@ -36,7 +44,9 @@ export default async function GearPage({ params }: { params: Promise<{ channelId
   const parsing = task?.status === "queued" || task?.status === "running";
   const today = localDateKey(new Date(), ctx.channel.timezone);
   const review = gear.filter((g) => g.status === "review");
-  const active = gear.filter((g) => g.status === "active");
+  const allActive = gear.filter((g) => g.status === "active");
+  const noVideo = allActive.filter((g) => g.episodes === 0).length;
+  const active = onlyNoVideo ? allActive.filter((g) => g.episodes === 0) : allActive;
   const gone = gear.filter((g) => g.status === "retired" || g.status === "returned");
   const list = (items: typeof gear, testId: string) => (
     <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid={testId}>
@@ -75,6 +85,17 @@ export default async function GearPage({ params }: { params: Promise<{ channelId
           <p className="mb-3 text-sm text-muted">{t("reviewDesc")}</p>
           {list(review, "gear-review")}
         </section>
+      ) : null}
+      {allActive.length ? (
+        <p className="mb-3 text-sm">
+          <Link
+            href={onlyNoVideo ? `/c/${channelId}/equipo` : `/c/${channelId}/equipo?sin=1`}
+            className="text-accent hover:underline"
+            data-testid="gear-filter"
+          >
+            {onlyNoVideo ? t("filterAll") : `${t("filterNoVideo")} (${noVideo})`}
+          </Link>
+        </p>
       ) : null}
       {active.length ? (
         list(active, "gear-active")
