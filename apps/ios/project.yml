@@ -43,13 +43,14 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        NSPhotoLibraryAddUsageDescription: Para guardar en Fotos las miniaturas y los recursos que descargas.
         SUPABASE_URL: $(SUPABASE_URL)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
         WEB_URL: $(WEB_URL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.gartechs.planificador
-        MARKETING_VERSION: 0.1.0
+        MARKETING_VERSION: 1.0.0
         CURRENT_PROJECT_VERSION: 1
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
