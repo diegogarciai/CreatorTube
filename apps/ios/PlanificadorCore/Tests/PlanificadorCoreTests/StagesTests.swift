@@ -12,10 +12,15 @@ final class StagesTests: XCTestCase {
     func testNextStepPerStage() {
         let today = "2026-10-07"
         XCTAssertEqual(nextStep(stage(.planning), today: today).action, .startDirection)
+        // Fase 4: las acciones de las fases hechas están disponibles.
         let prep = nextStep(stage(.preparation, status: .toRecord), today: today)
         XCTAssertEqual(prep.action, .prepareAssets)
-        XCTAssertFalse(prep.available)
-        XCTAssertTrue(prep.canSkip)
+        XCTAssertTrue(prep.available)
+        XCTAssertFalse(prep.canSkip)
+        let share = nextStep(stage(.distribution, status: .published), today: today)
+        XCTAssertEqual(share.action, .shareAndReply)
+        XCTAssertTrue(share.available)
+        XCTAssertTrue(nextStep(stage(.script, status: .script), today: today).available)
         let awaiting = nextStep(stage(.publication, status: .scheduled), today: today)
         XCTAssertEqual(awaiting.action, .awaitPublication)
         XCTAssertFalse(awaiting.canSkip)
@@ -24,6 +29,8 @@ final class StagesTests: XCTestCase {
         XCTAssertEqual(evaluate.availableFrom, "2026-10-08")
         XCTAssertFalse(evaluate.available)
         XCTAssertFalse(evaluate.canSkip)
+        let evaluateLater = nextStep(stage(.evaluation, status: .published, publishedOn: "2026-10-01"), today: "2026-10-08")
+        XCTAssertTrue(evaluateLater.available)
         XCTAssertEqual(nextStep(stage(.evaluation, evaluatedAt: Date()), today: today).action, .done)
     }
 
