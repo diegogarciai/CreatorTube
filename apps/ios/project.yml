@@ -1,0 +1,65 @@
+# Proyecto de Xcode para XcodeGen. El .xcodeproj no se versiona: se genera con
+#   brew install xcodegen && xcodegen generate
+# desde apps/ios.
+name: Planificador
+options:
+  bundleIdPrefix: com.gartechs
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: es
+  createIntermediateGroups: true
+
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.20.0
+  PlanificadorCore:
+    path: PlanificadorCore
+
+configFiles:
+  Debug: Config/App.xcconfig
+  Release: Config/App.xcconfig
+
+targets:
+  Planificador:
+    type: application
+    platform: iOS
+    sources:
+      - path: Planificador
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: PlanificadorCore
+    info:
+      path: Planificador/Info.plist
+      properties:
+        CFBundleDisplayName: Planificador
+        CFBundleDevelopmentRegion: es
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchLogo
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+        SUPABASE_URL: $(SUPABASE_URL)
+        SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gartechs.planificador
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+schemes:
+  Planificador:
+    build:
+      targets:
+        Planificador: all
+    run:
+      config: Debug

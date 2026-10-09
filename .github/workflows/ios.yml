@@ -1,0 +1,47 @@
+name: iOS
+
+# Solo corre cuando cambia apps/ios. La lógica (PlanificadorCore) se prueba en
+# Linux, que es barato; la app completa se compila en macOS sin firmar.
+on:
+  push:
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    defaults:
+      run:
+        working-directory: apps/ios/PlanificadorCore
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+
+  app:
+    runs-on: macos-15
+    needs: core
+    defaults:
+      run:
+        working-directory: apps/ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Compilar para el simulador
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Planificador.xcodeproj \
+            -scheme Planificador \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO

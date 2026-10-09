@@ -1,0 +1,11 @@
+// Ajustes comunes. Los secretos van en Secrets.xcconfig (no se versiona);
+// si no existe, la app compila y muestra "Falta configurar Supabase".
+SUPABASE_URL =
+SUPABASE_ANON_KEY =
+
+// Equipo de Apple para firmar en un iPhone. Va en Secrets.xcconfig para que
+// no se pierda al regenerar el proyecto con xcodegen.
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+
+#include? "Secrets.xcconfig"
