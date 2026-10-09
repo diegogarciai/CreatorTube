@@ -14,7 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        # El espejo de AWS: Docker Hub limita las descargas anónimas desde los
+        # runners compartidos de GitHub.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: postgres
         ports: ["5432:5432"]
