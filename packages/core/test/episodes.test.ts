@@ -44,15 +44,15 @@ describe("episodios", () => {
     expect(completeStage(e)).toBeNull();
   });
 
-  it("las acciones con IA que aún no llegan se pueden saltar", () => {
+  it("las acciones de las fases hechas están disponibles", () => {
     const script = nextStep(ep({ stage: "script", status: "script" }), "2026-10-07");
     expect(script).toMatchObject({ action: "generate_script", available: true });
     const verify = nextStep(ep({ stage: "verification", status: "script" }), "2026-10-07");
     expect(verify).toMatchObject({ action: "resolve_verification", available: true });
     const step = nextStep(ep({ stage: "preparation", status: "to_record" }), "2026-10-07");
-    expect(step.action).toBe("prepare_assets");
-    expect(step.available).toBe(false);
-    expect(step.canSkip).toBe(true);
+    expect(step).toMatchObject({ action: "prepare_assets", available: true, canSkip: false });
+    const share = nextStep(ep({ stage: "distribution", status: "published" }), "2026-10-07");
+    expect(share).toMatchObject({ action: "share_and_reply", available: true });
     const rec = nextStep(ep({ stage: "recording", status: "to_record" }), "2026-10-07");
     expect(rec).toMatchObject({ action: "mark_recorded", available: true });
   });

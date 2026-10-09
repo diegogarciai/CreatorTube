@@ -87,9 +87,10 @@ export type PrimaryAction =
   | "done";
 
 /**
- * Fase del plan en que la acción queda disponible. Las de Fase 1 se pueden
- * ejecutar hoy; las demás muestran el botón deshabilitado y permiten marcar la
- * etapa como hecha a mano para no bloquear el flujo.
+ * Fase del plan en que la acción queda disponible. Las de fases hasta
+ * CURRENT_PHASE se pueden ejecutar hoy; las demás muestran el botón
+ * deshabilitado y permiten marcar la etapa como hecha a mano para no
+ * bloquear el flujo.
  */
 export const ACTION_PHASE: Record<PrimaryAction, number> = {
   start_direction: 1,
@@ -101,11 +102,11 @@ export const ACTION_PHASE: Record<PrimaryAction, number> = {
   link_video: 1,
   await_publication: 1,
   share_and_reply: 4,
-  evaluate: 1,
+  evaluate: 4,
   done: 1,
 };
 
-export const CURRENT_PHASE = 1;
+export const CURRENT_PHASE = 4;
 
 export interface EpisodeLike {
   status: EpisodeStatus;
