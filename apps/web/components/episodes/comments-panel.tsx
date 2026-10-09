@@ -10,6 +10,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/form";
+import { ToIdeaButton } from "@/components/audience/pain-to-idea";
 import { dismissReply, publishReply, readComments, saveReply } from "@/lib/actions/comments";
 import type { CommentView, EpisodeCommentsView } from "@/lib/data/comments";
 import { createClient } from "@/lib/supabase/browser";
@@ -39,12 +40,15 @@ export function CommentsPanel({
   channelId,
   view,
   canPublish,
+  canIdea = false,
   hasVideo,
 }: {
   episodeId: string;
   channelId: string;
   view: EpisodeCommentsView;
   canPublish: boolean;
+  /** Puede pasar pedidos, dolores e ideas a Ideas. */
+  canIdea?: boolean;
   hasVideo: boolean;
 }) {
   const t = useTranslations("comments");
@@ -174,6 +178,7 @@ export function CommentsPanel({
                     comment={c}
                     canPublish={canPublish}
                     canPublishReplies={view.canPublishReplies}
+                    canIdea={canIdea}
                   />
                 ))}
               </ul>
@@ -184,7 +189,14 @@ export function CommentsPanel({
           ) : null}
         </CardBody>
       </Card>
-      {view.reading ? <ReadingCard reading={view.reading} /> : null}
+      {view.reading ? (
+        <ReadingCard
+          reading={view.reading}
+          channelId={channelId}
+          episodeId={episodeId}
+          canIdea={canIdea}
+        />
+      ) : null}
     </div>
   );
 }
@@ -194,11 +206,13 @@ function CommentItem({
   comment: c,
   canPublish,
   canPublishReplies,
+  canIdea,
 }: {
   channelId: string;
   comment: CommentView;
   canPublish: boolean;
   canPublishReplies: boolean;
+  canIdea: boolean;
 }) {
   const t = useTranslations("comments");
   const errorText = useActionError();
@@ -242,6 +256,11 @@ function CommentItem({
         </a>
       </div>
       <p className="mt-1 whitespace-pre-line">{c.text}</p>
+      {c.kind === "pedido_tema" && canIdea ? (
+        <div className="mt-2" data-testid={`to-idea-${c.id}`}>
+          <ToIdeaButton channelId={channelId} source={{ commentId: c.id }} />
+        </div>
+      ) : null}
 
       {c.correction ? (
         <div
@@ -343,8 +362,24 @@ function CommentItem({
 }
 
 /** La lectura del lote (20.4) del episodio. */
-function ReadingCard({ reading }: { reading: NonNullable<EpisodeCommentsView["reading"]> }) {
+function ReadingCard({
+  reading,
+  channelId,
+  episodeId,
+  canIdea,
+}: {
+  reading: NonNullable<EpisodeCommentsView["reading"]>;
+  channelId: string;
+  episodeId: string;
+  canIdea: boolean;
+}) {
   const t = useTranslations("comments");
+  const toIdea = (kind: "pain" | "idea") =>
+    canIdea
+      ? (index: number) => (
+          <ToIdeaButton channelId={channelId} source={{ episodeId, index, kind }} />
+        )
+      : undefined;
   return (
     <Card data-testid="comment-reading">
       <CardHeader title={t("readingTitle")} description={reading.topPain || t("readingDesc")} />
@@ -352,6 +387,7 @@ function ReadingCard({ reading }: { reading: NonNullable<EpisodeCommentsView["re
         <ReadingList
           title={t("pains")}
           items={reading.pains.map((p) => `${p.pain} (${p.count}) · «${p.quote}»`)}
+          action={toIdea("pain")}
         />
         <ReadingList
           title={t("themes")}
@@ -362,22 +398,42 @@ function ReadingCard({ reading }: { reading: NonNullable<EpisodeCommentsView["re
           items={reading.questions.map((q) => `${q.question}: ${q.trend}`)}
         />
         <ReadingList title={t("corrections")} items={reading.corrections} />
-        <ReadingList title={t("ideas")} items={reading.ideas} />
+        <ReadingList title={t("ideas")} items={reading.ideas} action={toIdea("idea")} />
       </CardBody>
     </Card>
   );
 }
 
-function ReadingList({ title, items }: { title: string; items: string[] }) {
+function ReadingList({
+  title,
+  items,
+  action,
+}: {
+  title: string;
+  items: string[];
+  /** Un botón por elemento (p. ej. «Pasar a Ideas»). */
+  action?: (index: number) => React.ReactNode;
+}) {
   if (!items.length) return null;
   return (
     <section className="space-y-1">
       <h3 className="font-medium">{title}</h3>
-      <ul className="list-disc space-y-0.5 pl-4 text-muted">
-        {items.map((x, i) => (
-          <li key={i}>{x}</li>
-        ))}
-      </ul>
+      {action ? (
+        <ul className="space-y-1.5 text-muted">
+          {items.map((x, i) => (
+            <li key={i} className="flex items-start justify-between gap-2">
+              <span className="min-w-0">{x}</span>
+              {action(i)}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="list-disc space-y-0.5 pl-4 text-muted">
+          {items.map((x, i) => (
+            <li key={i}>{x}</li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

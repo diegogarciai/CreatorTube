@@ -205,11 +205,15 @@ export async function publishReply(
   }
 }
 
-/** Pasa un dolor de la audiencia a Ideas (origen «Dolor de la audiencia»). */
-export async function painToIdea(
+/**
+ * Pasa a Ideas algo de la lectura de comentarios de un episodio: un dolor o
+ * una idea para próximos videos (origen «Dolor de la audiencia»).
+ */
+export async function readingToIdea(
   channelId: string,
   episodeId: string,
   index: number,
+  kind: "pain" | "idea" = "pain",
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const ctx = await requireChannelPermission(channelId, "write_script");
@@ -223,25 +227,81 @@ export async function painToIdea(
         .maybeSingle(),
       supabase.from("episodes").select("code, title").eq("id", episodeId).maybeSingle(),
     ]);
-    const pain = (reading?.reading as unknown as CommentReading | null)?.pains?.[index];
-    if (!pain || !ep) throw new Error("errors.not_found");
-    const { data, error } = await supabase
-      .from("ideas")
-      .insert({
-        workspace_id: ctx.channel.workspace_id,
-        channel_id: channelId,
-        title: pain.pain.slice(0, 200),
-        notes: `Dolor de la audiencia en ${ep.code} «${ep.title}»: ${pain.count} ${pain.count === 1 ? "comentario" : "comentarios"}. Cita: «${pain.quote}».`,
-        origin: "pain_point",
-        created_by: ctx.userId,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    revalidatePath(`/c/${channelId}/ideas`);
+    const r = reading?.reading as unknown as CommentReading | null;
+    const where = ep ? `${ep.code} «${ep.title}»` : "";
+    const item =
+      kind === "pain"
+        ? (() => {
+            const pain = r?.pains?.[index];
+            return pain
+              ? {
+                  title: pain.pain,
+                  notes: `Dolor de la audiencia en ${where}: ${pain.count} ${pain.count === 1 ? "comentario" : "comentarios"}. Cita: «${pain.quote}».`,
+                }
+              : null;
+          })()
+        : (() => {
+            const idea = r?.ideas?.[index];
+            return idea
+              ? { title: idea, notes: `Idea que salió de los comentarios de ${where}.` }
+              : null;
+          })();
+    if (!item || !ep) throw new Error("errors.not_found");
+    const id = await insertAudienceIdea(supabase, ctx, channelId, item);
     revalidatePath(`/c/${channelId}/audiencia`);
-    return { ok: true, data: { id: data.id } };
+    revalidatePath(`/c/${channelId}/episodios/${episodeId}`);
+    return { ok: true, data: { id } };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
+}
+
+/** Pasa a Ideas un comentario que pide un tema (sin el nombre de quien lo escribió). */
+export async function commentToIdea(
+  channelId: string,
+  commentId: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    const ctx = await requireChannelPermission(channelId, "write_script");
+    const supabase = await getSupabase();
+    const { data: c } = await supabase
+      .from("youtube_comments")
+      .select("text, kind, episode:episodes(id, code, title)")
+      .eq("channel_id", channelId)
+      .eq("comment_id", commentId)
+      .maybeSingle();
+    if (!c || c.kind !== "pedido_tema") throw new Error("errors.not_found");
+    const text = c.text.replace(/\s+/g, " ").trim();
+    const id = await insertAudienceIdea(supabase, ctx, channelId, {
+      title: text.length > 120 ? `${text.slice(0, 117)}…` : text,
+      notes: `Pedido de tema en los comentarios${c.episode ? ` de ${c.episode.code} «${c.episode.title}»` : ""}: «${text.slice(0, 500)}».`,
+    });
+    if (c.episode) revalidatePath(`/c/${channelId}/episodios/${c.episode.id}`);
+    return { ok: true, data: { id } };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+async function insertAudienceIdea(
+  supabase: Awaited<ReturnType<typeof getSupabase>>,
+  ctx: Awaited<ReturnType<typeof requireChannelPermission>>,
+  channelId: string,
+  item: { title: string; notes: string },
+) {
+  const { data, error } = await supabase
+    .from("ideas")
+    .insert({
+      workspace_id: ctx.channel.workspace_id,
+      channel_id: channelId,
+      title: item.title.slice(0, 200),
+      notes: item.notes.slice(0, 5000),
+      origin: "pain_point",
+      created_by: ctx.userId,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  revalidatePath(`/c/${channelId}/ideas`);
+  return data.id;
 }

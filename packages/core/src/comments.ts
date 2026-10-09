@@ -62,7 +62,7 @@ export type ChannelAudience = {
   pains: { pain: string; count: number; quote: string; episodeId: string; index: number }[];
   themes: { theme: string; count: number }[];
   corrections: { text: string; episodeId: string }[];
-  ideas: { text: string; episodeId: string }[];
+  ideas: { text: string; episodeId: string; index: number }[];
 };
 
 const key = (s: string) => s.trim().toLowerCase();
@@ -85,7 +85,7 @@ export function channelAudience(
       themes.set(key(t.theme), cur);
     }
     out.corrections.push(...reading.corrections.map((text) => ({ text, episodeId })));
-    out.ideas.push(...reading.ideas.map((text) => ({ text, episodeId })));
+    out.ideas.push(...reading.ideas.map((text, index) => ({ text, episodeId, index })));
   }
   out.pains.sort((a, b) => b.count - a.count);
   out.themes = [...themes.values()].sort((a, b) => b.count - a.count);

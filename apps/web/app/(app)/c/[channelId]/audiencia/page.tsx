@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { MessagesSquare } from "lucide-react";
-import { PainToIdeaButton } from "@/components/audience/pain-to-idea";
+import { ToIdeaButton } from "@/components/audience/pain-to-idea";
 import { Page, PageHeader } from "@/components/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -61,10 +61,9 @@ export default async function AudiencePage({ params }: { params: Promise<{ chann
                         <p className="text-xs">{episodeLink(p.episodeId)}</p>
                       </div>
                       {ctx.can("write_script") ? (
-                        <PainToIdeaButton
+                        <ToIdeaButton
                           channelId={channelId}
-                          episodeId={p.episodeId}
-                          index={p.index}
+                          source={{ episodeId: p.episodeId, index: p.index, kind: "pain" }}
                         />
                       ) : null}
                     </li>
@@ -127,11 +126,19 @@ export default async function AudiencePage({ params }: { params: Promise<{ chann
               <Card>
                 <CardHeader title={t("ideasTitle")} />
                 <CardBody>
-                  <ul className="space-y-2 text-sm">
-                    {view.ideas.map((c, i) => (
-                      <li key={i}>
-                        {c.text}
-                        <div className="text-xs">{episodeLink(c.episodeId)}</div>
+                  <ul className="space-y-2 text-sm" data-testid="audience-ideas">
+                    {view.ideas.map((c) => (
+                      <li key={`${c.episodeId}-${c.index}`} className="flex items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          {c.text}
+                          <div className="text-xs">{episodeLink(c.episodeId)}</div>
+                        </div>
+                        {ctx.can("write_script") ? (
+                          <ToIdeaButton
+                            channelId={channelId}
+                            source={{ episodeId: c.episodeId, index: c.index, kind: "idea" }}
+                          />
+                        ) : null}
                       </li>
                     ))}
                   </ul>
