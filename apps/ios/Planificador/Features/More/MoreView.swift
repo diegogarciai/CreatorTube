@@ -20,6 +20,14 @@ struct MoreView: View {
                 }
             }
 
+            Section(model.selectedChannel?.name ?? "Canal") {
+                NavigationLink {
+                    AnalyticsView()
+                } label: {
+                    Label("Analítica", systemImage: "chart.bar.xaxis")
+                }
+            }
+
             Section("Cuenta") {
                 if let email = model.email {
                     LabeledContent("Correo", value: email)
