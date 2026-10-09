@@ -2527,6 +2527,45 @@ export type Database = {
           },
         ];
       };
+      weekly_digests: {
+        Row: {
+          channel_id: string;
+          week_start: string;
+          workspace_id: string;
+          recipients: number;
+          sent_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          week_start: string;
+          workspace_id?: string;
+          recipients?: number;
+          sent_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          week_start?: string;
+          workspace_id?: string;
+          recipients?: number;
+          sent_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "weekly_digests_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "weekly_digests_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       workspace_ai_settings: {
         Row: {
           workspace_id: string;
