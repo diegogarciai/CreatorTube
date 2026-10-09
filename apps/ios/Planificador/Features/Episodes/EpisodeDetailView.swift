@@ -47,6 +47,14 @@ struct EpisodeDetailView: View {
                 }
             }
 
+            Section("Contenido") {
+                NavigationLink {
+                    ScriptView(episode: episode)
+                } label: {
+                    Label("Dirección, guion y verificación", systemImage: "doc.text")
+                }
+            }
+
             statusSection(episode)
             dataSection(episode)
             briefSection(episode)
