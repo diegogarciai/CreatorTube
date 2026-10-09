@@ -17,6 +17,8 @@ export const AI_STAGES = [
   "thumbnails",
   "visual_aids",
   "distribution",
+  "evaluation",
+  "audit",
 ] as const;
 export type AiStage = (typeof AI_STAGES)[number];
 

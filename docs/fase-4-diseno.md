@@ -45,7 +45,7 @@ Fuentes:
 | ---- | --------------------------------------------------------------------------------- | --------- |
 | 1    | Este documento; analítica de canal y episodio; retención con el párrafo del guion | Hecho     |
 | 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
-| 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Pendiente |
+| 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Hecho     |
 | 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
 | 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Pendiente |
 | 6    | Redes y cápsulas: posts de texto por red                                          | Hecho     |
@@ -144,20 +144,20 @@ Fuentes:
 
 ### Evaluación a 7 días y auditoría (paso 3)
 
-**Evaluación a 7 días** (propuesta, en la etapa Evaluación):
+**Evaluación a 7 días** (pestaña Métricas del episodio, «Evaluar a los 7 días»):
 
-- A los 7 días de publicar, el botón «Evaluar a los 7 días» compara contra la mediana de los últimos 10 episodios del canal. Lo que compara:
-  - vistas, % visto y duración media;
-  - CTR e impresiones, cuando esté el paso 2;
-  - likes, comentarios y suscriptores.
-- Muestra los 3 párrafos con mayor caída de retención.
-- Claude agrega un veredicto (por encima, en línea o por debajo) y 3 aprendizajes concretos.
-- Se guarda en `episode_evaluations` y marca `evaluated_at`.
+- **La primera semana** son los días 0 a 6 desde que se publicó (fechas UTC, como YouTube Analytics). Como YouTube publica los datos con 2 o 3 días de atraso, el botón se habilita cuando llega el sexto día; antes, la tarjeta dice hacia cuándo llegan. En el tablero, el siguiente paso «Evaluar a los 7 días» lleva a la tarjeta desde el día 7.
+- **La comparación** (la calcula la app y se marca «calculado por la app»): la primera semana del episodio contra la mediana de la primera semana de los últimos 10 episodios publicados antes que tengan sus 7 días completos. Compara vistas, % visto, duración media, impresiones, CTR, me gusta, comentarios y suscriptores netos. A ±10 % de la mediana es «en línea».
+- **Dónde se fue la gente:** los 3 párrafos del guion con más caída de retención.
+- **Claude** (etapa de IA **Evaluación**) lee la tabla y las caídas, y da el veredicto (por encima, en línea o por debajo; con el que sugieren las vistas, el % visto y el CTR como referencia), un resumen y 3 aprendizajes concretos. No recalcula números.
+- **Cómo se guarda:** la web calcula los números y deja la fila en `episode_evaluations` (una por episodio) como pendiente; la tarea `evaluation` agrega lo de Claude y marca `episodes.evaluated_at`. Se puede volver a evaluar.
 
-**Auditoría mensual:**
+**Auditoría mensual** (Analítica, «Auditar el mes», a pedido):
 
-- Junta las evaluaciones del mes y, con Opus (unos US$0,50 por canal al mes), propone ajustes a la guía del guionista y a los temas.
-- Solo en la web.
+- Junta las evaluaciones de los episodios publicados en el mes elegido y la guía del guionista vigente.
+- Claude (etapa de IA **Auditoría**, para elegir un modelo más fuerte en Administración) propone hasta 5 ajustes a secciones de la guía y hasta 5 temas (hacer más, menos o probar), cada uno con su evidencia. Un patrón de un solo episodio no cuenta.
+- Son propuestas para revisar: la guía se edita a mano en Ajustes, y un tema se puede pasar a Ideas (origen «Recomendación»).
+- Se guarda en `channel_audits` (una por canal y mes; volver a auditar la reemplaza). RLS de lectura; la escribe el servidor.
 
 ### Comentarios y dolores de la audiencia (paso 4)
 

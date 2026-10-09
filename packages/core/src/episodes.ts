@@ -101,7 +101,7 @@ export const ACTION_PHASE: Record<PrimaryAction, number> = {
   link_video: 1,
   await_publication: 1,
   share_and_reply: 4,
-  evaluate: 4,
+  evaluate: 1,
   done: 1,
 };
 

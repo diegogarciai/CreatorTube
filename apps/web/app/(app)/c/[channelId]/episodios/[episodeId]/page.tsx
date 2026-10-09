@@ -39,6 +39,8 @@ import { SocialPostsPanel } from "@/components/episodes/social-posts-panel";
 import { loadEpisodeSocials } from "@/lib/data/social-posts";
 import { loadEpisodeMetrics } from "@/lib/data/analytics";
 import { EpisodeMetricsPanel } from "@/components/analytics/episode-metrics";
+import { EvaluationCard } from "@/components/analytics/evaluation-card";
+import { loadEpisodeEvaluation } from "@/lib/data/evaluation";
 import { episodeDependents } from "@/lib/data/dependents";
 import { NO_DEPENDENTS } from "@/lib/dependencies";
 import {
@@ -178,6 +180,15 @@ export default async function EpisodePage({
   ]);
   const comments =
     tab === "distribution" ? await loadEpisodeComments({ id: episodeId, channelId }) : null;
+  const evaluation =
+    tab === "metrics" && row.youtube_video_id && row.published_at
+      ? await loadEpisodeEvaluation({
+          id: episodeId,
+          channelId,
+          videoId: row.youtube_video_id,
+          publishedAt: row.published_at,
+        })
+      : null;
   const socials =
     tab === "distribution"
       ? await loadEpisodeSocials({
@@ -580,12 +591,23 @@ export default async function EpisodePage({
               ) : null}
             </div>
           </div>
-        ) : tab === "metrics" && video.data && metrics ? (
-          <EpisodeMetricsPanel
-            metrics={metrics}
-            durationS={video.data.duration_seconds}
-            timezone={tz}
-          />
+        ) : tab === "metrics" && (evaluation || (video.data && metrics)) ? (
+          <div className="space-y-6">
+            {evaluation ? (
+              <EvaluationCard
+                episodeId={row.id}
+                view={evaluation}
+                canEvaluate={ctx.can("manage_episodes")}
+              />
+            ) : null}
+            {video.data && metrics ? (
+              <EpisodeMetricsPanel
+                metrics={metrics}
+                durationS={video.data.duration_seconds}
+                timezone={tz}
+              />
+            ) : null}
+          </div>
         ) : (
           <EmptyState
             title={t(`episode.tabs.${tab}`)}

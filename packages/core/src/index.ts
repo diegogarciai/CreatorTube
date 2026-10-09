@@ -16,3 +16,4 @@ export * from "./visual-aids";
 export * from "./retention";
 export * from "./comments";
 export * from "./socials";
+export * from "./evaluation";

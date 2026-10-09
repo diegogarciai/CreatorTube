@@ -66,3 +66,9 @@ export const COMMENTS_ESTIMATE_CREDITS = 10;
 
 /** Posts para redes: una llamada con el guion, los reels y 3 cápsulas por red. */
 export const SOCIAL_POSTS_ESTIMATE_CREDITS = 15;
+
+/** Evaluación a 7 días: una llamada con la tabla de la primera semana. */
+export const EVALUATION_ESTIMATE_CREDITS = 3;
+
+/** Auditoría mensual: una llamada con las evaluaciones del mes y la guía. */
+export const AUDIT_ESTIMATE_CREDITS = 60;

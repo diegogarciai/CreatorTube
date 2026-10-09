@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { BarChart3 } from "lucide-react";
 import { youTubeWatchUrl } from "@planificador/core";
+import { AuditCard } from "@/components/analytics/audit-card";
 import { DailyChart } from "@/components/analytics/daily-chart";
 import { ctrLabel, ReachCard } from "@/components/analytics/reach-card";
 import { RefreshAnalyticsButton } from "@/components/analytics/refresh-button";
@@ -13,6 +14,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getChannelContext, getSupabase } from "@/lib/auth";
 import { loadChannelAnalytics, loadYesterday, type PeriodTotals } from "@/lib/data/analytics";
+import { loadAudits } from "@/lib/data/evaluation";
 
 export const metadata: Metadata = { title: "Analítica" };
 
@@ -29,7 +31,7 @@ export default async function AnalyticsPage({
   const ctx = await getChannelContext(channelId);
   const t = await getTranslations();
   const supabase = await getSupabase();
-  const [analytics, yesterday, { data: videos }] = await Promise.all([
+  const [analytics, yesterday, { data: videos }, audits] = await Promise.all([
     loadChannelAnalytics(channelId),
     loadYesterday(channelId),
     supabase
@@ -40,6 +42,7 @@ export default async function AnalyticsPage({
       .eq("channel_id", channelId)
       .order("published_at", { ascending: false, nullsFirst: true })
       .limit(20),
+    loadAudits(channelId),
   ]);
   const fmt = new Intl.DateTimeFormat("es", {
     dateStyle: "medium",
@@ -205,6 +208,14 @@ export default async function AnalyticsPage({
             description={t("analytics.emptyDesc")}
           />
         )}
+        {analytics.connected || audits.months.length ? (
+          <AuditCard
+            channelId={channelId}
+            view={audits}
+            canAudit={ctx.can("manage_episodes")}
+            canIdea={ctx.can("write_script")}
+          />
+        ) : null}
         <Card>
           <CardHeader title={t("analytics.recentVideos")} description="YouTube Data API" />
           {videos && videos.length > 0 ? (

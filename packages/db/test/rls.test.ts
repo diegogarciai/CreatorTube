@@ -813,6 +813,62 @@ describe("Fase 4 · redes", () => {
   });
 });
 
+describe("Fase 4 · evaluación y auditoría", () => {
+  it("una evaluación por episodio y una auditoría por mes; las escribe el servidor", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch, "Evaluado");
+    const [ev] = await sql(
+      `insert into public.episode_evaluations (episode_id, status, data) values ($1, 'pending', '{"metrics":[]}') returning channel_id, workspace_id`,
+      [ep],
+    );
+    expect(ev).toEqual({ channel_id: ch, workspace_id: ws });
+    await expect(
+      sql("insert into public.episode_evaluations (episode_id) values ($1)", [ep]),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      sql("update public.episode_evaluations set verdict = 'great' where episode_id = $1", [ep]),
+    ).rejects.toThrow(/check constraint/);
+    await sql(
+      "insert into public.channel_audits (channel_id, month, status, evaluations) values ($1, '2026-09-01', 'done', 3)",
+      [ch],
+    );
+    await expect(
+      sql("insert into public.channel_audits (channel_id, month) values ($1, '2026-09-15')", [ch]),
+    ).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, async (q) => ({
+        evaluations: await q(
+          "select status from public.episode_evaluations where episode_id = $1",
+          [ep],
+        ),
+        audits: await q("select evaluations from public.channel_audits where channel_id = $1", [
+          ch,
+        ]),
+      }));
+    expect(await read(owner.id)).toEqual({
+      evaluations: [{ status: "pending" }],
+      audits: [{ evaluations: 3 }],
+    });
+    expect(await read(outsider.id)).toEqual({ evaluations: [], audits: [] });
+    await expect(
+      as(owner.id, (q) =>
+        q("insert into public.episode_evaluations (episode_id) values ($1)", [ep]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      as(owner.id, (q) =>
+        q("update public.channel_audits set evaluations = 9 where channel_id = $1 returning 1", [
+          ch,
+        ]),
+      ),
+    ).resolves.toEqual([]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

@@ -236,6 +236,70 @@ export type Database = {
           },
         ];
       };
+      channel_audits: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          month: string;
+          status: string;
+          input: Json;
+          proposals: Json;
+          evaluations: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          month: string;
+          status?: string;
+          input?: Json;
+          proposals?: Json;
+          evaluations?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          month?: string;
+          status?: string;
+          input?: Json;
+          proposals?: Json;
+          evaluations?: number;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "channel_audits_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "channel_audits_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "channel_audits_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       channel_connections: {
         Row: {
           channel_id: string;
@@ -893,6 +957,9 @@ export type Database = {
           data: Json;
           created_by: string | null;
           created_at: string;
+          status: string;
+          verdict: string | null;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -903,6 +970,9 @@ export type Database = {
           data?: Json;
           created_by?: string | null;
           created_at?: string;
+          status?: string;
+          verdict?: string | null;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -913,6 +983,9 @@ export type Database = {
           data?: Json;
           created_by?: string | null;
           created_at?: string;
+          status?: string;
+          verdict?: string | null;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -932,7 +1005,7 @@ export type Database = {
           {
             foreignKeyName: "episode_evaluations_episode_id_fkey";
             columns: ["episode_id"];
-            isOneToOne: false;
+            isOneToOne: true;
             referencedRelation: "episodes";
             referencedColumns: ["id"];
           },

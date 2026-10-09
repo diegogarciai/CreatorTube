@@ -2,8 +2,10 @@ import "server-only";
 import { tasks } from "@trigger.dev/sdk";
 import type {
   aiModelsRefreshTask,
+  auditTask,
   commentsTask,
   directionTask,
+  evaluationTask,
   JobKind,
   pingTask,
   renderAidsTask,
@@ -31,6 +33,8 @@ interface JobPayloads {
   render_aids: typeof renderAidsTask;
   comments: typeof commentsTask;
   social_posts: typeof socialPostsTask;
+  evaluation: typeof evaluationTask;
+  audit: typeof auditTask;
 }
 
 export interface JobScope {
