@@ -722,7 +722,7 @@ describe("Fase 4 · comentarios", () => {
       );
     const [row] = await add("c1");
     expect(row.workspace_id).toBe(ws);
-    await add("c-viejo", "now() - interval '31 days'");
+    await add("c2", "now() - interval '31 days'");
     await expect(
       sql(
         "insert into public.youtube_comments (channel_id, comment_id, video_id, published_at, kind) values ($1, 'x', 'vid', now(), 'otro')",
@@ -744,7 +744,7 @@ describe("Fase 4 · comentarios", () => {
         ]),
       }));
     expect(await read(owner.id)).toEqual({
-      comments: [{ comment_id: "c-viejo" }, { comment_id: "c1" }],
+      comments: [{ comment_id: "c1" }, { comment_id: "c2" }],
       readings: [{ comments: 2 }],
     });
     expect(await read(outsider.id)).toEqual({ comments: [], readings: [] });
