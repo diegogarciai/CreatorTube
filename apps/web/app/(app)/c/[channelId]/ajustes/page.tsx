@@ -17,6 +17,7 @@ import { getChannelContext, getSupabase } from "@/lib/auth";
 import { loadBrandView } from "@/lib/data/brand";
 import { channelProfile, channelRhythm } from "@/lib/data/channel";
 import { getChecklistSteps, getPillars } from "@/lib/data/queries";
+import { YOUTUBE_COMMENTS_SCOPE } from "@planificador/youtube";
 import { env, YOUTUBE_CONFIGURED } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Configuración del canal" };
@@ -98,6 +99,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
               youtubeConfigured={YOUTUBE_CONFIGURED()}
               canConfigure={canConfigure}
               canDisconnect={ctx.can("manage_workspace")}
+              canReply={(connection?.scopes ?? []).includes(YOUTUBE_COMMENTS_SCOPE)}
             />
           </CardBody>
         </Card>

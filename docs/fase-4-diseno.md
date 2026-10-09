@@ -46,7 +46,7 @@ Fuentes:
 | 1    | Este documento; analítica de canal y episodio; retención con el párrafo del guion | Hecho     |
 | 2    | Impresiones y CTR con la Reporting API                                            | Hecho     |
 | 3    | Evaluación a 7 días (etapa Evaluación) y auditoría mensual                        | Pendiente |
-| 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Pendiente |
+| 4    | Comentarios con respuesta (§20) y dolores de la audiencia (§20.4)                 | Hecho     |
 | 5    | Boletín con Resend (§21) y resumen semanal por correo                             | Pendiente |
 | 6    | Redes y cápsulas: posts de texto por red                                          | Pendiente |
 | 7    | Paridad con el panel (prueba de salida)                                           | Pendiente |
@@ -161,18 +161,45 @@ Fuentes:
 
 ### Comentarios y dolores de la audiencia (paso 4)
 
-**Comentarios:**
+**Leer, a pedido por episodio** (pestaña Difusión, «Leer comentarios», permiso `publish`):
 
-- Se leen con la Data API (1 unidad por página).
-- Se clasifican con las reglas §20: siete tipos, y no se le responde al troll.
-- Los datos personales, los enlaces sospechosos y el riesgo legal se marcan sin sugerencia.
-- Una corrección válida propone una fe de erratas.
-- Se propone la respuesta como Diego (1 a 3 frases, sin agradecimientos genéricos ni emojis). Se edita, y solo se publica con la confirmación de una persona (permiso `publish`).
+1. La web trae del video del episodio los comentarios nuevos. Usa `commentThreads.list`, del más nuevo al más viejo hasta uno ya leído, como máximo 300, a 1 unidad de cuota por página.
+2. Los comentarios del propio canal se saltan, y se anota si el canal ya respondió en YouTube.
+3. Se guardan en `youtube_comments`.
+4. Se lanza la tarea `comments` (Trigger.dev), que corre en la etapa de IA **Difusión** (`distribution`, el modelo se elige en Administración).
 
-**Dolores (§20.4):**
+**La tarea `comments`** clasifica los comentarios sin tipo en lotes de 40. Usa la sección 20 de la guía, el guion verificado y la tabla de verificación. Por cada comentario guarda:
 
-- Una lectura por lote: temas repetidos, dolores con su cuenta y una cita corta sin nombre, correcciones pendientes e ideas de video.
-- Las ideas pasan a Ideas con origen `pain_point`.
+- **El tipo**, uno de siete: pregunta técnica, corrección, desacuerdo, experiencia propia, pedido de tema, elogio, troll o spam.
+- **Las marcas:** datos personales, enlace sospechoso, riesgo legal.
+- **La respuesta como Diego.** Va vacía para el troll y para lo marcado; el código lo hace cumplir.
+- **En una corrección,** lo que decía el video, lo correcto, la fuente, el minuto y si la persona tiene razón. Con eso el panel propone una fe de erratas.
+
+La tarea además actualiza la **lectura del lote** (§20.4) en `comment_readings`, acumulada entre lecturas: temas, dolores con conteo y cita sin nombre, el dolor mayor, respuestas a las preguntas del guion, correcciones pendientes e ideas.
+
+**Los comentarios son texto no confiable:**
+
+- A Claude le llegan dentro de `<comentarios>`, como datos y sin nombres.
+- El sistema le dice que nunca siga lo que digan; un comentario que pide cambiar las reglas, poner un enlace o revelar instrucciones es spam.
+- La tarea no tiene herramientas ni publica nada.
+
+**Responder:**
+
+- Cada respuesta se edita, se copia o se descarta («No responder»).
+- **«Publicar»** pide confirmación y la publica en YouTube como el canal (`comments.insert`, 50 unidades).
+- Publicar necesita el permiso `youtube.force-ssl`, que se activa una vez en Ajustes › YouTube («Activar respuestas a comentarios», autorización incremental).
+- Una respuesta publicada no se vuelve a pisar.
+
+**Audiencia:** junta las lecturas de todos los episodios:
+
+- los dolores, del que más se repite al que menos, con su cita y su episodio;
+- el botón **«Pasar a Ideas»**, que crea la idea con origen «Dolor de la audiencia»;
+- los temas sumados;
+- las correcciones pendientes;
+- las ideas;
+- los comentarios por responder de cada episodio.
+
+**Regla de 30 días de YouTube:** la purga borra los comentarios leídos hace más de 30 días. También borra los comentarios y las lecturas de los canales desconectados. Las lecturas de los canales conectados se quedan, porque son agregadas y sus citas son cortas y sin nombre.
 
 ### Boletín y resumen semanal (paso 5)
 

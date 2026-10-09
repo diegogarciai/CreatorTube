@@ -43,7 +43,9 @@ Menú **Google Auth Platform** (antes "Pantalla de consentimiento de OAuth") →
    - `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile` (no sensibles)
    - `https://www.googleapis.com/auth/youtube.readonly` (sensible)
    - `https://www.googleapis.com/auth/yt-analytics.readonly` (sensible)
-   - No agregues `youtube.force-ssl` todavía. Se pide en la Fase 4 con autorización incremental.
+   - `https://www.googleapis.com/auth/youtube.force-ssl` (sensible), para responder comentarios desde la app (Fase 4).
+     - La app lo pide aparte, con autorización incremental, solo cuando alguien pulsa «Activar respuestas a comentarios» en Ajustes › YouTube.
+     - En modo Prueba funciona para los usuarios de prueba. Para publicar la app, Google lo revisa junto con los demás permisos sensibles.
 
 ## 4. Verificar el dominio
 

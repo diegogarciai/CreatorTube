@@ -3,6 +3,7 @@
  * con `tasks.trigger<typeof …>()`; el código corre en Trigger.dev.
  */
 export type { aiModelsRefreshTask } from "./trigger/ai-models";
+export type { commentsTask } from "./trigger/comments";
 export type { directionTask } from "./trigger/direction";
 export type { pingTask } from "./trigger/ping";
 export type { renderAidsTask } from "./trigger/render-aids";
@@ -23,5 +24,6 @@ export const JOB_KINDS = [
   "thumbnail_ideas",
   "visual_plan",
   "render_aids",
+  "comments",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];

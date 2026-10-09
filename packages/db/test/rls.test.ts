@@ -706,6 +706,69 @@ describe("Fase 4 · alcance (impresiones, CTR y fuentes)", () => {
   });
 });
 
+describe("Fase 4 · comentarios", () => {
+  it("se leen con permiso, los escribe el servidor y se purgan a los 30 días", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const ep = await createEpisode(ch, "Con comentarios");
+    const add = (id: string, fetched = "now()") =>
+      sql(
+        `insert into public.youtube_comments (channel_id, comment_id, episode_id, video_id, text, published_at, kind, fetched_at)
+         values ($1, $2, $3, 'vid', 'Hola', now(), 'elogio', ${fetched}) returning workspace_id`,
+        [ch, id, ep],
+      );
+    const [row] = await add("c1");
+    expect(row.workspace_id).toBe(ws);
+    await add("c2", "now() - interval '31 days'");
+    await expect(
+      sql(
+        "insert into public.youtube_comments (channel_id, comment_id, video_id, published_at, kind) values ($1, 'x', 'vid', now(), 'otro')",
+        [ch],
+      ),
+    ).rejects.toThrow(/check constraint/);
+    await sql(
+      `insert into public.comment_readings (episode_id, channel_id, reading, comments) values ($1, $2, '{"pains":[]}', 2)`,
+      [ep, ch],
+    );
+    const read = (uid: string) =>
+      as(uid, async (q) => ({
+        comments: await q(
+          "select comment_id from public.youtube_comments where channel_id = $1 order by comment_id",
+          [ch],
+        ),
+        readings: await q("select comments from public.comment_readings where channel_id = $1", [
+          ch,
+        ]),
+      }));
+    expect(await read(owner.id)).toEqual({
+      comments: [{ comment_id: "c1" }, { comment_id: "c2" }],
+      readings: [{ comments: 2 }],
+    });
+    expect(await read(outsider.id)).toEqual({ comments: [], readings: [] });
+    await expect(
+      as(owner.id, (q) =>
+        q("update public.youtube_comments set reply = 'x' where channel_id = $1 returning 1", [ch]),
+      ),
+    ).resolves.toEqual([]);
+    const [r] = await sql("select public.purge_youtube_data() as r");
+    expect(r.r.old_comments_deleted).toBeGreaterThanOrEqual(1);
+    expect(
+      await sql("select comment_id from public.youtube_comments where channel_id = $1", [ch]),
+    ).toEqual([{ comment_id: "c1" }]);
+    await sql("update public.channels set disconnected_at = now() where id = $1", [ch]);
+    await sql("select public.purge_youtube_data()");
+    expect(
+      await sql(
+        "select (select count(*) from public.youtube_comments where channel_id = $1) + (select count(*) from public.comment_readings where channel_id = $1) as n",
+        [ch],
+      ),
+    ).toEqual([{ n: "0" }]);
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

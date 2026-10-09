@@ -94,7 +94,7 @@ function analyticsStore(admin: Admin, timezone: string): AnalyticsStore {
 }
 
 /** La conexión guardada del canal, con los tokens descifrados (null si no está activa). */
-async function storedConnection(
+export async function storedConnection(
   admin: Admin,
   channelId: string,
 ): Promise<{ conn: StoredConnection; timezone: string } | null> {
