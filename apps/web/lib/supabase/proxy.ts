@@ -11,6 +11,10 @@ const PUBLIC_PREFIXES = [
   "/api/cron",
   // La app móvil manda su sesión en el encabezado; la ruta la valida sola.
   "/api/mobile",
+  // Conectar YouTube desde la app: el navegador no tiene la sesión de la web.
+  // Las dos rutas validan el ticket o el state firmado por su cuenta.
+  "/api/youtube/mobile",
+  "/api/youtube/callback",
 ];
 
 /** Refresca la sesión en cada petición y protege las rutas privadas. */
