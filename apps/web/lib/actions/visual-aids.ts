@@ -3,10 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formatsFor } from "@planificador/motion";
+import type { Json } from "@planificador/db";
 import {
+  aidFromRow,
+  AID_ICONS,
   AID_PIECES,
+  BEAT_ACTIONS,
+  DEFAULT_SPEECH_WPM,
+  elementsFromBeats,
+  rowsFromBeats,
+  motionSeconds,
   validateAidRows,
   validateAidText,
+  type AidIcon,
   type AidKind,
   type VisualAid,
 } from "@planificador/core";
@@ -102,20 +111,7 @@ export async function setAidStatus(aidId: string, status: unknown): Promise<Acti
     const { admin, aid, row } = await loadAid(aidId);
     // Una ayuda con textos fuera de límite (o cifras sin verificar) no se aprueba.
     if (next === "approved") {
-      const kind = aid.kind as AidKind;
-      const current: VisualAid = {
-        kind,
-        code: aid.code,
-        anchor: aid.anchor,
-        idea: aid.idea,
-        title: aid.title,
-        definition: aid.definition,
-        elements: (aid.elements as VisualAid["elements"] | null) ?? [],
-        rows: aid.claim_rows,
-        footer: aid.footer,
-        durationS: aid.duration_s,
-        piece: aid.piece as VisualAid["piece"],
-      };
+      const current = aidFromRow(aid);
       const broken = await aidProblems(admin, aid.script_run_id, current);
       if (broken.length) return { ok: false, error: "errors.aid_needs_fix" };
     }
@@ -135,6 +131,17 @@ const elementSchema = z.object({
   anchor: z.string().trim().max(200).nullish(),
 });
 
+const beatSchema = z.object({
+  phrase: z.string().trim().min(1).max(400),
+  action: z.enum(BEAT_ACTIONS),
+  target: z.number().int().min(0).max(20).nullish(),
+  text: z.string().trim().max(120).nullish(),
+  value: z.string().trim().max(30).nullish(),
+  unit: z.string().trim().max(20).nullish(),
+  row: z.number().int().min(1).max(999).nullish(),
+  icon: z.enum(AID_ICONS as [AidIcon, ...AidIcon[]]).nullish(),
+});
+
 const editSchema = z.object({
   title: z.string().trim().min(1).max(120),
   idea: z.string().trim().max(400).nullish(),
@@ -144,6 +151,8 @@ const editSchema = z.object({
   footer: z.string().trim().max(200).nullish(),
   durationS: z.number().int().min(1).max(60).nullish(),
   piece: z.enum(AID_PIECES).nullish(),
+  /** M: el guion de animación (las frases salen del segmento, que no se edita). */
+  beats: z.array(beatSchema).max(8).nullish(),
 });
 
 /**
@@ -155,6 +164,12 @@ export async function editAid(aidId: string, input: unknown): Promise<ActionResu
     const edit = editSchema.parse(input);
     const { admin, aid, row } = await loadAid(aidId);
     const kind = aid.kind as AidKind;
+    // M con guion de animación: elementos y filas salen de los momentos, y la
+    // duración, del segmento dicho al ritmo del canal.
+    const beats = kind === "M" && edit.beats?.length ? edit.beats : null;
+    const { data: channel } = beats
+      ? await admin.from("channels").select("speech_wpm").eq("id", row.channel_id).single()
+      : { data: null };
     const next: VisualAid = {
       kind,
       code: aid.code,
@@ -162,11 +177,21 @@ export async function editAid(aidId: string, input: unknown): Promise<ActionResu
       idea: kind === "M" ? (edit.idea ?? aid.idea) : null,
       title: edit.title,
       definition: kind === "C" ? (edit.definition ?? null) : null,
-      elements: kind === "C" ? [] : edit.elements.filter((e) => e.text),
-      rows: kind === "M" ? edit.rows : [],
+      elements: beats
+        ? elementsFromBeats(beats)
+        : kind === "C"
+          ? []
+          : edit.elements.filter((e) => e.text),
+      rows: beats ? rowsFromBeats(beats) : kind === "M" ? edit.rows : [],
       footer: kind === "M" ? (edit.footer ?? null) : null,
-      durationS: kind === "M" ? (edit.durationS ?? aid.duration_s) : null,
+      durationS: beats
+        ? motionSeconds(aid.segment, channel?.speech_wpm ?? DEFAULT_SPEECH_WPM)
+        : kind === "M"
+          ? (edit.durationS ?? aid.duration_s)
+          : null,
       piece: kind === "M" ? (edit.piece ?? (aid.piece as VisualAid["piece"])) : null,
+      segment: aid.segment,
+      beats: beats ?? [],
     };
     const broken = await aidProblems(admin, aid.script_run_id, next);
     if (broken.length) return { ok: false, error: broken.join(" ") };
@@ -181,6 +206,7 @@ export async function editAid(aidId: string, input: unknown): Promise<ActionResu
         footer: next.footer ?? null,
         duration_s: next.durationS ?? null,
         piece: next.piece ?? null,
+        ...(beats ? { beats: beats as unknown as Json } : {}),
         edited: true,
       })
       .eq("id", aid.id);

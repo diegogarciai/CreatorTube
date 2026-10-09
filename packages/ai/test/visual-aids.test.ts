@@ -47,16 +47,33 @@ const claim = (idx: number, status: Claim["status"]): Claim => ({
 });
 
 const scores = (n: number) => ({ simplifies: n, central: n, reusable: n, no_real_image: n });
+const beat = (over: Record<string, unknown>) => ({
+  phrase: "",
+  action: "enter",
+  target: -1,
+  text: "",
+  value: "",
+  unit: "",
+  row: 0,
+  icon: "ninguno",
+  ...over,
+});
+const batteryBeats = [
+  beat({ phrase: "En las pruebas, la batería", text: "Batería del M4", icon: "bateria" }),
+  beat({ phrase: "duró 18 horas", action: "change", target: 0, value: "18", unit: "h", row: 1 }),
+  beat({ phrase: "con brillo al 50 %.", action: "highlight", target: 0 }),
+];
 const aid = (over: Record<string, unknown>) => ({
   kind: "M",
   anchor: "En las pruebas, la batería",
   idea: "Una barra de batería que se llena",
   title: "18 horas de batería",
   definition: "",
-  elements: [{ text: "Horas de batería", value: "18", unit: "h", anchor: "" }],
-  rows: [1],
+  elements: [],
+  segment: "En las pruebas, la batería duró 18 horas con brillo al 50 %.",
+  case: "anchor_figure",
+  beats: batteryBeats,
   footer: "gartechs.com · Fuente: Apple, octubre de 2026",
-  duration_s: 6,
   piece: "bars",
   scores: scores(4),
   vertical: true,
@@ -69,14 +86,28 @@ describe("plan de ayudas visuales", () => {
       aids: [
         aid({}),
         // Cifra de una fila contradicha.
-        aid({ anchor: "El MacBook Air M4", rows: [2], piece: "ring" }),
+        aid({
+          anchor: "El MacBook Air M4",
+          segment: "El MacBook Air M4 cuesta lo mismo que el anterior.",
+          beats: [
+            beat({
+              phrase: "El MacBook Air M4",
+              text: "Precio",
+              value: "999",
+              unit: "US$",
+              row: 2,
+            }),
+            beat({ phrase: "cuesta lo mismo que el anterior.", action: "highlight", target: 0 }),
+          ],
+          piece: "ring",
+        }),
         aid({
           kind: "C",
           anchor: "La memoria unificada",
           title: "Memoria unificada",
           definition: "RAM que comparten el procesador y la gráfica",
-          elements: [{ text: "x y", value: "1", unit: "", anchor: "" }],
-          rows: [1],
+          elements: [{ text: "x y", anchor: "" }],
+          beats: [beat({ phrase: "x", text: "y z", value: "1", row: 1 })],
           scores: scores(1),
         }),
         aid({
@@ -85,9 +116,9 @@ describe("plan de ayudas visuales", () => {
           title: "Lo que importa",
           idea: "",
           elements: [
-            { text: "La pantalla brillante", value: "", unit: "", anchor: "la pantalla" },
-            { text: "El teclado cómodo", value: "", unit: "", anchor: "el teclado" },
-            { text: "El peso ligero", value: "", unit: "", anchor: "y el peso" },
+            { text: "La pantalla brillante", anchor: "la pantalla" },
+            { text: "El teclado cómodo", anchor: "el teclado" },
+            { text: "El peso ligero", anchor: "y el peso" },
           ],
           scores: scores(1),
         }),
@@ -111,7 +142,26 @@ describe("plan de ayudas visuales", () => {
     ]);
     // La C no guarda cifras ni elementos; la M guarda su pieza y puntaje.
     expect(out.kept[1]).toMatchObject({ elements: [], rows: [], piece: null, scores: null });
-    expect(out.kept[0]).toMatchObject({ piece: "bars", vertical: true, durationS: 6 });
+    expect(out.kept[0]).toMatchObject({
+      piece: "bars",
+      vertical: true,
+      durationS: 5,
+      aidCase: "anchor_figure",
+      elements: [{ text: "Batería del M4", value: null, unit: null, icon: "bateria" }],
+      rows: [1],
+      issues: [],
+    });
+    expect(out.kept[0]!.beats![1]).toEqual({
+      phrase: "duró 18 horas",
+      action: "change",
+      target: 0,
+      text: null,
+      value: "18",
+      unit: "h",
+      row: 1,
+      icon: null,
+    });
+    expect(out.kept[2]).toMatchObject({ beats: [], segment: null });
     expect(out.dropped).toEqual([
       expect.objectContaining({
         code: "M2",
@@ -155,40 +205,51 @@ const input = {
 };
 
 describe("formato de las ayudas", () => {
-  it("la duración de una M se ajusta a 2–30 s (6 si no viene)", async () => {
-    const { client, calls } = sequenceClient([
-      {
-        aids: [
-          aid({ duration_s: 45 }),
-          aid({ anchor: "Tres cosas importan", duration_s: 0, piece: "ring", vertical: false }),
-        ],
-      },
-    ]);
-    const out = await visualAidPlan(client, { model: "m" }, input);
-    expect(out.kept.map((a) => a.durationS)).toEqual([30, 6]);
-    expect(calls).toHaveLength(1);
-    expect(out.repaired).toBe(0);
+  it("la duración de una M es la de su segmento dicho al ritmo del canal", async () => {
+    for (const [wpm, seconds] of [
+      [undefined, 5],
+      [100, 8],
+    ] as const) {
+      const { client, calls } = sequenceClient([{ aids: [aid({})] }]);
+      const out = await visualAidPlan(client, { model: "m" }, { ...input, speechWpm: wpm });
+      expect(out.kept[0]!.durationS).toBe(seconds);
+      expect(calls).toHaveLength(1);
+      expect(out.repaired).toBe(0);
+    }
   });
 
   it("los textos largos se corrigen en una segunda llamada", async () => {
     const long = aid({
-      elements: [
-        { text: "Prueba corta: puede no mostrar la caída", value: "", unit: "", anchor: "" },
+      beats: [
+        beat({
+          phrase: "En las pruebas, la batería",
+          text: "Prueba corta: puede no mostrar la caída",
+        }),
+        ...batteryBeats.slice(1),
       ],
     });
-    const fixed = aid({
-      elements: [{ text: "Prueba corta, poca caída", value: "", unit: "", anchor: "" }],
-    });
+    const fixed = aid({});
     const { client, calls } = sequenceClient([{ aids: [long] }, { aids: [fixed] }]);
     const out = await visualAidPlan(client, { model: "m" }, input);
     expect(calls).toHaveLength(2);
     const second = String((calls[1]!.messages as { content: string }[])[0]!.content);
     expect(second).toContain("Cada elemento va de 2 a 6 palabras");
     expect(out.repaired).toBe(1);
-    expect(out.kept).toHaveLength(1);
     expect(out.kept[0]).toMatchObject({ code: "M1", issues: [] });
-    expect(out.kept[0]!.elements[0]!.text).toBe("Prueba corta, poca caída");
+    expect(out.kept[0]!.elements[0]!.text).toBe("Batería del M4");
     expect(out.usage.input_tokens).toBe(200);
+  });
+
+  it("frases que no calzan con el segmento también se corrigen", async () => {
+    const off = aid({
+      beats: [batteryBeats[1], batteryBeats[0], batteryBeats[2]],
+    });
+    const { client, calls } = sequenceClient([{ aids: [off] }, { aids: [aid({})] }]);
+    const out = await visualAidPlan(client, { model: "m" }, input);
+    const second = String((calls[1]!.messages as { content: string }[])[0]!.content);
+    expect(second).toContain("Cada momento copia su frase del segmento, tal cual y en orden.");
+    expect(out.repaired).toBe(1);
+    expect(out.kept[0]!.issues).toEqual([]);
   });
 
   it("si la corrección falla, la ayuda queda con su aviso (no se descarta)", async () => {
@@ -197,10 +258,12 @@ describe("formato de las ayudas", () => {
       anchor: "Tres cosas importan",
       title: "Las cosas que más importan",
       idea: "",
+      segment: "",
+      beats: [],
       elements: [
-        { text: "La pantalla brillante", value: "", unit: "", anchor: "la pantalla" },
-        { text: "El teclado cómodo", value: "", unit: "", anchor: "el teclado" },
-        { text: "El peso ligero", value: "", unit: "", anchor: "el peso" },
+        { text: "La pantalla brillante", anchor: "la pantalla" },
+        { text: "El teclado cómodo", anchor: "el teclado" },
+        { text: "El peso ligero", anchor: "el peso" },
       ],
       scores: scores(1),
     });

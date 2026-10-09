@@ -186,7 +186,26 @@ Vive en la pestaña **Producción**, arriba de las miniaturas. Aplica la secció
   - **C**, etiqueta de concepto (12.8);
   - **L**, lista (12.8).
 
-  Se guardan en `visual_aids` con su código (M1, C1, L1… en orden de guion), su ancla (las primeras palabras exactas del párrafo) y los campos de su ficha. Una M lleva idea visual, título, elementos, filas de verificación, pie, duración, pieza de marca, puntaje 12.1 y si va también en vertical.
+  Se guardan en `visual_aids` con su código (M1, C1, L1… en orden de guion), su ancla (las primeras palabras exactas del párrafo) y los campos de su ficha. Una M lleva idea visual, título, pie, pieza de marca, puntaje 12.1, si va también en vertical y su **guion de animación** (abajo).
+
+- **Guion de animación de una M (12.5 y 12.6):** una M no es una pieza suelta con un título, sino la explicación animada de un segmento del guion.
+  - **Segmento** (`segment`): el texto exacto que la M explica, copiado del guion verificado. Empieza en el párrafo del ancla y puede seguir al siguiente.
+  - **Caso** (`aid_case`): comparación, mecanismo, la cuenta, dato ancla, mito y realidad o línea de tiempo (12.1).
+  - **Momentos** (`beats`, de 2 a 8): uno por frase del segmento, en orden y cubriéndolo entero, porque algo se mueve en cada frase. Cada momento hace una de estas cosas:
+    - **entra** un elemento con su animación: la barra crece, la cifra cuenta, el nodo se conecta;
+    - **se resalta** un elemento en Naranja marca: lo que importa o la conclusión;
+    - **zoom**: la cámara se acerca a un elemento;
+    - **un dato viaja** de un elemento a otro;
+    - **se tacha** un elemento (el mito);
+    - **cambia** un elemento a una cifra nueva, contando.
+  - **Lo que lleva cada momento:** el que hace entrar un elemento trae su texto (de 2 a 6 palabras), y su cifra con la fila de verificación si tiene cifra. Los demás dicen sobre qué elemento actúan. Los elementos y las filas de la M salen de los momentos.
+  - **Duración:** es la del segmento dicho al ritmo de lectura del canal (`channels.speech_wpm`, 150 palabras por minuto por defecto, en Ajustes › Perfil). La calcula el código, no Claude. Cada momento dura lo que su frase. Una M va de 4 a 40 s; si se sale, queda con aviso. Al cambiar el ritmo se recalculan las M del canal.
+  - **Íconos:** cada elemento puede llevar un ícono de la biblioteca de las M (`AID_ICON_GROUPS`).
+    - La biblioteca es la misma del panel anterior, en 9 grupos: personas, dispositivos, componentes, software, seguridad, dinero y datos, lugares y logística, conceptos y símbolos.
+    - Claude elige el ícono que representa el objeto: chip, batería, nube, usuario…
+    - Un cambio de estado puede cambiar el ícono, por ejemplo de `bateria_baja` a `bateria_llena`, o de `candado` a `candado_abierto`.
+    - En el render son íconos de línea de Lucide, en Crema, o en Naranja marca cuando el elemento se resalta.
+  - **Qué sabe hacer cada pieza:** está en la tabla `PIECE_ACTIONS` (por ejemplo, el anillo no hace viajar datos y el flujo sí). Una acción que la pieza no sabe hacer deja la M con aviso para corregirla.
 
 - **La tarea `visual_plan`:**
   - Le pide a Claude el plan del guion verificado (paso `fix`). Le pasa la tabla de verificación, las fichas 12.5 del paso `motion` y la sección 12 de la guía del run.
@@ -197,13 +216,16 @@ Vive en la pestaña **Producción**, arriba de las miniaturas. Aplica la secció
   - Las ayudas con textos fuera de límite o con un ancla que no aparece van a **una segunda llamada corta**, con sus motivos exactos y el guion, y la versión corregida reemplaza a la original. Se hace una sola vez y el consumo de las dos llamadas se suma (`repaired` en el registro de consumo).
   - Si la corrección falla o vuelve a pasarse, la ayuda queda en el plan con el aviso «Acórtalo antes de aprobar» y no se puede aprobar hasta editarla (el servidor lo revisa: `errors.aid_needs_fix`).
 - **Lo que valida el código** (`packages/core/src/visual-aids.ts`; los textos dejan aviso, lo demás se descarta y queda en el registro de consumo, visible en el panel):
-  - **Textos (12.4):** título de M de 1 a 6 palabras; elementos de 2 a 6; definición de C de 14 o menos; título de L de 4 o menos; L con 3 elementos o más, cada uno con dónde empieza; duración de M de 2 a 30 s.
+  - **Textos (12.4):** título de M de 1 a 6 palabras; elementos de 2 a 6; definición de C de 14 o menos; título de L de 4 o menos; L con 3 elementos o más, cada uno con dónde empieza.
+  - **Guion de animación:** frases en orden que cubren el segmento, acciones que la pieza sabe hacer, cada acción sobre un elemento que ya entró, y de 4 a 40 s. Un segmento que no aparece tal cual en el guion descarta la M.
   - **Pie de M:** gartechs.com, y la fuente y la fecha si hay cifras.
   - **Cifras (12.3):** salen de filas Verificado o Con matiz, y la ficha las nombra.
   - **Ancla:** aparece en el guion verificado.
   - **M (12.1 y 12.2):** suma 15/20 o más; hay 6 como mucho, nunca en el mismo párrafo ni en párrafos seguidos, y sin repetir pieza de marca. Solo una va también en vertical (12.7).
   - **12.8:** un párrafo con M no lleva C ni L, y hay una C por término.
 - **Lo que decide Diego:** aprobar, descartar o volver a propuesta cada ayuda, y corregir sus textos con las mismas reglas en vivo (en una M, el servidor revisa además las filas).
+  - En la tarjeta de una M se ve su guion de animación: cada momento con su segundo, su frase y lo que pasa en pantalla.
+  - Al editarla se cambian los momentos (acción, elemento, texto, cifra y fila) y se ve la duración que resulta.
 - **«Copiar plan aprobado»:** el plan en orden, con ID, dónde entra y el texto en pantalla, para pegarlo en la edición.
 - **Plan desactualizado:** si el plan salió de otro guion que el actual, se avisa para rehacerlo.
 
@@ -223,7 +245,16 @@ Las ayudas **aprobadas** del plan se renderizan con Remotion en Trigger.dev, con
   Diego edita en **CapCut**, que no lee bien el alfa: usa la versión verde y la quita con croma. La transparente queda para otros editores.
 
 - **Piezas** (`packages/motion`, código revisado: no se genera código):
-  - **Las 10 piezas de las M:** barras, anillo, cifra que cuenta, línea de tiempo, matriz de puntos, curva, antes y después, comparación, red de conexiones y zoom.
+  - **Las 13 piezas de las M:**
+    - las 10 primeras: barras, anillo, cifra que cuenta, línea de tiempo, matriz de puntos, curva, antes y después, comparación, red de conexiones y zoom;
+    - las 3 nuevas, para los casos de 12.1 que no tenían pieza: **flujo de pasos** (mecanismo: pasos conectados por los que viaja un dato), **la cuenta** (términos con sus operadores hasta el resultado) y **mito y realidad** (el mito se tacha y entra la realidad).
+  - **Una M con guion de animación** se arma frase por frase sobre un mismo lienzo:
+    - cada elemento entra cuando empieza su frase, y después cambia de cifra contando, se resalta o se tacha en su momento;
+    - la cámara se acerca al elemento de un momento «zoom» y vuelve al plano general en el siguiente;
+    - los datos viajan entre elementos con un punto y su estela;
+    - el título y el pie con gartechs.com quedan fijos toda la animación;
+    - la retícula del fondo se desliza despacio (12.6).
+  - **Una M de un plan anterior** (sin momentos) entra escalonada como antes.
   - **Etiqueta de concepto (C):** abajo a la izquierda.
   - **Lista (L):** a la derecha, con los elementos entrando uno a uno.
   - **Reglas del manual que siguen:**
@@ -232,13 +263,18 @@ Las ayudas **aprobadas** del plan se renderizan con Remotion en Trigger.dev, con
     - título en Inter Display 600 y valores en JetBrains Mono;
     - movimiento con `cubic-bezier(0.2, 0, 0, 1)`, sin rebotes, giros, brillos ni glitch.
   - **Fuentes:** van con el bundle (Inter variable y JetBrains Mono, licencia OFL).
-- **Duración:** la M dura lo que dice su ficha; la C, 5 s; la L, 2 s por elemento más 1 s.
+- **Duración:** la M con guion de animación dura lo que su segmento dicho, más 1 s para leer el cierre; una M anterior dura lo que dice su ficha; la C, 5 s; la L, 2 s por elemento más 1 s.
+- **Sonidos:** cada momento suena con su acción:
+  - un pop al entrar (y tics si la cifra cuenta);
+  - tics y un golpe al cambiar de cifra;
+  - un golpe al resaltar o tachar;
+  - un whoosh al acercarse o al viajar un dato.
 - **Tamaño:** 50 MB como máximo por archivo (plan gratis de Supabase). Si un render pasa de ahí, se repite más comprimido. El bucket `channel-media` acepta `video/mp4` y `video/webm`.
 - **En Trigger.dev** (tarea `render_aids`, máquina `medium-1x`):
   - El bundle de Remotion se arma antes del despliegue y viaja con `additionalFiles`.
   - La extensión `remotion-chrome` instala en la imagen las librerías de Chrome y Chrome Headless Shell, en la versión que prueba Remotion (`REMOTION_CHROME_PATH`). Si eso falla, la tarea lo descarga al arrancar.
   - Se registra en el consumo como «Render», sin costo de IA.
-- **Render desactualizado:** si se edita una ayuda después de renderizarla, o si el render se hizo con una versión anterior de las piezas (`render_version`; la 2 trae los efectos de sonido), se marca «Render desactualizado» para rehacerlo.
+- **Render desactualizado:** si se edita una ayuda después de renderizarla, o si el render se hizo con una versión anterior de las piezas (`render_version`; la 2 trae los efectos de sonido y la 3, las M frase por frase), se marca «Render desactualizado» para rehacerlo.
 
 ## 10. Recursos del episodio (paso 5)
 

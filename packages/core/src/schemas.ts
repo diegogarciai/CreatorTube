@@ -87,6 +87,8 @@ export const channelProfileSchema = z.object({
   hosts: z.array(z.string().trim().min(1).max(80)).max(10),
   audience: z.string().trim().max(1000),
   tone: z.string().trim().max(1000),
+  /** Palabras por minuto al leer el guion (duración de los motion graphics). */
+  speechWpm: z.number().int().min(100).max(200).optional(),
 });
 export type ChannelProfileInput = z.infer<typeof channelProfileSchema>;
 

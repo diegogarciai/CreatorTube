@@ -49,16 +49,19 @@ export async function runVisualPlan(taskId: string, db: ServiceClient, anthropic
       if (!episode) throw new Error("No se encontró el episodio");
       const runId = episode.current_script_run_id;
       if (!runId) throw new Error("errors.no_verified_script");
-      const [{ data: run }, { data: steps }, { data: rows }] = await Promise.all([
-        db.from("script_runs").select("guide_version_id").eq("id", runId).single(),
-        db
-          .from("script_step_runs")
-          .select("step, body")
-          .eq("run_id", runId)
-          .in("step", ["fix", "motion"])
-          .eq("status", "succeeded"),
-        db.from("verification_items").select("*").eq("run_id", runId).order("idx"),
-      ]);
+      const [{ data: run }, { data: steps }, { data: rows }, { data: channel }] = await Promise.all(
+        [
+          db.from("script_runs").select("guide_version_id").eq("id", runId).single(),
+          db
+            .from("script_step_runs")
+            .select("step, body")
+            .eq("run_id", runId)
+            .in("step", ["fix", "motion"])
+            .eq("status", "succeeded"),
+          db.from("verification_items").select("*").eq("run_id", runId).order("idx"),
+          db.from("channels").select("speech_wpm").eq("id", channelId).single(),
+        ],
+      );
       const script = steps?.find((s) => s.step === "fix")?.body ?? "";
       if (!script.trim()) throw new Error("errors.no_verified_script");
       const { data: guide } = run?.guide_version_id
@@ -88,6 +91,7 @@ export async function runVisualPlan(taskId: string, db: ServiceClient, anthropic
       const ai = await loadAiSettings(db, task.workspace_id);
       const out = await visualAidPlan(anthropic, ai.config("visual_aids"), {
         episodeTitle: episode.title,
+        speechWpm: channel?.speech_wpm,
         script,
         claims,
         motionFichas: steps?.find((s) => s.step === "motion")?.body ?? "",
@@ -151,6 +155,9 @@ export async function runVisualPlan(taskId: string, db: ServiceClient, anthropic
           piece: a.piece ?? null,
           scores: (a.scores ?? null) as unknown as Json,
           vertical: Boolean(a.vertical),
+          segment: a.segment?.slice(0, 2000) ?? null,
+          aid_case: a.aidCase ?? null,
+          beats: (a.beats ?? []) as unknown as Json,
         })),
       );
       if (insError) throw insError;

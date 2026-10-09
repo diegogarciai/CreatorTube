@@ -16,6 +16,7 @@ export interface ProfileValues {
   hosts: string[];
   audience: string;
   tone: string;
+  speechWpm: number;
 }
 
 const LANGUAGES = [
@@ -61,6 +62,7 @@ export function ProfileForm({
           .filter(Boolean),
         audience: values.audience,
         tone: values.tone,
+        speechWpm: Number(values.speechWpm) || undefined,
       });
       if (res.ok) toast.success(t("common.saved"));
       else toast.error(errorText(res.error));
@@ -102,6 +104,16 @@ export function ProfileForm({
             onChange={(e) => setValues((v) => ({ ...v, codePrefix: e.target.value.toUpperCase() }))}
             maxLength={6}
             pattern="[A-Za-z0-9]{1,6}"
+          />
+        </Field>
+        <Field label={t("settings.speechWpm")} hint={t("settings.speechWpmHint")} htmlFor="p-wpm">
+          <Input
+            id="p-wpm"
+            type="number"
+            min={100}
+            max={200}
+            value={values.speechWpm}
+            onChange={(e) => setValues((v) => ({ ...v, speechWpm: Number(e.target.value) }))}
           />
         </Field>
         <Field label={t("settings.hosts")} htmlFor="p-hosts" className="sm:col-span-2">

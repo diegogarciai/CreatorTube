@@ -13,6 +13,7 @@ export function channelProfile(c: Tables<"channels">): ProfileValues {
     hosts: profile.hosts ?? [],
     audience: profile.audience ?? "",
     tone: profile.tone ?? "",
+    speechWpm: c.speech_wpm,
   };
 }
 

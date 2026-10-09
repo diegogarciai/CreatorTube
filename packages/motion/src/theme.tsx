@@ -110,12 +110,16 @@ export function useLayout(): Layout {
 /** Fondo de marca de una M: lienzo, retícula al 6 % (hay datos) y viñeteado; sin halo detrás de datos. */
 export function BrandBackground({ colors, data }: { colors: BrandColors; data: boolean }) {
   const cell = 80;
+  // Fondo sutilmente animado (12.6): la retícula se desliza despacio.
+  const frame = useCurrentFrame();
+  const drift = (frame * 0.25) % cell;
   return (
     <AbsoluteFill style={{ backgroundColor: colors.canvas }}>
       <AbsoluteFill
         style={{
           backgroundImage: `linear-gradient(${alpha(colors.grid, data ? 0.06 : 0.1)} 1px, transparent 1px), linear-gradient(90deg, ${alpha(colors.grid, data ? 0.06 : 0.1)} 1px, transparent 1px)`,
           backgroundSize: `${cell}px ${cell}px`,
+          backgroundPosition: `${drift}px ${drift / 2}px`,
         }}
       />
       {data ? null : (

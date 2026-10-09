@@ -8,9 +8,19 @@ import {
   useVideoConfig,
 } from "remotion";
 import { aidHasNumbers } from "@planificador/core";
-import { PIECES } from "./pieces";
-import { sfxCues, staggerFrames, type AidProps } from "./spec";
-import { alpha, BrandBackground, MONO, Text, useEnter, useExit, useLayout } from "./theme";
+import { PIECES, type Area, type Pt } from "./pieces";
+import { BEAT_FRAMES, sfxCues, staggerFrames, storyFor, type AidProps, type Story } from "./spec";
+import {
+  alpha,
+  BrandBackground,
+  brandEase,
+  MONO,
+  Text,
+  useEnter,
+  useExit,
+  useLayout,
+  type Layout,
+} from "./theme";
 
 const GREEN = "#00FF00";
 
@@ -33,25 +43,134 @@ function SoundTrack({ aid }: { aid: AidProps["aid"] }) {
   );
 }
 
-/** M: motion graphic a pantalla completa (ficha 12.5) con su pieza de marca. */
+/** Cuánto se acerca la cámara a un elemento (zoom). */
+const CAMERA_ZOOM = 0.35;
+
+/**
+ * La cámara: se acerca al elemento de un momento «zoom» mientras se dice su
+ * frase y vuelve al plano general en el momento siguiente, con la curva de la
+ * marca (sin rebotes).
+ */
+function useCamera(story: Story, anchors: Pt[], layout: Layout) {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  let scale = 1;
+  let origin: Pt = { x: layout.width / 2, y: layout.height / 2 };
+  let shift: Pt = { x: 0, y: 0 };
+  for (const z of story.zooms) {
+    const pt = anchors[z.element];
+    if (!pt || frame < z.at) continue;
+    const next = story.beats.find((b) => b.at > z.at)?.at ?? durationInFrames;
+    const opts = {
+      easing: brandEase,
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    } as const;
+    const k = Math.min(
+      interpolate(frame, [z.at, z.at + BEAT_FRAMES], [0, 1], opts),
+      interpolate(frame, [next, next + BEAT_FRAMES], [1, 0], opts),
+    );
+    if (k <= 0) continue;
+    scale = 1 + CAMERA_ZOOM * k;
+    origin = pt;
+    // Además de acercarse, lleva el elemento hacia el centro.
+    shift = { x: (layout.width / 2 - pt.x) * 0.5 * k, y: (layout.height / 2 - pt.y) * 0.5 * k };
+  }
+  return { scale, origin, shift };
+}
+
+/** Un dato que viaja de un elemento a otro (travel): un punto con su estela. */
+function Travels({
+  story,
+  anchors,
+  colors,
+}: {
+  story: Story;
+  anchors: Pt[];
+  colors: AidProps["colors"];
+}) {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  return (
+    <svg width={width} height={height} style={{ position: "absolute", left: 0, top: 0 }}>
+      {story.travels.map((t, i) => {
+        const a = anchors[t.from];
+        const b = anchors[t.to];
+        if (!a || !b) return null;
+        const p = interpolate(frame, [t.at, t.at + BEAT_FRAMES], [0, 1], {
+          easing: brandEase,
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        });
+        const fade = interpolate(frame, [t.at + BEAT_FRAMES, t.at + BEAT_FRAMES * 2], [1, 0], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        });
+        if (frame < t.at || fade <= 0) return null;
+        const x = a.x + (b.x - a.x) * p;
+        const y = a.y + (b.y - a.y) * p;
+        return (
+          <g key={i} opacity={fade}>
+            <line
+              x1={a.x}
+              y1={a.y}
+              x2={x}
+              y2={y}
+              stroke={alpha(colors.accent, 0.5)}
+              strokeWidth={4}
+              strokeDasharray="10 10"
+            />
+            <circle cx={x} cy={y} r={16} fill={colors.accent} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/**
+ * M: motion graphic a pantalla completa (fichas 12.5). La pieza de marca arma
+ * los elementos frase por frase sobre el mismo lienzo; la cámara se acerca a
+ * lo que se está explicando y los datos viajan entre elementos. El título y el
+ * pie (con gartechs.com) quedan fijos durante toda la animación.
+ */
 export function MotionAid({ aid, colors }: AidProps) {
   const layout = useLayout();
+  const { durationInFrames } = useVideoConfig();
   const enter = useEnter(0);
   const exit = useExit();
-  const Piece = PIECES[aid.piece ?? "counter"];
+  const piece = PIECES[aid.piece ?? "counter"];
   const data = aidHasNumbers(aid);
   const titleH = layout.type.title * 1.3 + 24;
   const footerH = aid.footer ? layout.type.mono * 2 : 0;
-  const area = {
+  const area: Area = {
     x: layout.box.x,
     y: layout.box.y + titleH + 24,
     w: layout.box.w,
     h: layout.box.h - titleH - 24 - footerH - 24,
   };
+  const story = storyFor(aid, durationInFrames);
+  const anchors = piece.anchors(aid.elements.length, layout, area);
+  const camera = useCamera(story, anchors, layout);
   return (
     <AbsoluteFill style={{ opacity: exit }}>
       <SoundTrack aid={aid} />
       <BrandBackground colors={colors} data={data} />
+      <AbsoluteFill
+        style={{
+          transformOrigin: `${camera.origin.x}px ${camera.origin.y}px`,
+          transform: `translate(${camera.shift.x}px, ${camera.shift.y}px) scale(${camera.scale})`,
+        }}
+      >
+        <piece.Render
+          elements={aid.elements}
+          colors={colors}
+          layout={layout}
+          area={area}
+          story={story}
+        />
+        <Travels story={story} anchors={anchors} colors={colors} />
+      </AbsoluteFill>
       <Text
         style={{
           position: "absolute",
@@ -67,7 +186,6 @@ export function MotionAid({ aid, colors }: AidProps) {
       >
         {aid.title}
       </Text>
-      <Piece elements={aid.elements} colors={colors} layout={layout} area={area} />
       {aid.footer ? (
         <div
           style={{
