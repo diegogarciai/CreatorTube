@@ -439,6 +439,55 @@ export type Database = {
           },
         ];
       };
+      comment_readings: {
+        Row: {
+          episode_id: string;
+          channel_id: string;
+          workspace_id: string;
+          reading: Json;
+          comments: number;
+          updated_at: string;
+        };
+        Insert: {
+          episode_id: string;
+          channel_id: string;
+          workspace_id?: string;
+          reading?: Json;
+          comments?: number;
+          updated_at?: string;
+        };
+        Update: {
+          episode_id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          reading?: Json;
+          comments?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "comment_readings_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comment_readings_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: true;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comment_readings_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       devices: {
         Row: {
           id: string;
@@ -2464,6 +2513,103 @@ export type Database = {
           },
           {
             foreignKeyName: "youtube_channel_daily_stats_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      youtube_comments: {
+        Row: {
+          channel_id: string;
+          comment_id: string;
+          workspace_id: string;
+          episode_id: string | null;
+          video_id: string;
+          author_name: string;
+          author_channel_id: string | null;
+          text: string;
+          like_count: number;
+          reply_count: number;
+          published_at: string;
+          channel_replied: boolean;
+          kind: string | null;
+          flags: string[];
+          correction: Json | null;
+          reply: string;
+          reply_status: string;
+          reply_id: string | null;
+          replied_at: string | null;
+          replied_by: string | null;
+          classified_at: string | null;
+          fetched_at: string;
+        };
+        Insert: {
+          channel_id: string;
+          comment_id: string;
+          workspace_id?: string;
+          episode_id?: string | null;
+          video_id: string;
+          author_name?: string;
+          author_channel_id?: string | null;
+          text?: string;
+          like_count?: number;
+          reply_count?: number;
+          published_at: string;
+          channel_replied?: boolean;
+          kind?: string | null;
+          flags?: string[];
+          correction?: Json | null;
+          reply?: string;
+          reply_status?: string;
+          reply_id?: string | null;
+          replied_at?: string | null;
+          replied_by?: string | null;
+          classified_at?: string | null;
+          fetched_at?: string;
+        };
+        Update: {
+          channel_id?: string;
+          comment_id?: string;
+          workspace_id?: string;
+          episode_id?: string | null;
+          video_id?: string;
+          author_name?: string;
+          author_channel_id?: string | null;
+          text?: string;
+          like_count?: number;
+          reply_count?: number;
+          published_at?: string;
+          channel_replied?: boolean;
+          kind?: string | null;
+          flags?: string[];
+          correction?: Json | null;
+          reply?: string;
+          reply_status?: string;
+          reply_id?: string | null;
+          replied_at?: string | null;
+          replied_by?: string | null;
+          classified_at?: string | null;
+          fetched_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "youtube_comments_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_comments_episode_id_fkey";
+            columns: ["episode_id"];
+            isOneToOne: false;
+            referencedRelation: "episodes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "youtube_comments_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";

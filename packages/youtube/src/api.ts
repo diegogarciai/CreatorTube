@@ -61,6 +61,20 @@ export function parseIsoDuration(value: string | undefined | null): number | nul
 
 const num = (v: unknown) => (v === undefined || v === null ? null : Number(v));
 
+/** Un comentario principal de un video, con si el canal ya le respondió. */
+export interface CommentInfo {
+  id: string;
+  videoId: string;
+  authorName: string;
+  authorChannelId: string | null;
+  text: string;
+  likeCount: number;
+  publishedAt: Date;
+  replyCount: number;
+  /** Alguna de las respuestas que vienen con el hilo es del canal. */
+  channelReplied: boolean;
+}
+
 type Json = Record<string, any>;
 
 export class YouTubeClient {
@@ -72,10 +86,22 @@ export class YouTubeClient {
   ) {}
 
   private async get(path: string, params: Record<string, string>): Promise<Json> {
-    const url = `${API}/${path}?${new URLSearchParams(params)}`;
-    this.quotaUsed += QUOTA_COST.read;
+    return this.call(`${API}/${path}?${new URLSearchParams(params)}`, QUOTA_COST.read);
+  }
+
+  private async post(path: string, params: Record<string, string>, body: Json): Promise<Json> {
+    return this.call(`${API}/${path}?${new URLSearchParams(params)}`, QUOTA_COST.write, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async call(url: string, cost: number, init: RequestInit = {}): Promise<Json> {
+    this.quotaUsed += cost;
     const res = await this.fetchImpl(url, {
-      headers: { authorization: `Bearer ${this.accessToken}` },
+      ...init,
+      headers: { authorization: `Bearer ${this.accessToken}`, ...init.headers },
     });
     const json = (await res.json().catch(() => ({}))) as Json;
     if (!res.ok) {
@@ -157,5 +183,54 @@ export class YouTubeClient {
       }
     }
     return out;
+  }
+
+  /**
+   * Una página de hilos de comentarios de un video, del más nuevo al más viejo
+   * (commentThreads.list: 1 unidad). Marca si el canal `channelYouTubeId` ya
+   * respondió entre las respuestas que trae el hilo.
+   */
+  async listCommentThreads(
+    videoId: string,
+    opts: { pageToken?: string; channelYouTubeId?: string | null } = {},
+  ): Promise<{ comments: CommentInfo[]; nextPageToken: string | null }> {
+    const json = await this.get("commentThreads", {
+      part: "snippet,replies",
+      videoId,
+      order: "time",
+      maxResults: "100",
+      textFormat: "plainText",
+      ...(opts.pageToken && { pageToken: opts.pageToken }),
+    });
+    const comments = (json.items ?? []).map((t: Json): CommentInfo => {
+      const top = t.snippet?.topLevelComment;
+      const s = top?.snippet ?? {};
+      const replies: Json[] = t.replies?.comments ?? [];
+      return {
+        id: top?.id ?? t.id,
+        videoId,
+        authorName: s.authorDisplayName ?? "",
+        authorChannelId: s.authorChannelId?.value ?? null,
+        text: s.textOriginal ?? s.textDisplay ?? "",
+        likeCount: Number(s.likeCount ?? 0),
+        publishedAt: new Date(s.publishedAt),
+        replyCount: Number(t.snippet?.totalReplyCount ?? 0),
+        channelReplied: Boolean(
+          opts.channelYouTubeId &&
+            replies.some((r) => r.snippet?.authorChannelId?.value === opts.channelYouTubeId),
+        ),
+      };
+    });
+    return { comments, nextPageToken: json.nextPageToken ?? null };
+  }
+
+  /** Responde un comentario (comments.insert: 50 unidades). Devuelve el id de la respuesta. */
+  async replyToComment(parentId: string, text: string): Promise<string> {
+    const json = await this.post(
+      "comments",
+      { part: "snippet" },
+      { snippet: { parentId, textOriginal: text } },
+    );
+    return json.id;
   }
 }

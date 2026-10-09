@@ -10,6 +10,10 @@ export const YOUTUBE_READ_SCOPES = [
   "https://www.googleapis.com/auth/yt-analytics.readonly",
 ] as const;
 
+/** Responder comentarios (Fase 4): se pide aparte, con autorización incremental. */
+export const YOUTUBE_COMMENTS_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl";
+export const YOUTUBE_COMMENT_SCOPES = [...YOUTUBE_READ_SCOPES, YOUTUBE_COMMENTS_SCOPE] as const;
+
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";

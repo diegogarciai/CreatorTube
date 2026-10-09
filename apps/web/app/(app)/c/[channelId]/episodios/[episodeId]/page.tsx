@@ -33,6 +33,8 @@ import { loadScriptView } from "@/lib/data/script";
 import { loadThumbnailsView } from "@/lib/data/thumbnails";
 import { loadTitleOptions } from "@/lib/data/titles";
 import { loadVisualAidsView } from "@/lib/data/visual-aids";
+import { loadEpisodeComments } from "@/lib/data/comments";
+import { CommentsPanel } from "@/components/episodes/comments-panel";
 import { loadEpisodeMetrics } from "@/lib/data/analytics";
 import { EpisodeMetricsPanel } from "@/components/analytics/episode-metrics";
 import { episodeDependents } from "@/lib/data/dependents";
@@ -172,6 +174,8 @@ export default async function EpisodePage({
           .eq("video_id", row.youtube_video_id)
       : Promise.resolve({ count: 0 }),
   ]);
+  const comments =
+    tab === "distribution" ? await loadEpisodeComments({ id: episodeId, channelId }) : null;
   // Lo generado del episodio: qué bloquea cada «Rehacer» y «Borrar».
   const deps =
     tab === "script" || tab === "production"
@@ -544,10 +548,15 @@ export default async function EpisodePage({
                 />
               </CardBody>
             </Card>
-            <EmptyState
-              title={t("episode.tabs.distribution")}
-              description={t("episode.tabPlaceholder.distribution")}
-            />
+            {comments ? (
+              <CommentsPanel
+                episodeId={row.id}
+                channelId={channelId}
+                view={comments}
+                canPublish={ctx.can("publish")}
+                hasVideo={Boolean(row.youtube_video_id)}
+              />
+            ) : null}
           </div>
         ) : tab === "metrics" && video.data && metrics ? (
           <EpisodeMetricsPanel

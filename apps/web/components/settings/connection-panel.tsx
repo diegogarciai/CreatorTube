@@ -31,6 +31,7 @@ export function ConnectionPanel({
   youtubeConfigured,
   canConfigure,
   canDisconnect,
+  canReply = false,
 }: {
   channelId: string;
   status: Status;
@@ -39,6 +40,8 @@ export function ConnectionPanel({
   youtubeConfigured: boolean;
   canConfigure: boolean;
   canDisconnect: boolean;
+  /** El canal ya dio el permiso para responder comentarios. */
+  canReply?: boolean;
 }) {
   const t = useTranslations("settings");
   const errorText = useActionError();
@@ -53,6 +56,11 @@ export function ConnectionPanel({
           {lastSync ? t("lastSync", { date: lastSync }) : t("neverSynced")}
         </span>
       </div>
+      {status === "active" ? (
+        <p className="text-xs text-muted">
+          {canReply ? t("repliesEnabled") : t("repliesDisabled")}
+        </p>
+      ) : null}
       {lastError ? (
         <p className="rounded-lg bg-critical-soft px-3 py-2 text-critical">{lastError}</p>
       ) : null}
@@ -64,6 +72,15 @@ export function ConnectionPanel({
               className={buttonClass(status === "active" ? "secondary" : "primary", "sm")}
             >
               {status ? t("reconnect") : t("connect")}
+            </a>
+          ) : null}
+          {youtubeConfigured && status === "active" && !canReply ? (
+            <a
+              href={`/api/youtube/connect?channel=${channelId}&scope=comments`}
+              className={buttonClass("secondary", "sm")}
+              data-testid="enable-replies"
+            >
+              {t("enableReplies")}
             </a>
           ) : null}
           {status === "active" ? (

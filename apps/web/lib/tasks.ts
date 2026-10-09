@@ -60,3 +60,6 @@ export const THUMBNAIL_TEXT_ESTIMATE_CREDITS = 2;
 
 /** Plan de ayudas visuales: una llamada a Claude con el guion verificado. */
 export const VISUAL_PLAN_ESTIMATE_CREDITS = 20;
+
+/** Leer comentarios: una clasificación de unos 40 comentarios por llamada. */
+export const COMMENTS_ESTIMATE_CREDITS = 10;
