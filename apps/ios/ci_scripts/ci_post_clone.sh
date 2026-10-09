@@ -27,6 +27,12 @@ SECRETS
 brew install xcodegen
 xcodegen generate
 
-# Xcode Cloud no resuelve paquetes por su cuenta y exige Package.resolved,
-# que vive dentro del proyecto generado.
+# Xcode Cloud no resuelve paquetes sin Package.resolved, y ese archivo vive
+# dentro del proyecto generado, que no se versiona. Se guarda en
+# apps/ios/Package.resolved y se copia aquí.
+swiftpm=Planificador.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+if [ -f Package.resolved ]; then
+  mkdir -p "$swiftpm"
+  cp Package.resolved "$swiftpm/Package.resolved"
+fi
 xcodebuild -resolvePackageDependencies -project Planificador.xcodeproj -scheme Planificador
