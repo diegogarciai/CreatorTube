@@ -4,6 +4,8 @@ import SwiftUI
 struct MoreView: View {
     @Environment(AppModel.self) private var model
     @State private var showingNotifications = false
+    @State private var showingCreate = false
+    @State private var showingAccept = false
 
     var body: some View {
         List {
@@ -52,6 +54,10 @@ struct MoreView: View {
                         }
                     }
                 }
+                if !model.workspacesForNewChannel.isEmpty {
+                    Button { showingCreate = true } label: { Label("Nuevo canal", systemImage: "plus.rectangle.on.rectangle") }
+                }
+                Button { showingAccept = true } label: { Label("Aceptar invitación con enlace", systemImage: "link") }
             }
 
             Section("Cuenta") {
@@ -74,5 +80,7 @@ struct MoreView: View {
         .sheet(isPresented: $showingNotifications) {
             NotificationSettingsView()
         }
+        .sheet(isPresented: $showingCreate) { CreateChannelView() }
+        .sheet(isPresented: $showingAccept) { AcceptInvitationView() }
     }
 }

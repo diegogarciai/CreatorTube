@@ -50,6 +50,16 @@ struct ChannelSettingsView: View {
                     Text("Los tokens se guardan cifrados en el servidor y nunca llegan al teléfono.")
                 }
 
+                PhotoGridView(
+                    title: "Fotos del presentador",
+                    footer: "Las usan las miniaturas con persona. De frente, buena luz y fondo simple.",
+                    max: presenterPhotosMax,
+                    canEdit: canEdit,
+                    load: { try await model.presenterPhotos() },
+                    add: { try await model.addPresenterPhoto($0, label: nil) },
+                    delete: { try await model.deletePresenterPhoto($0) }
+                )
+
                 if let url = model.selectedChannel?.icsURL {
                     Section {
                         Text(url.absoluteString).font(.caption.monospaced()).textSelection(.enabled)
@@ -65,7 +75,7 @@ struct ChannelSettingsView: View {
                 }
 
                 Section {
-                    Button("Guía del guionista y marca (en la web)") {
+                    Button("Guía del guionista y kit de marca (en la web)") {
                         openURL(AppConfig.webURL.appendingPathComponent("c/\(details.id)/ajustes"))
                     }
                 }

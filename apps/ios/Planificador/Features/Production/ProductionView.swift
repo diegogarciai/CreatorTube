@@ -120,6 +120,15 @@ struct ProductionView: View {
     @ViewBuilder
     private var thumbnailsSection: some View {
         let designs = Dictionary(grouping: bundle.thumbnails, by: \.designIdx).sorted { $0.key < $1.key }
+        PhotoGridView(
+            title: "Fotos del producto",
+            footer: "Fotos reales del producto para las miniaturas que lo muestran.",
+            max: episodeRefsMax,
+            canEdit: model.can(.writeScript),
+            load: { try await model.episodeRefs(episode.id) },
+            add: { try await model.addEpisodeRef(episode.id, data: $0, label: nil) },
+            delete: { try await model.deleteEpisodeRef($0) }
+        )
         if designs.isEmpty {
             Section { Text("Todavía no hay miniaturas.").foregroundStyle(Palette.muted) }
         } else {

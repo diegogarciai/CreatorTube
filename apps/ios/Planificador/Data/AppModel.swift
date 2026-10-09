@@ -573,13 +573,6 @@ final class AppModel {
         return pillars.first { $0.id == id }
     }
 
-    func acceptInvitation(_ invitation: PendingInvitation) async throws {
-        guard let client = supabase else { return }
-        try await client
-            .rpc("accept_invitation_by_id", params: ["invitation": invitation.id])
-            .execute()
-        await loadWorkspace()
-    }
 }
 
 enum AppError: LocalizedError {

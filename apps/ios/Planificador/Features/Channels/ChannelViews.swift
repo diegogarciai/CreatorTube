@@ -70,16 +70,21 @@ struct ChannelAvatar: View {
     }
 }
 
-/// Sin canales: lista las invitaciones pendientes (`NoWorkspace` en la web).
+/// Sin canales: invitaciones pendientes, aceptar por enlace o crear un canal
+/// (`NoWorkspace` y `/onboarding` en la web).
 struct NoChannelView: View {
     @Environment(AppModel.self) private var model
     @State private var error: String?
+    @State private var showingCreate = false
+    @State private var showingAccept = false
+    @State private var namingFor: PendingInvitation?
+    @State private var workspaceName = ""
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("Todavía no tienes canales. Si alguien te invitó a un espacio, acepta la invitación aquí. Para crear y conectar un canal, usa la versión web.")
+                    Text("Todavía no tienes canales. Si alguien te invitó, acepta la invitación aquí.")
                         .font(.callout)
                         .foregroundStyle(Palette.muted)
                 }
@@ -88,6 +93,12 @@ struct NoChannelView: View {
                         ForEach(model.pendingInvitations) { invitation in
                             invitationRow(invitation)
                         }
+                    }
+                }
+                Section {
+                    Button { showingAccept = true } label: { Label("Tengo un enlace de invitación", systemImage: "link") }
+                    if !model.workspacesForNewChannel.isEmpty {
+                        Button { showingCreate = true } label: { Label("Crear un canal", systemImage: "plus.rectangle.on.rectangle") }
                     }
                 }
                 if let error {
@@ -99,6 +110,17 @@ struct NoChannelView: View {
                 ToolbarItem(placement: .topBarTrailing) { ChannelMenu() }
             }
             .refreshable { await model.loadWorkspace() }
+            .sheet(isPresented: $showingCreate) { CreateChannelView() }
+            .sheet(isPresented: $showingAccept) { AcceptInvitationView() }
+            .alert("Nombre de tu espacio", isPresented: Binding(get: { namingFor != nil }, set: { if !$0 { namingFor = nil } })) {
+                TextField("Mi canal", text: $workspaceName)
+                Button("Crear") {
+                    if let invitation = namingFor { accept(invitation, workspaceName: workspaceName) }
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Te invitan a crear tu propio espacio, donde serás propietario.")
+            }
         }
     }
 
@@ -106,24 +128,31 @@ struct NoChannelView: View {
     private func invitationRow(_ invitation: PendingInvitation) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(invitation.workspaceName ?? "Nuevo espacio")
+                Text(invitation.workspaceName ?? "Tu propio espacio")
                     .font(.body.weight(.semibold))
                 if let role = invitation.role {
                     Text(role.label).font(.caption).foregroundStyle(Palette.muted)
                 }
             }
             Spacer()
-            if invitation.kind == "workspace" {
-                Button("Aceptar") {
-                    Task {
-                        do { try await model.acceptInvitation(invitation) } catch { self.error = error.localizedDescription }
-                    }
+            Button(invitation.kind == "workspace" ? "Aceptar" : "Crear espacio") {
+                if invitation.kind == "workspace" {
+                    accept(invitation, workspaceName: nil)
+                } else {
+                    workspaceName = ""
+                    namingFor = invitation
                 }
-                .buttonStyle(.borderedProminent)
-            } else {
-                Text("Acéptala en la web")
-                    .font(.caption)
-                    .foregroundStyle(Palette.muted)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private func accept(_ invitation: PendingInvitation, workspaceName: String?) {
+        Task {
+            do {
+                try await model.acceptInvitation(invitation, workspaceName: workspaceName?.trimmingCharacters(in: .whitespaces))
+            } catch {
+                self.error = error.localizedDescription
             }
         }
     }
