@@ -586,6 +586,7 @@ export default async function EpisodePage({
                   channelId={channelId}
                   view={comments}
                   canPublish={ctx.can("publish")}
+                  canIdea={ctx.can("write_script")}
                   hasVideo={Boolean(row.youtube_video_id)}
                 />
               ) : null}

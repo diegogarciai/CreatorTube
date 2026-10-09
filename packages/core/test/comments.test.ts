@@ -37,7 +37,7 @@ describe("comentarios", () => {
       { theme: "Precio", count: 4 },
     ]);
     expect(out.corrections).toEqual([{ text: "El precio era 999", episodeId: "e1" }]);
-    expect(out.ideas).toEqual([{ text: "Comparar con Windows", episodeId: "e2" }]);
+    expect(out.ideas).toEqual([{ text: "Comparar con Windows", episodeId: "e2", index: 0 }]);
   });
 
   it("arma el enlace al comentario", () => {
