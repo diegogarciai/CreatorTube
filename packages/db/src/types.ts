@@ -3484,7 +3484,7 @@ export type Database = {
       episode_status: "planned" | "script" | "to_record" | "editing" | "scheduled" | "published";
       episode_type: "product" | "explainer" | "news" | "opinion";
       idea_origin: "recommendation" | "own" | "pain_point" | "search" | "competitor";
-      idea_status: "new" | "in_progress" | "discarded";
+      idea_status: "new" | "in_progress" | "discarded" | "suggested";
       invitation_kind: "platform" | "workspace";
       script_stage: "study" | "script" | "verification" | "publication" | "podcast";
       sponsorship: "none" | "sponsor" | "affiliate";

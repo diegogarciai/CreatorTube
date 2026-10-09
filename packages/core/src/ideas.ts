@@ -11,8 +11,12 @@ export const IDEA_ORIGINS = [
 ] as const;
 export type IdeaOrigin = (typeof IDEA_ORIGINS)[number];
 
-export const IDEA_STATUSES = ["new", "in_progress", "discarded"] as const;
+/** «suggested»: propuesta por IA, esperando que alguien la acepte o la descarte. */
+export const IDEA_STATUSES = ["new", "in_progress", "discarded", "suggested"] as const;
 export type IdeaStatus = (typeof IDEA_STATUSES)[number];
+
+/** Con menos ideas nuevas que esto, la app avisa que conviene proponer más. */
+export const IDEAS_LOW_BANK = 10;
 
 export const IDEA_SIGNALS = ["demand", "fit", "novelty", "effort", "timing"] as const;
 export type IdeaSignal = (typeof IDEA_SIGNALS)[number];

@@ -38,6 +38,17 @@ export function IdeaRowActions({
           </Button>
         )}
       />
+      {idea.status === "suggested" ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+          onClick={() => setStatus("new")}
+          data-testid={`accept-${idea.id}`}
+        >
+          {t("ideas.accept")}
+        </Button>
+      ) : null}
       {idea.status === "discarded" ? (
         <Button variant="ghost" size="sm" disabled={pending} onClick={() => setStatus("new")}>
           {t("common.restore")}

@@ -24,6 +24,7 @@ public enum IdeaStatus: String, CaseIterable, Codable, Sendable {
     case new
     case inProgress = "in_progress"
     case discarded
+    case suggested
 
     /// Nombre del filtro en la web.
     public var filterLabel: String {
@@ -31,6 +32,7 @@ public enum IdeaStatus: String, CaseIterable, Codable, Sendable {
         case .new: return "Banco"
         case .inProgress: return "En marcha"
         case .discarded: return "Descartadas"
+        case .suggested: return "Sugeridas"
         }
     }
 }

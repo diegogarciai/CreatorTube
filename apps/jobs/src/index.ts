@@ -6,6 +6,7 @@ export type { aiModelsRefreshTask } from "./trigger/ai-models";
 export type { commentsTask } from "./trigger/comments";
 export type { directionTask } from "./trigger/direction";
 export type { auditTask, evaluationTask } from "./trigger/evaluation";
+export type { ideaSuggestionsTask } from "./trigger/idea-suggestions";
 export type { pingTask } from "./trigger/ping";
 export type { renderAidsTask } from "./trigger/render-aids";
 export type { scriptTask } from "./trigger/script";
@@ -30,5 +31,6 @@ export const JOB_KINDS = [
   "social_posts",
   "evaluation",
   "audit",
+  "idea_suggestions",
 ] as const;
 export type JobKind = (typeof JOB_KINDS)[number];
