@@ -18,3 +18,6 @@ supabase/.branches
 
 # Trigger.dev (build local)
 .trigger
+
+# macOS
+.DS_Store
