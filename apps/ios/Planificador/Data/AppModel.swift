@@ -263,6 +263,8 @@ final class AppModel {
         // Como la web: la idea pasa a «En marcha» al convertirse en episodio.
         if let ideaId = draft.ideaId {
             _ = try? await client.from("ideas").update(IdeaStatusUpdate(status: .inProgress)).eq("id", value: ideaId).execute()
+            // Y su equipo queda como protagonista del episodio.
+            await linkIdeaGear(ideaId: ideaId, episodeId: inserted.id)
         }
         await loadEpisodes()
         return inserted.id
