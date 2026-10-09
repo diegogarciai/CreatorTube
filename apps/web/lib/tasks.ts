@@ -72,3 +72,6 @@ export const EVALUATION_ESTIMATE_CREDITS = 3;
 
 /** Auditoría mensual: una llamada con las evaluaciones del mes y la guía. */
 export const AUDIT_ESTIMATE_CREDITS = 60;
+
+/** Ideas propuestas por IA: búsquedas de noticias y una llamada con todo el contexto. */
+export const IDEAS_ESTIMATE_CREDITS = 25;

@@ -254,6 +254,13 @@ Además de las ideas propias, el banco se llena desde lo que ya mide la app. Cad
   - **En Ideas:** la tarjeta «Atípicos de la competencia» muestra los de los últimos 60 días, con «Pasar a Ideas». La nota de la idea recuerda buscar el ángulo propio, no copiar.
   - **Datos de YouTube:** `competitor_channels` y `competitor_videos`. La purga borra los videos que no se refrescaron en 30 días, limpia los datos del canal y borra todo al desconectar.
 - **Auditoría mensual** (origen «Recomendación»): los temas que propone.
+- **Ideas propuestas por IA** (origen «Recomendación», estado «Sugerida»):
+  - **Cómo se pide:** con el botón «Proponer ideas» en Ideas (unos 25 créditos). Es la tarea `idea_suggestions` en la etapa de IA **Ideas**.
+  - **Qué junta:** la sección 2 de la guía (canal y audiencia), los pilares, lo publicado con su veredicto a 7 días, lo que ya está en el banco, las búsquedas sin video propio, los atípicos de la competencia, los dolores y pedidos de los comentarios y los temas de la última auditoría.
+  - **Noticias del nicho:** se buscan con Parallel, una búsqueda por pilar y una general. Llegan a Claude como datos, no como instrucciones; sin la clave de Parallel, se sigue sin noticias.
+  - **Qué devuelve:** unas 10 ideas que no repiten el banco ni lo publicado. Cada una trae las cinco señales (1 a 5), el porqué con la evidencia, el riesgo, el pilar y las fuentes.
+  - **Cómo se revisan:** quedan en la pestaña «Sugeridas», donde se aceptan (pasan al banco) o se descartan.
+- **Aviso:** en Inicio y en Ideas, si el banco tiene menos de 10 ideas nuevas.
 
 ## 6. Costos estimados
 

@@ -6,6 +6,7 @@ import type {
   commentsTask,
   directionTask,
   evaluationTask,
+  ideaSuggestionsTask,
   JobKind,
   pingTask,
   renderAidsTask,
@@ -35,6 +36,7 @@ interface JobPayloads {
   social_posts: typeof socialPostsTask;
   evaluation: typeof evaluationTask;
   audit: typeof auditTask;
+  idea_suggestions: typeof ideaSuggestionsTask;
 }
 
 export interface JobScope {

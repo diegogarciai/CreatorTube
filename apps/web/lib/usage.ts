@@ -23,6 +23,7 @@ export const USAGE_STAGES = [
   "distribution",
   "evaluation",
   "audit",
+  "ideas",
   "render",
   "other",
 ] as const;
@@ -36,6 +37,7 @@ export function stageOfKind(kind: string): UsageStage {
   if (kind === "render_aids") return "render";
   if (kind === "comments" || kind === "social_posts") return "distribution";
   if (kind === "evaluation" || kind === "audit") return kind;
+  if (kind === "idea_suggestions") return "ideas";
   if (kind.startsWith("script_")) {
     const step = kind.slice("script_".length);
     if (isScriptStep(step)) return stepSpec(step).stage;

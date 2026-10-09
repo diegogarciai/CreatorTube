@@ -970,10 +970,10 @@ describe("Banco de ideas · competencia", () => {
       await sql("select count(*) as n from public.competitor_videos where channel_id = $1", [ch]),
     ).toEqual([{ n: "0" }]);
     const [idea] = await sql(
-      "insert into public.ideas (channel_id, title, origin) values ($1, 'Mi versión', 'competitor') returning origin",
+      "insert into public.ideas (channel_id, title, origin, status) values ($1, 'Mi versión', 'competitor', 'suggested') returning origin, status",
       [ch],
     );
-    expect(idea.origin).toBe("competitor");
+    expect(idea).toEqual({ origin: "competitor", status: "suggested" });
   });
 });
 

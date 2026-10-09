@@ -200,7 +200,8 @@
     "publish": "Publicar",
     "newEpisode": "Nuevo episodio",
     "emptyTitle": "Tu semana empieza aquí",
-    "emptyDesc": "Crea tu primer episodio con fecha de publicación y verás la meta, la cobertura y las alertas."
+    "emptyDesc": "Crea tu primer episodio con fecha de publicación y verás la meta, la cobertura y las alertas.",
+    "lowBank": "El banco de ideas tiene {count, plural, one {# idea nueva} other {# ideas nuevas}}: propón más en Ideas."
   },
   "alerts": {
     "overdue_publish": "«{title}» debía publicarse hace {days, plural, one {# día} other {# días}}",
@@ -260,7 +261,19 @@
       "novelty": "Diferenciación",
       "effort": "Esfuerzo",
       "timing": "Oportunidad"
-    }
+    },
+    "filterSuggested": "Sugeridas",
+    "accept": "Aceptar",
+    "suggest": "Proponer ideas",
+    "suggesting": "Proponiendo…",
+    "suggestEstimate": "Unos {credits} créditos",
+    "suggestStarted": "Proponiendo ideas… quedan en «Sugeridas».",
+    "suggestWorking": "Claude está proponiendo ideas con tus búsquedas, comentarios, competencia y noticias del nicho. Tarda uno o dos minutos; quedan en «Sugeridas».",
+    "suggestFailed": "No se pudieron proponer ideas. Vuelve a intentarlo.",
+    "lowBank": "El banco tiene {count, plural, one {# idea nueva} other {# ideas nuevas}} (conviene tener al menos {min}). Pulsa «Proponer ideas» o pásalas desde Audiencia, Analítica y la competencia.",
+    "reasons": "Por qué",
+    "risk": "Riesgo",
+    "pillar": "Pilar"
   },
   "production": {
     "title": "Producción",
@@ -928,7 +941,8 @@
       "render_aids": "Render de ayudas visuales",
       "social_posts": "Posts para redes",
       "evaluation": "Evaluación a 7 días",
-      "audit": "Auditoría mensual"
+      "audit": "Auditoría mensual",
+      "idea_suggestions": "Ideas propuestas"
     },
     "status": {
       "queued": "En cola",
@@ -1151,7 +1165,8 @@
       "visual_aids": "Ayudas visuales",
       "distribution": "Difusión (comentarios y redes)",
       "evaluation": "Evaluación (7 días)",
-      "audit": "Auditoría mensual"
+      "audit": "Auditoría mensual",
+      "ideas": "Ideas (propuestas)"
     }
   },
   "usage": {
@@ -1196,7 +1211,8 @@
       "distribution": "Difusión",
       "render": "Render (Trigger.dev)",
       "evaluation": "Evaluación",
-      "audit": "Auditoría"
+      "audit": "Auditoría",
+      "ideas": "Ideas"
     },
     "parallelDesc": "Búsquedas web de la verificación.",
     "searches": "{count, plural, one {# búsqueda} other {# búsquedas}} este mes",

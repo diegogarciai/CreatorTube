@@ -13,3 +13,4 @@ export * from "./visual-aids";
 export * from "./comments";
 export * from "./socials";
 export * from "./evaluation";
+export * from "./ideas";

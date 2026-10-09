@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { IDEA_STATUSES, ideaSchema, type IdeaStatus } from "@planificador/core";
 import { getSupabase, requireChannelPermission } from "../auth";
+import { startJob } from "../jobs";
+import { createAdminClient } from "../supabase/admin";
+import { IDEAS_ESTIMATE_CREDITS } from "../tasks";
 import { errorMessage, type ActionResult } from "../utils";
 
 export async function createIdea(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -107,6 +110,36 @@ export async function searchTermToIdea(
     if (error) throw error;
     revalidatePath(`/c/${channelId}/ideas`);
     return { ok: true, data: { id: data.id } };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
+/** Pide a Claude ideas nuevas para el banco (quedan «sugeridas»). */
+export async function suggestIdeas(channelId: string): Promise<ActionResult> {
+  try {
+    const ctx = await requireChannelPermission(channelId, "write_script");
+    const admin = createAdminClient();
+    const { count: running } = await admin
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("channel_id", channelId)
+      .eq("kind", "idea_suggestions")
+      .in("status", ["queued", "running"]);
+    if (running) return { ok: false, error: "errors.busy" };
+    const supabase = await getSupabase();
+    const { data: credits } = await supabase.rpc("workspace_credits", {
+      ws: ctx.channel.workspace_id,
+    });
+    if (Number(credits?.[0]?.remaining ?? 0) < IDEAS_ESTIMATE_CREDITS)
+      return { ok: false, error: "errors.no_credits" };
+    await startJob("idea_suggestions", {
+      workspaceId: ctx.channel.workspace_id,
+      channelId,
+      requestedBy: ctx.userId,
+    });
+    revalidatePath(`/c/${channelId}/ideas`);
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
