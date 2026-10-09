@@ -35,7 +35,8 @@ export function stageOfKind(kind: string): UsageStage {
   if (kind.startsWith("thumbnail_")) return "thumbnails";
   if (kind === "visual_plan") return "visual_aids";
   if (kind === "render_aids") return "render";
-  if (kind === "comments" || kind === "social_posts") return "distribution";
+  if (kind === "comments" || kind === "social_posts" || kind === "newsletter")
+    return "distribution";
   if (kind === "evaluation" || kind === "audit") return kind;
   if (kind === "idea_suggestions") return "ideas";
   if (kind.startsWith("script_")) {

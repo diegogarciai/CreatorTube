@@ -7,6 +7,7 @@ import { BrandKitForm } from "@/components/settings/brand-kit-form";
 import { ChecklistEditor } from "@/components/settings/checklist-editor";
 import { CompetitorsForm } from "@/components/settings/competitors-form";
 import { ConnectionPanel, RegenerateIcsButton } from "@/components/settings/connection-panel";
+import { NewsletterForm } from "@/components/settings/newsletter-form";
 import { PresenterPhotos } from "@/components/settings/presenter-photos";
 import { PillarsEditor } from "@/components/settings/pillars-editor";
 import { ProfileForm } from "@/components/settings/profile-form";
@@ -65,7 +66,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
     loadBrandView(channelId),
     supabase
       .from("distribution_settings")
-      .select("socials")
+      .select("socials, newsletter_name, sender_name, sender_email, newsletter_segment_id")
       .eq("channel_id", channelId)
       .maybeSingle(),
     loadCompetitors(channelId),
@@ -159,6 +160,21 @@ export default async function SettingsPage({ params }: { params: Promise<{ chann
             <SocialsForm
               channelId={channelId}
               initial={parseSocials(dist?.socials).map((s) => ({ label: s.label, url: s.url }))}
+              disabled={!canConfigure}
+            />
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader title={t("newsletter")} description={t("newsletterDesc")} />
+          <CardBody>
+            <NewsletterForm
+              channelId={channelId}
+              initial={{
+                newsletterName: dist?.newsletter_name ?? "",
+                senderName: dist?.sender_name ?? "",
+                senderEmail: dist?.sender_email ?? "",
+                segmentId: dist?.newsletter_segment_id ?? "",
+              }}
               disabled={!canConfigure}
             />
           </CardBody>

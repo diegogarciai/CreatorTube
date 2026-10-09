@@ -50,3 +50,27 @@ export const sendEmail = (email: Email) =>
     html: email.html,
     text: email.text,
   });
+
+export interface Broadcast {
+  segmentId: string;
+  from: string;
+  subject: string;
+  html: string;
+  text: string;
+  name: string;
+  /** ISO 8601; sin fecha, sale ya. */
+  scheduledAt?: string | null;
+}
+
+/** Crea el envío masivo a un segmento y lo envía (o lo programa) en la misma llamada. */
+export const sendBroadcast = (b: Broadcast) =>
+  resendRequest<{ id: string }>("/broadcasts", {
+    segment_id: b.segmentId,
+    from: b.from,
+    subject: b.subject,
+    html: b.html,
+    text: b.text,
+    name: b.name,
+    send: true,
+    ...(b.scheduledAt && { scheduled_at: b.scheduledAt }),
+  });

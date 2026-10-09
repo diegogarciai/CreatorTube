@@ -18,3 +18,4 @@ export * from "./comments";
 export * from "./socials";
 export * from "./evaluation";
 export * from "./digest";
+export * from "./newsletter";

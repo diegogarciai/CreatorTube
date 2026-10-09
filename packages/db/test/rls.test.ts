@@ -1000,6 +1000,42 @@ describe("Resumen semanal", () => {
   });
 });
 
+describe("Boletín semanal", () => {
+  it("uno por canal y semana; lo lee quien ve el canal y lo escribe el servidor", async () => {
+    const owner = await createUser();
+    const outsider = await createUser();
+    const ws = await createWorkspace(owner.id);
+    await createWorkspace(outsider.id, "Ajeno");
+    const ch = await createChannel(ws);
+    const [row] = await sql(
+      "insert into public.newsletters (channel_id, week_start, subject) values ($1, '2026-10-05', 'Hola') returning workspace_id, status",
+      [ch],
+    );
+    expect(row).toEqual({ workspace_id: ws, status: "draft" });
+    await expect(
+      sql("insert into public.newsletters (channel_id, week_start) values ($1, '2026-10-05')", [
+        ch,
+      ]),
+    ).rejects.toThrow(/duplicate key/);
+    await expect(
+      sql("update public.newsletters set status = 'otro' where channel_id = $1", [ch]),
+    ).rejects.toThrow(/check constraint/);
+    const read = (uid: string) =>
+      as(uid, (q) => q("select subject from public.newsletters where channel_id = $1", [ch]));
+    expect(await read(owner.id)).toEqual([{ subject: "Hola" }]);
+    expect(await read(outsider.id)).toEqual([]);
+    await expect(
+      as(owner.id, (q) =>
+        q("update public.newsletters set subject = 'x' where channel_id = $1 returning 1", [ch]),
+      ),
+    ).resolves.toEqual([]);
+    await sql(
+      "insert into public.distribution_settings (channel_id, newsletter_segment_id) values ($1, '202ab985-8977-433a-a777-51648033c69e')",
+      [ch],
+    );
+  });
+});
+
 describe("Fase 2 · guía del guionista y créditos", () => {
   const sections = JSON.stringify([{ key: "0", title: "PRIORIDADES", body: "Verdad." }]);
   const stages = JSON.stringify({ study: ["0"] });

@@ -406,3 +406,31 @@ export async function updateSocials(channelId: string, input: unknown): Promise<
     revalidateChannel(channelId);
   });
 }
+
+const newsletterSettingsSchema = z.object({
+  newsletterName: z.string().trim().max(80),
+  senderName: z.string().trim().max(80),
+  senderEmail: z.union([z.literal(""), z.email().max(200)]),
+  segmentId: z.union([z.literal(""), z.string().regex(/^[A-Za-z0-9-]{1,100}$/)]),
+});
+
+/** El boletín del canal (Ajustes › Boletín): nombre, remitente y segmento de Resend. */
+export async function updateNewsletterSettings(
+  channelId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  return run(async () => {
+    await requireChannelPermission(channelId, "configure_channel");
+    const s = newsletterSettingsSchema.parse(input);
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("distribution_settings").upsert({
+      channel_id: channelId,
+      newsletter_name: s.newsletterName || null,
+      sender_name: s.senderName || null,
+      sender_email: s.senderEmail || null,
+      newsletter_segment_id: s.segmentId || null,
+    });
+    if (error) throw error;
+    revalidateChannel(channelId);
+  });
+}

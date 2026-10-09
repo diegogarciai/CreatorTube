@@ -725,6 +725,7 @@ export type Database = {
           socials: Json;
           podcast_name: string | null;
           updated_at: string;
+          newsletter_segment_id: string | null;
         };
         Insert: {
           channel_id: string;
@@ -735,6 +736,7 @@ export type Database = {
           socials?: Json;
           podcast_name?: string | null;
           updated_at?: string;
+          newsletter_segment_id?: string | null;
         };
         Update: {
           channel_id?: string;
@@ -745,6 +747,7 @@ export type Database = {
           socials?: Json;
           podcast_name?: string | null;
           updated_at?: string;
+          newsletter_segment_id?: string | null;
         };
         Relationships: [
           {
@@ -1557,6 +1560,87 @@ export type Database = {
           },
           {
             foreignKeyName: "memberships_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      newsletters: {
+        Row: {
+          id: string;
+          channel_id: string;
+          workspace_id: string;
+          week_start: string;
+          status: string;
+          subject: string;
+          preheader: string;
+          body: string;
+          cta_text: string;
+          cta_url: string | null;
+          point: string;
+          episode_ids: string[];
+          broadcast_id: string | null;
+          scheduled_at: string | null;
+          sent_at: string | null;
+          sent_by: string | null;
+          test_sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          channel_id: string;
+          workspace_id?: string;
+          week_start: string;
+          status?: string;
+          subject?: string;
+          preheader?: string;
+          body?: string;
+          cta_text?: string;
+          cta_url?: string | null;
+          point?: string;
+          episode_ids?: string[];
+          broadcast_id?: string | null;
+          scheduled_at?: string | null;
+          sent_at?: string | null;
+          sent_by?: string | null;
+          test_sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          channel_id?: string;
+          workspace_id?: string;
+          week_start?: string;
+          status?: string;
+          subject?: string;
+          preheader?: string;
+          body?: string;
+          cta_text?: string;
+          cta_url?: string | null;
+          point?: string;
+          episode_ids?: string[];
+          broadcast_id?: string | null;
+          scheduled_at?: string | null;
+          sent_at?: string | null;
+          sent_by?: string | null;
+          test_sent_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "newsletters_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "newsletters_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";

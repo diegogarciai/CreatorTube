@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Lightbulb,
   LogOut,
+  Mail,
   Menu,
   MessagesSquare,
   Plus,
@@ -46,6 +47,7 @@ const SECTIONS = [
   { slug: "produccion", key: "production", icon: Clapperboard },
   { slug: "calendario", key: "calendar", icon: CalendarDays },
   { slug: "audiencia", key: "audience", icon: MessagesSquare },
+  { slug: "boletin", key: "newsletter", icon: Mail },
   { slug: "analitica", key: "analytics", icon: BarChart3 },
 ] as const;
 
