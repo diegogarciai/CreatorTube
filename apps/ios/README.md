@@ -34,7 +34,7 @@ xcodegen generate
 open Planificador.xcodeproj
 ```
 
-En Xcode elige un simulador de iPhone y pulsa ▶. Para probar en tu iPhone, en **Signing & Capabilities** elige tu equipo (Team); con una cuenta de Apple gratis puedes instalarla en tu propio teléfono.
+En Xcode elige un simulador de iPhone y pulsa ▶. Para probar en tu iPhone, pon tu Team ID en `DEVELOPMENT_TEAM` dentro de `Config/Secrets.xcconfig` (así no se pierde al regenerar el proyecto) y vuelve a correr `xcodegen generate`. Si Xcode muestra "PLA Update available", acepta el nuevo acuerdo en [developer.apple.com/account](https://developer.apple.com/account).
 
 Las pruebas de la lógica se corren sin Xcode:
 

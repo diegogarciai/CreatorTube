@@ -3,4 +3,9 @@
 SUPABASE_URL =
 SUPABASE_ANON_KEY =
 
+// Equipo de Apple para firmar en un iPhone. Va en Secrets.xcconfig para que
+// no se pierda al regenerar el proyecto con xcodegen.
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+
 #include? "Secrets.xcconfig"
