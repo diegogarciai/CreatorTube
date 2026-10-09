@@ -4,7 +4,7 @@ import { shouldSync } from "@planificador/youtube";
 import { isAuthorizedCron } from "@/lib/cron";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncChannelById } from "@/lib/youtube";
-import { syncAnalyticsById } from "@/lib/youtube-analytics";
+import { syncAnalyticsById, syncReachById } from "@/lib/youtube-analytics";
 
 export const maxDuration = 300;
 
@@ -87,10 +87,27 @@ export async function GET(request: NextRequest) {
       });
     }
   }
+  // Alcance (Fase 4 · paso 2): Reporting API, sin cuota. Se corta si se acaba el tiempo.
+  const reach = [];
+  for (const conn of conns ?? []) {
+    if (!conn.channel || conn.channel.disconnected_at) continue;
+    if (Date.now() - now.getTime() > (maxDuration - 60) * 1000) break;
+    const r = await syncReachById(admin, conn.channel_id);
+    if (r) {
+      reach.push({
+        channel: r.channelId,
+        ok: r.ok,
+        jobsCreated: r.jobsCreated,
+        reports: r.reports,
+        error: r.error,
+      });
+    }
+  }
   return NextResponse.json({
     synced: results.length,
     quotaUsedToday: usedToday,
     results,
     analytics,
+    reach,
   });
 }

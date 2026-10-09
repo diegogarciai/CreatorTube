@@ -6,6 +6,7 @@ import {
   type RetentionPoint,
 } from "@planificador/core";
 import { getSupabase } from "../auth";
+import { reachTotals, sourceRows, type ReachTotals, type SourceRow } from "../reach";
 import {
   daySummary,
   lastCompleteDay,
@@ -74,6 +75,15 @@ const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 const daysAgo = (days: number, from = new Date()) =>
   isoDay(new Date(from.getTime() - days * 86_400_000));
 
+/** El alcance de un período del canal y el anterior, y de dónde vinieron las impresiones. */
+export type ChannelReach = {
+  current: ReachTotals;
+  previous: ReachTotals | null;
+  /** Último día con datos (YouTube los publica con hasta 48 h de atraso). */
+  lastDay: string;
+  sources: SourceRow[];
+};
+
 export type EpisodeRow = {
   episodeId: string;
   code: string;
@@ -83,6 +93,7 @@ export type EpisodeRow = {
   firstWeek: PeriodTotals;
   total: PeriodTotals;
   hasRetention: boolean;
+  reach: { firstWeek: ReachTotals; total: ReachTotals } | null;
 };
 
 export type ChannelAnalytics = {
@@ -93,6 +104,8 @@ export type ChannelAnalytics = {
   previous: PeriodTotals | null;
   daily: DayPoint[];
   episodes: EpisodeRow[];
+  /** null mientras no llegue ningún reporte de alcance. */
+  reach: ChannelReach | null;
 };
 
 export const PERIOD_DAYS = 28;
@@ -125,6 +138,12 @@ export async function loadChannelAnalytics(channelId: string): Promise<ChannelAn
   const previous = rows.filter((r) => r.day >= prevFrom && r.day < curFrom);
 
   const ids = (episodes ?? []).map((e) => e.youtube_video_id!) as string[];
+  const [reach, { data: videoReach }] = await Promise.all([
+    loadChannelReach(channelId),
+    ids.length
+      ? supabase.rpc("reach_by_video", { p_channel: channelId, p_videos: ids })
+      : Promise.resolve({ data: [] }),
+  ]);
   const [{ data: videoDays }, { data: retention }] = ids.length
     ? await Promise.all([
         supabase
@@ -156,6 +175,17 @@ export async function loadChannelAnalytics(channelId: string): Promise<ChannelAn
         firstWeek: totals(vDays.filter((d) => d.day <= weekEnd)),
         total: totals(vDays),
         hasRetention: withRetention.has(e.youtube_video_id!),
+        reach: (() => {
+          const r = (videoReach ?? []).find((x) => x.video_id === e.youtube_video_id);
+          return r
+            ? {
+                firstWeek: reachTotals([
+                  { impressions: r.week_impressions, clicks: r.week_clicks },
+                ]),
+                total: reachTotals([r]),
+              }
+            : null;
+        })(),
       },
     ];
   });
@@ -170,6 +200,34 @@ export async function loadChannelAnalytics(channelId: string): Promise<ChannelAn
     previous: previous.length >= PERIOD_DAYS / 2 ? totals(previous) : null,
     daily: current.map((r) => ({ day: r.day, value: n(r.views) })),
     episodes: episodeRows,
+    reach,
+  };
+}
+
+/** El alcance del canal: los últimos 28 días con datos, los 28 anteriores y las fuentes. */
+async function loadChannelReach(channelId: string): Promise<ChannelReach | null> {
+  const supabase = await getSupabase();
+  const { data: days } = await supabase.rpc("reach_by_day", {
+    p_channel: channelId,
+    p_from: daysAgo(PERIOD_DAYS * 2 + 7),
+  });
+  const rows = days ?? [];
+  const last = rows.at(-1)?.day;
+  if (!last) return null;
+  const end = new Date(`${last}T00:00:00Z`);
+  const curFrom = daysAgo(PERIOD_DAYS - 1, end);
+  const prevFrom = daysAgo(PERIOD_DAYS * 2 - 1, end);
+  const previous = rows.filter((r) => r.day >= prevFrom && r.day < curFrom);
+  const { data: sources } = await supabase.rpc("reach_by_source", {
+    p_channel: channelId,
+    p_from: curFrom,
+    p_to: last,
+  });
+  return {
+    current: reachTotals(rows.filter((r) => r.day >= curFrom)),
+    previous: previous.length >= PERIOD_DAYS / 2 ? reachTotals(previous) : null,
+    lastDay: last,
+    sources: sourceRows(sources ?? []),
   };
 }
 
@@ -181,6 +239,8 @@ export type EpisodeMetrics = {
   /** De qué texto salen los párrafos. */
   scriptSource: "fix" | "revision" | "teleprompter" | null;
   fetchedAt: string | null;
+  /** Impresiones y CTR desde la publicación, y de dónde vinieron (null sin reportes). */
+  reach: { total: ReachTotals; sources: SourceRow[] } | null;
 };
 
 /** El guion grabado: el verificado, o si no la revisión o el teleprompter. */
@@ -192,7 +252,13 @@ export async function loadEpisodeMetrics(episode: {
   currentScriptRunId: string | null;
 }): Promise<EpisodeMetrics> {
   const supabase = await getSupabase();
-  const [{ data: days }, { data: retention }, { data: steps }] = await Promise.all([
+  const [
+    { data: days },
+    { data: retention },
+    { data: steps },
+    { data: vReach },
+    { data: vSources },
+  ] = await Promise.all([
     supabase
       .from("youtube_video_daily_stats")
       .select(`${DAY_COLUMNS}, fetched_at`)
@@ -213,6 +279,13 @@ export async function loadEpisodeMetrics(episode: {
           .eq("status", "succeeded")
           .in("step", [...SCRIPT_STEPS])
       : Promise.resolve({ data: [] as { step: string; body: string | null }[] }),
+    supabase.rpc("reach_by_video", { p_channel: episode.channelId, p_videos: [episode.videoId] }),
+    supabase.rpc("reach_by_source", {
+      p_channel: episode.channelId,
+      p_from: "2005-01-01",
+      p_to: isoDay(new Date()),
+      p_video: episode.videoId,
+    }),
   ]);
   const source = SCRIPT_STEPS.find((s) => steps?.some((x) => x.step === s && x.body)) ?? null;
   const script = source ? (steps?.find((x) => x.step === source)?.body ?? "") : "";
@@ -226,6 +299,9 @@ export async function loadEpisodeMetrics(episode: {
     paragraphs: retentionByParagraph(points, scriptParagraphs(script)),
     scriptSource: source,
     fetchedAt: retention?.fetched_at ?? days?.at(-1)?.fetched_at ?? null,
+    reach: vReach?.length
+      ? { total: reachTotals(vReach), sources: sourceRows(vSources ?? []) }
+      : null,
   };
 }
 

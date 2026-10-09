@@ -3,3 +3,4 @@ export * from "./crypto";
 export * from "./oauth";
 export * from "./sync";
 export * from "./analytics";
+export * from "./reporting";

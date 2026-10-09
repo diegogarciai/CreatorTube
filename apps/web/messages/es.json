@@ -383,7 +383,7 @@
   "analytics": {
     "title": "Analítica",
     "emptyTitle": "Todavía no hay analítica del canal",
-    "emptyDesc": "Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora». Impresiones, CTR y auditoría llegan en los próximos pasos de la Fase 4.",
+    "emptyDesc": "Se trae una vez al día desde YouTube Analytics (con 2 o 3 días de atraso). Si el canal está conectado, pulsa «Actualizar ahora». La auditoría llega en los próximos pasos de la Fase 4.",
     "recentVideos": "Videos recientes sincronizados",
     "noVideos": "Aún no hay videos sincronizados. Conecta YouTube en la configuración del canal.",
     "views": "{count, plural, one {# vista} other {# vistas}}",
@@ -403,7 +403,9 @@
       "watchHours": "Horas vistas",
       "subscribers": "Suscriptores netos",
       "avgDuration": "Duración media",
-      "avgPercentage": "% visto promedio"
+      "avgPercentage": "% visto promedio",
+      "impressions": "Impresiones",
+      "ctr": "CTR de miniaturas"
     },
     "col": {
       "episode": "Episodio",
@@ -412,8 +414,16 @@
       "pct": "% visto",
       "duration": "Duración media",
       "likes": "Me gusta",
-      "comments": "Comentarios"
+      "comments": "Comentarios",
+      "impressions": "Impresiones",
+      "ctr": "CTR"
     },
+    "reachTitle": "Alcance de las miniaturas",
+    "reachDesc": "Impresiones y CTR de los últimos 28 días con datos, hasta el {date} (YouTube Reporting API).",
+    "reachPending": "Las impresiones y el CTR llegan de YouTube con hasta 48 h de atraso; la primera vez, hasta 2 días después de activarlos. Aparecerán aquí solos.",
+    "reachNote": "Impresiones y CTR de YouTube por día; el CTR de varios días y las variaciones los calcula la app (clics ÷ impresiones).",
+    "sourcesTitle": "De dónde vienen las impresiones",
+    "sourceLine": "{impressions} · {share} · CTR {ctr}",
     "yesterday": {
       "title": "Así te fue ayer",
       "good": "Buen día: {pct} más vistas que lo normal",
@@ -1327,6 +1337,8 @@
     "title": "Métricas del episodio",
     "source": "Cifras de YouTube Analytics desde la publicación. Leído el {date}.",
     "dailyViews": "Vistas por día",
+    "reachTitle": "Alcance de la miniatura",
+    "reachDesc": "Impresiones y CTR desde la publicación, y de dónde vinieron (YouTube Reporting API).",
     "retentionTitle": "Retención con el guion",
     "retentionDesc": "Qué parte de la audiencia sigue viendo en cada momento, con el párrafo del guion que sonaba.",
     "retentionAria": "Curva de retención del video con los párrafos del guion",

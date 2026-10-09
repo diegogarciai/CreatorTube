@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import type { EpisodeMetrics } from "@/lib/data/analytics";
 import { DailyChart } from "./daily-chart";
+import { ReachCard } from "./reach-card";
 import { RetentionChart, TopDrops } from "./retention-chart";
 import { clockLabel, percentLabel, StatTiles } from "./stat-tiles";
 
@@ -66,6 +67,13 @@ export async function EpisodeMetricsPanel({
           </CardBody>
         </Card>
       ) : null}
+      <ReachCard
+        title={t("metrics.reachTitle")}
+        description={t("metrics.reachDesc")}
+        totals={metrics.reach?.total ?? null}
+        sources={metrics.reach?.sources ?? []}
+        testId="episode-reach"
+      />
       <Card>
         <CardHeader title={t("metrics.retentionTitle")} description={t("metrics.retentionDesc")} />
         <CardBody className="space-y-4">
