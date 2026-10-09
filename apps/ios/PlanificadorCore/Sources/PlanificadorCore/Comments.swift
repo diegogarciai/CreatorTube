@@ -52,7 +52,7 @@ public enum CommentFlag: String, CaseIterable, Codable, Sendable {
     }
 }
 
-public struct CommentCorrection: Codable, Equatable, Sendable {
+public struct CommentCorrection: Codable, Hashable, Sendable {
     public var said: String
     public var correct: String
     public var source: String
@@ -119,6 +119,8 @@ public struct ChannelAudience: Equatable, Sendable {
     public var themes: [CommentReading.Theme] = []
     public var corrections: [Item] = []
     public var ideas: [Item] = []
+
+    public init() {}
 }
 
 /// Audiencia junta las lecturas de todos los episodios: dolores por conteo,

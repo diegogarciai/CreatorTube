@@ -220,7 +220,12 @@ struct IdeasView: View {
         }
         suggestTask = await model.latestTask(kind: "idea_suggestions")
         outliers = (try? await model.outliers()) ?? []
-        hasCompetitors = !outliers.isEmpty || !((try? await model.competitors()) ?? []).isEmpty
+        if outliers.isEmpty {
+            let competitors = (try? await model.competitors()) ?? []
+            hasCompetitors = !competitors.isEmpty
+        } else {
+            hasCompetitors = true
+        }
         isLoading = false
     }
 
