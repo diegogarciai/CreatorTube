@@ -35,4 +35,13 @@ if [ -f Package.resolved ]; then
   mkdir -p "$swiftpm"
   cp Package.resolved "$swiftpm/Package.resolved"
 fi
+
+# Las dependencias cambian según la versión de Xcode (con Xcode 27,
+# supabase-swift pide swift-issue-reporting), y Xcode Cloud no deja que se
+# actualice el archivo. Solo para este paso se permite: parte de las versiones
+# guardadas y agrega lo que falte. El archive de después usa el archivo ya al día.
+defaults write com.apple.dt.Xcode IDEPackageOnlyUseVersionsFromResolvedFile -bool NO
+defaults write com.apple.dt.Xcode IDEDisableAutomaticPackageResolution -bool NO
 xcodebuild -resolvePackageDependencies -project Planificador.xcodeproj -scheme Planificador
+echo "Package.resolved con el que se compila:"
+cat "$swiftpm/Package.resolved"
