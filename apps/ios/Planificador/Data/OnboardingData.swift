@@ -82,7 +82,7 @@ func invitationToken(from input: String) -> String {
 extension AppModel {
     /// Espacios donde la persona puede crear canales (`configure_channel`).
     var workspacesForNewChannel: [WorkspaceRef] {
-        memberships.filter { can($0.role, .configureChannel) }.compactMap(\.workspace)
+        memberships.filter { PlanificadorCore.can($0.role, .configureChannel) }.compactMap(\.workspace)
     }
 
     func createChannel(workspaceId: String, name: String) async throws {
