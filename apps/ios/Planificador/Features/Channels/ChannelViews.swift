@@ -4,6 +4,7 @@ import SwiftUI
 /// Menú de la barra superior: cambiar de canal y cerrar sesión.
 struct ChannelMenu: View {
     @Environment(AppModel.self) private var model
+    @State private var showingNotifications = false
 
     var body: some View {
         Menu {
@@ -29,6 +30,13 @@ struct ChannelMenu: View {
                 if let role = model.membership?.role {
                     Text("Rol: \(role.label)")
                 }
+                if model.selectedChannel != nil {
+                    Button {
+                        showingNotifications = true
+                    } label: {
+                        Label("Avisos…", systemImage: "bell")
+                    }
+                }
                 Button("Cerrar sesión", role: .destructive) {
                     Task { await model.signOut() }
                 }
@@ -37,6 +45,9 @@ struct ChannelMenu: View {
             ChannelAvatar(channel: model.selectedChannel)
         }
         .accessibilityLabel("Canal y cuenta")
+        .sheet(isPresented: $showingNotifications) {
+            NotificationSettingsView()
+        }
     }
 }
 

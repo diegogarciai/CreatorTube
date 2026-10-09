@@ -145,6 +145,12 @@ public func computeAlerts(_ episodes: [PlannedEpisode], today: DateKey, weeklyGo
         .map(\.element)
 }
 
+/// Alertas que vale la pena avisar con una notificación el día `day`: las
+/// críticas y de atención tal como se verán ese día (las de aviso no).
+public func notifiableAlerts(_ episodes: [PlannedEpisode], day: DateKey, weeklyGoal: Int, now: Date) -> [PlanningAlert] {
+    computeAlerts(episodes, today: day, weeklyGoal: weeklyGoal, now: now).filter { $0.severity != .info }
+}
+
 public struct UpcomingDate: Equatable, Sendable {
     public enum Kind: String, Sendable {
         case publish, record

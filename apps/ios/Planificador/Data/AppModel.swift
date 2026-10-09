@@ -28,6 +28,7 @@ final class AppModel {
     private(set) var selectedChannelId: String?
 
     var episodes: [EpisodeRow] = []
+    var pillars: [PillarRow] = []
     var isLoadingEpisodes = false
     var episodesError: String?
 
@@ -108,7 +109,9 @@ final class AppModel {
         channels = []
         pendingInvitations = []
         episodes = []
+        pillars = []
         selectedChannelId = nil
+        Task { await NotificationScheduler.shared.clear() }
         workspaceError = nil
         episodesError = nil
     }
@@ -168,7 +171,7 @@ final class AppModel {
         episodesError = nil
         defer { isLoadingEpisodes = false }
         do {
-            let rows: [EpisodeRow] = try await client
+            async let episodesQuery: [EpisodeRow] = client
                 .from("episodes")
                 .select(EpisodeRow.columns)
                 .eq("channel_id", value: channelId)
@@ -177,8 +180,21 @@ final class AppModel {
                 .order("number", ascending: false)
                 .execute()
                 .value
+            async let pillarsQuery: [PillarRow] = client
+                .from("pillars")
+                .select(PillarRow.columns)
+                .eq("channel_id", value: channelId)
+                .filter("archived_at", operator: "is", value: "null")
+                .order("position")
+                .execute()
+                .value
+            let (rows, pillarRows) = try await (episodesQuery, pillarsQuery)
             // Si el usuario cambió de canal mientras cargaba, se descarta.
-            if channelId == selectedChannelId { episodes = rows }
+            if channelId == selectedChannelId {
+                episodes = rows
+                pillars = pillarRows
+                await NotificationScheduler.shared.reschedule(model: self)
+            }
         } catch {
             episodesError = error.localizedDescription
         }
@@ -196,6 +212,67 @@ final class AppModel {
         await loadEpisodes()
     }
 
+    // MARK: - Crear y editar (requiere manage_episodes, como la web)
+
+    /// Crea un episodio en el canal elegido y devuelve su id.
+    @discardableResult
+    func createEpisode(_ draft: EpisodeDraft) async throws -> String {
+        guard let client = supabase, let channelId = selectedChannelId else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        let inserted: InsertedId = try await client
+            .from("episodes")
+            .insert(EpisodeInsert(
+                channelId: channelId,
+                title: draft.cleanTitle,
+                format: draft.format,
+                publishDate: draft.publishDate,
+                recordDate: draft.recordDate,
+                pillarId: draft.pillarId,
+                createdBy: userId
+            ))
+            .select("id")
+            .single()
+            .execute()
+            .value
+        await loadEpisodes()
+        return inserted.id
+    }
+
+    func updateEpisode(_ episode: EpisodeRow, with draft: EpisodeDraft) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("episodes")
+            .update(EpisodeEdit(
+                title: draft.cleanTitle,
+                format: draft.format,
+                publishDate: draft.publishDate,
+                recordDate: draft.recordDate,
+                pillarId: draft.pillarId,
+                notes: draft.notes
+            ))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
+    /// Archiva el episodio (se puede recuperar desde la web).
+    func archiveEpisode(_ episode: EpisodeRow) async throws {
+        guard let client = supabase else { throw AppError.notReady }
+        guard can(.manageEpisodes) else { throw AppError.forbiddenEdit }
+        try await client
+            .from("episodes")
+            .update(ArchiveUpdate(archivedAt: ISO8601DateFormatter().string(from: Date())))
+            .eq("id", value: episode.id)
+            .execute()
+        await loadEpisodes()
+    }
+
+    func pillar(id: String?) -> PillarRow? {
+        guard let id else { return nil }
+        return pillars.first { $0.id == id }
+    }
+
     func acceptInvitation(_ invitation: PendingInvitation) async throws {
         guard let client = supabase else { return }
         try await client
@@ -207,10 +284,14 @@ final class AppModel {
 
 enum AppError: LocalizedError {
     case forbidden
+    case forbiddenEdit
+    case notReady
 
     var errorDescription: String? {
         switch self {
         case .forbidden: return "Tu rol no puede mover el episodio a ese estado."
+        case .forbiddenEdit: return "Tu rol no permite esta acción."
+        case .notReady: return "No hay un canal elegido."
         }
     }
 }

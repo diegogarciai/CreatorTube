@@ -69,4 +69,19 @@ final class PlanningTests: XCTestCase {
         XCTAssertEqual(Copy.streak(0), "Sin racha")
         XCTAssertEqual(Copy.streak(1), "1 semana")
     }
+
+    func testNotifiableAlertsLookAhead() {
+        // Se publica el viernes 9 y sigue en Guion: el lunes 5 todavía no avisa
+        // (faltan 4 días → atención), el jueves 8 ya es crítico (falta 1 día).
+        let eps = [ep(id: "f", status: .script, publishDate: "2026-10-09", statusChangedAt: iso("2026-10-05T12:00:00Z"))]
+        let monday = notifiableAlerts(eps, day: "2026-10-05", weeklyGoal: 0, now: iso("2026-10-05T14:00:00Z"))
+        XCTAssertEqual(monday.map(\.severity), [.warning])
+        let thursday = notifiableAlerts(eps, day: "2026-10-08", weeklyGoal: 0, now: iso("2026-10-08T14:00:00Z"))
+        XCTAssertEqual(thursday.map(\.severity), [.critical])
+        XCTAssertEqual(Copy.digestTitle(1, channel: "Canal"), "1 alerta en Canal")
+        XCTAssertEqual(
+            Copy.digestBody(thursday + thursday),
+            "«\(eps[0].title)» se publica mañana y sigue sin guion listo · y 1 más"
+        )
+    }
 }

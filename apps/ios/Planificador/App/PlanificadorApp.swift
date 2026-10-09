@@ -1,8 +1,14 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct PlanificadorApp: App {
     @State private var model = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -10,6 +16,12 @@ struct PlanificadorApp: App {
                 .environment(model)
                 .tint(Palette.accent)
                 .task { await model.start() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Al volver a la app se refrescan los episodios (y con ellos los avisos).
+            if phase == .active && model.phase == .signedIn && !model.channels.isEmpty {
+                Task { await model.loadEpisodes() }
+            }
         }
     }
 }

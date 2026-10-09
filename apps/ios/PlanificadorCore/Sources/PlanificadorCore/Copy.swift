@@ -43,6 +43,18 @@ public enum Copy {
         }
     }
 
+    /// Título de la notificación diaria.
+    public static func digestTitle(_ count: Int, channel: String) -> String {
+        count == 1 ? "1 alerta en \(channel)" : "\(count) alertas en \(channel)"
+    }
+
+    /// Cuerpo de la notificación: la alerta más grave y cuántas más hay.
+    public static func digestBody(_ alerts: [PlanningAlert]) -> String {
+        guard let first = alerts.first else { return "" }
+        let rest = alerts.count - 1
+        return rest > 0 ? "\(alert(first)) · y \(rest) más" : alert(first)
+    }
+
     public static func severity(_ s: Severity) -> String {
         switch s {
         case .critical: return "Crítico"
