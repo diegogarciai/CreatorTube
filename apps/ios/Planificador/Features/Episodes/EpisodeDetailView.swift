@@ -53,6 +53,11 @@ struct EpisodeDetailView: View {
                 } label: {
                     Label("Dirección, guion y verificación", systemImage: "doc.text")
                 }
+                NavigationLink {
+                    ProductionView(episode: episode)
+                } label: {
+                    Label("Ayudas visuales, miniaturas y títulos", systemImage: "photo.on.rectangle")
+                }
             }
 
             statusSection(episode)
