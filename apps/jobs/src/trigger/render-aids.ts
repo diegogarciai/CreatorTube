@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
-import { parseBrandKit, type AidElement, type VisualAid } from "@planificador/core";
+import { aidFromRow, parseBrandKit } from "@planificador/core";
 import type { Json } from "@planificador/db";
 import { RENDER_VERSION, renderSpec, type AidFormat } from "@planificador/motion";
 import { serviceClient, type ServiceClient } from "../lib/supabase";
@@ -107,20 +107,7 @@ export async function runRenderAids(taskId: string, db: ServiceClient) {
           const label = `${a?.code ?? "Ayuda"} (${i + 1} de ${pending.length})`;
           try {
             if (!a) throw new Error("La ayuda ya no existe");
-            const aid: VisualAid = {
-              kind: a.kind as VisualAid["kind"],
-              code: a.code,
-              anchor: a.anchor,
-              idea: a.idea,
-              title: a.title,
-              definition: a.definition,
-              elements: (a.elements as AidElement[] | null) ?? [],
-              rows: a.claim_rows,
-              footer: a.footer,
-              durationS: a.duration_s,
-              piece: a.piece as VisualAid["piece"],
-              vertical: a.vertical,
-            };
+            const aid = aidFromRow(a);
             const spec = renderSpec(aid, colors, row.format as AidFormat);
             await report.progress(0.1 + (0.85 * i) / pending.length, `${label}: renderizando`);
             await db

@@ -48,6 +48,9 @@ export const toVisualAid = (a: VisualAidView): VisualAid => ({
   piece: a.piece,
   scores: a.scores,
   vertical: a.vertical,
+  segment: a.segment,
+  aidCase: a.aidCase,
+  beats: a.beats,
 });
 
 /** El formato en el nombre del archivo, en español. */

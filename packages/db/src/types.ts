@@ -329,6 +329,7 @@ export type Database = {
           disconnected_at: string | null;
           created_at: string;
           updated_at: string;
+          speech_wpm: number;
         };
         Insert: {
           id?: string;
@@ -350,6 +351,7 @@ export type Database = {
           disconnected_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          speech_wpm?: number;
         };
         Update: {
           id?: string;
@@ -371,6 +373,7 @@ export type Database = {
           disconnected_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          speech_wpm?: number;
         };
         Relationships: [
           {
@@ -2099,6 +2102,9 @@ export type Database = {
           edited: boolean;
           created_at: string;
           updated_at: string;
+          segment: string | null;
+          aid_case: string | null;
+          beats: Json;
         };
         Insert: {
           id?: string;
@@ -2126,6 +2132,9 @@ export type Database = {
           edited?: boolean;
           created_at?: string;
           updated_at?: string;
+          segment?: string | null;
+          aid_case?: string | null;
+          beats?: Json;
         };
         Update: {
           id?: string;
@@ -2153,6 +2162,9 @@ export type Database = {
           edited?: boolean;
           created_at?: string;
           updated_at?: string;
+          segment?: string | null;
+          aid_case?: string | null;
+          beats?: Json;
         };
         Relationships: [
           {

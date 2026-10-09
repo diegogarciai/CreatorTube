@@ -59,4 +59,4 @@ export const THUMBNAIL_IDEAS_ESTIMATE_CREDITS = 6;
 export const THUMBNAIL_TEXT_ESTIMATE_CREDITS = 2;
 
 /** Plan de ayudas visuales: una llamada a Claude con el guion verificado. */
-export const VISUAL_PLAN_ESTIMATE_CREDITS = 15;
+export const VISUAL_PLAN_ESTIMATE_CREDITS = 20;

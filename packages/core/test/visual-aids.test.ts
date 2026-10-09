@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  beatTargets,
+  beatTimeline,
   checkPlan,
+  elementsFromBeats,
   paragraphOf,
+  rowsFromBeats,
+  speechSeconds,
   planToText,
   scriptParagraphs,
   validateAidRows,
@@ -155,6 +160,34 @@ describe("plan completo (sección 12)", () => {
     expect(why.x9).toContain("Su ancla no aparece en el guion verificado.");
   });
 
+  it("un texto fuera de límite no descarta la ayuda: queda con su aviso", () => {
+    const out = checkPlan(
+      [
+        m({
+          code: "x1",
+          elements: [{ text: "Prueba corta: puede no mostrar la caída", value: null }],
+        }),
+        l({ code: "x2", title: "Las cosas que más importan" }),
+        // Lo de contenido se sigue descartando aunque el texto también falle.
+        m({
+          code: "x3",
+          anchor: "Mi veredicto",
+          piece: "counter",
+          rows: [3],
+          title: "Un título demasiado largo para la pantalla hoy",
+        }),
+      ],
+      { script, claims },
+    );
+    expect(out.kept.map((a) => [a.code, a.issues.length > 0])).toEqual([
+      ["M1", true],
+      ["L1", true],
+    ]);
+    expect(out.kept[0]!.issues[0]).toContain("Cada elemento va de 2 a 6 palabras");
+    expect(out.dropped.map((d) => d.code)).toEqual(["x3"]);
+    expect(out.dropped[0]!.reasons).toEqual(["La fila #3 no está Verificada ni Con matiz."]);
+  });
+
   it("a lo sumo 6 M", () => {
     const long = Array.from({ length: 20 }, (_, i) => `Párrafo ${i} con un dato`).join("\n\n");
     const pieces = ["bars", "ring", "counter", "timeline", "dot_matrix", "curve", "zoom"] as const;
@@ -180,5 +213,85 @@ describe("plan completo (sección 12)", () => {
     expect(text).toContain("  Pieza: barras");
     expect(text).toContain("C1 · Entra en «La memoria unificada»\n  CONCEPTO Memoria unificada:");
     expect(text).toContain("  - El teclado cómodo (entra en «el teclado»)");
+  });
+});
+
+describe("guion de animación de una M", () => {
+  const segment = "En las pruebas, la batería duró 18 horas con brillo al 50 %.";
+  const beats = (): VisualAid["beats"] => [
+    { phrase: "En las pruebas, la batería", action: "enter", text: "Batería del M4" },
+    { phrase: "duró 18 horas", action: "change", target: 0, value: "18", unit: "h", row: 1 },
+    { phrase: "con brillo al 50 %.", action: "highlight", target: 0 },
+  ];
+  const mb = (over: Partial<VisualAid> = {}) =>
+    m({
+      segment,
+      aidCase: "anchor_figure",
+      beats: beats(),
+      durationS: 5,
+      piece: "counter",
+      ...over,
+    });
+
+  it("los tiempos salen de las palabras de cada frase", () => {
+    const t = beatTimeline(beats()!, 12);
+    expect(t.map((x) => Math.round(x.start * 10) / 10)).toEqual([0, 5, 8]);
+    expect(t.reduce((a, x) => a + x.seconds, 0)).toBeCloseTo(12);
+    expect(speechSeconds(segment, 150)).toBe(5);
+    expect(speechSeconds(segment, 100)).toBe(8);
+  });
+
+  it("deriva elementos y filas de los momentos", () => {
+    expect(elementsFromBeats(beats()!)).toEqual([
+      { text: "Batería del M4", value: null, unit: null },
+    ]);
+    expect(rowsFromBeats(beats()!)).toEqual([1]);
+    expect(beatTargets(beats()!)).toEqual([0, 0, 0]);
+  });
+
+  it("un guion bien armado pasa", () => {
+    expect(validateAidText(mb())).toEqual([]);
+    expect(validateAidRows(mb(), claims)).toEqual([]);
+  });
+
+  it("frases fuera de orden, acciones que la pieza no sabe y blancos sin elemento", () => {
+    const [a, b, c2] = beats()!;
+    expect(validateAidText(mb({ beats: [a!, c2!, b!] }))).toContain(
+      "Cada momento copia su frase del segmento, tal cual y en orden.",
+    );
+    expect(validateAidText(mb({ beats: [a!, { ...b!, action: "travel" }, c2!] }))).toContain(
+      "Momento 2: la pieza cifra que cuenta no sabe «travel».",
+    );
+    expect(validateAidText(mb({ beats: [a!, { ...b!, target: 3 }, c2!] }))).toContain(
+      "Momento 2: dice sobre qué elemento actúa (uno que ya entró).",
+    );
+    expect(validateAidText(mb({ beats: [a!, b!] }))).toContain(
+      "Las frases de los momentos cubren el segmento completo: algo se mueve en cada frase.",
+    );
+    expect(validateAidText(mb({ durationS: 50 }))[0]).toMatch(/una M va de 4 a 40 s/);
+  });
+
+  it("una cifra sin fila o de una fila contradicha no pasa", () => {
+    const [a, b, c2] = beats()!;
+    expect(
+      validateAidRows(mb({ rows: [], beats: [a!, { ...b!, row: null }, c2!] }), claims),
+    ).toEqual(["Momento 2: su cifra no dice de qué fila sale."]);
+    expect(validateAidRows(mb({ rows: [], beats: [a!, { ...b!, row: 3 }, c2!] }), claims)).toEqual([
+      "La fila #3 no está Verificada ni Con matiz.",
+    ]);
+  });
+
+  it("checkPlan descarta la M cuyo segmento no está en el guion", () => {
+    const out = checkPlan([mb({ segment: "Algo que nunca se dijo." })], { script, claims });
+    expect(out.dropped[0]!.reasons).toContain(
+      "Su segmento no aparece tal cual en el guion verificado.",
+    );
+  });
+
+  it("el plan en texto lleva el guion de animación", () => {
+    const text = planToText([mb()]);
+    expect(text).toContain("Guion de animación:");
+    expect(text).toContain("1. 0.0 s · «En las pruebas, la batería» → entra: Batería del M4");
+    expect(text).toContain("→ cambia a: Batería del M4 → 18 h (fila #1)");
   });
 });

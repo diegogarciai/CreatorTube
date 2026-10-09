@@ -23,7 +23,11 @@ import {
   pieceLabel,
   planToText,
   scoreTotal,
+  elementsFromBeats,
+  rowsFromBeats,
+  motionSeconds,
   validateAidText,
+  type AidBeat,
   type AidElement,
   type AidPiece,
   type VisualAid,
@@ -32,6 +36,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
+import { BeatList, BeatsEditor } from "@/components/episodes/motion-beats";
 import { DeleteButton, RedoButton } from "@/components/episodes/redo-button";
 import {
   deletePlan,
@@ -284,6 +289,7 @@ export function VisualAidsPanel({
                   aid={aid}
                   canEdit={canEdit}
                   busy={view.rendering}
+                  speechWpm={view.speechWpm}
                 />
               ))}
             </ol>
@@ -322,8 +328,10 @@ function AidItem({
   aid,
   canEdit,
   busy,
+  speechWpm,
 }: {
   episodeId: string;
+  speechWpm: number;
   aid: VisualAidView;
   canEdit: boolean;
   busy: boolean;
@@ -342,6 +350,8 @@ function AidItem({
     });
 
   const discarded = aid.status === "discarded";
+  // Textos fuera de límite (12.4): la ayuda se queda, pero no se aprueba hasta corregirla.
+  const issues = useMemo(() => validateAidText(toVisualAid(aid)), [aid]);
   return (
     <li
       data-testid={`aid-${aid.code}`}
@@ -362,19 +372,32 @@ function AidItem({
         {aid.vertical ? <Badge tone="accent">{t("vertical")}</Badge> : null}
       </div>
       <p className="mt-1 text-xs text-muted">{t("anchor", { anchor: aid.anchor })}</p>
+      {issues.length && !discarded && !editing ? (
+        <p
+          role="status"
+          className="mt-1 rounded-md bg-warn-soft px-2 py-1 text-xs text-warn"
+          data-testid={`aid-issues-${aid.code}`}
+        >
+          {t("needsFix", { issues: issues.join(" ") })}
+        </p>
+      ) : null}
 
       {editing ? (
-        <AidEditor aid={aid} onDone={() => setEditing(false)} />
+        <AidEditor aid={aid} speechWpm={speechWpm} onDone={() => setEditing(false)} />
       ) : (
         <div className="mt-1 space-y-1 text-xs">
           {aid.kind === "M" ? (
             <>
               {aid.idea ? <p>{t("idea", { idea: aid.idea })}</p> : null}
-              <p>
-                {aid.elements
-                  .map((e) => [e.value, e.unit, e.text].filter(Boolean).join(" "))
-                  .join(" · ")}
-              </p>
+              {aid.beats.length ? (
+                <BeatList aid={aid} />
+              ) : (
+                <p>
+                  {aid.elements
+                    .map((e) => [e.value, e.unit, e.text].filter(Boolean).join(" "))
+                    .join(" · ")}
+                </p>
+              )}
               <p className="flex flex-wrap gap-1.5 text-muted">
                 {aid.rows.map((r) => (
                   <Badge key={r} tone={ROW_OK.has(aid.rowStatus[r] ?? "") ? "ok" : "critical"}>
@@ -446,7 +469,12 @@ function AidItem({
             />
           ) : null}
           {aid.status !== "approved" ? (
-            <Button size="sm" onClick={() => status("approved")} disabled={pending}>
+            <Button
+              size="sm"
+              onClick={() => status("approved")}
+              disabled={pending || issues.length > 0}
+              data-testid={`approve-${aid.code}`}
+            >
               <Check className="size-3.5" /> {t("approve")}
             </Button>
           ) : null}
@@ -528,7 +556,15 @@ function RenderBox({ render }: { render: AidRenderView }) {
   );
 }
 
-function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) {
+function AidEditor({
+  aid,
+  speechWpm,
+  onDone,
+}: {
+  aid: VisualAidView;
+  speechWpm: number;
+  onDone: () => void;
+}) {
   const t = useTranslations("visualAids");
   const errorText = useActionError();
   const router = useRouter();
@@ -541,6 +577,9 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
   const [footer, setFooter] = useState(aid.footer ?? "");
   const [duration, setDuration] = useState(String(aid.durationS ?? ""));
   const [piece, setPiece] = useState<AidPiece | "">(aid.piece ?? "");
+  // M con guion de animación: se editan los momentos; elementos, filas y duración salen de ahí.
+  const scripted = aid.kind === "M" && aid.beats.length > 0;
+  const [beats, setBeats] = useState<AidBeat[]>(aid.beats);
 
   const parsedRows = rows
     .split(/[,\s]+/)
@@ -551,11 +590,12 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
     title,
     idea: idea || null,
     definition: definition || null,
-    elements: elements.filter((e) => e.text.trim()),
-    rows: parsedRows,
+    elements: scripted ? elementsFromBeats(beats) : elements.filter((e) => e.text.trim()),
+    rows: scripted ? rowsFromBeats(beats) : parsedRows,
     footer: footer || null,
-    durationS: Number(duration) || null,
+    durationS: scripted ? motionSeconds(aid.segment, speechWpm) : Number(duration) || null,
     piece: piece || null,
+    beats: scripted ? beats : [],
   };
   // Las reglas 12.4 y 12.5, en vivo (las filas las revisa el servidor).
   const errors = validateAidText(draft);
@@ -574,6 +614,7 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
         footer: footer || null,
         durationS: Number(duration) || null,
         piece: piece || null,
+        ...(scripted ? { beats } : {}),
       });
       if (res.ok) {
         onDone();
@@ -603,7 +644,19 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
           />
         </label>
       ) : null}
-      {aid.kind !== "C" ? (
+      {scripted ? (
+        <>
+          <div className="space-y-1">
+            <span>{t("segment")}</span>
+            <p className="rounded-md bg-surface px-2 py-1.5 text-muted">{aid.segment}</p>
+            <p className="text-muted">
+              {t("durationAuto", { s: draft.durationS ?? 0, wpm: speechWpm })}
+            </p>
+          </div>
+          <BeatsEditor beats={beats} piece={piece || null} onChange={setBeats} />
+        </>
+      ) : null}
+      {aid.kind !== "C" && !scripted ? (
         <div className="space-y-1">
           <span>{t("fieldElements")}</span>
           {elements.map((e, i) => (
@@ -662,25 +715,29 @@ function AidEditor({ aid, onDone }: { aid: VisualAidView; onDone: () => void }) 
       ) : null}
       {aid.kind === "M" ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="block space-y-1">
-            <span>{t("fieldRows")}</span>
-            <Input value={rows} onChange={(e) => setRows(e.target.value)} className="h-8" />
-          </label>
+          {scripted ? null : (
+            <label className="block space-y-1">
+              <span>{t("fieldRows")}</span>
+              <Input value={rows} onChange={(e) => setRows(e.target.value)} className="h-8" />
+            </label>
+          )}
           <label className="block space-y-1">
             <span>{t("fieldFooter")}</span>
             <Input value={footer} onChange={(e) => setFooter(e.target.value)} className="h-8" />
           </label>
-          <label className="block space-y-1">
-            <span>{t("fieldDuration")}</span>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="h-8"
-            />
-          </label>
+          {scripted ? null : (
+            <label className="block space-y-1">
+              <span>{t("fieldDuration")}</span>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="h-8"
+              />
+            </label>
+          )}
           <label className="block space-y-1">
             <span>{t("fieldPiece")}</span>
             <Select

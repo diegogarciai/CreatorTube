@@ -11,7 +11,7 @@ const sampleM: VisualAid = {
   kind: "M",
   code: "M1",
   anchor: "En las pruebas",
-  idea: "Barras de batería",
+  idea: "Barras de batería que crecen frase a frase",
   title: "Horas de batería en uso real",
   elements: [
     { text: "MacBook Air M4", value: "18", unit: "h" },
@@ -20,9 +20,39 @@ const sampleM: VisualAid = {
   ],
   rows: [1],
   footer: "gartechs.com · Fuente: prueba propia, octubre de 2026",
-  durationS: 6,
+  durationS: 9,
   piece: "bars",
   vertical: true,
+  segment:
+    "En las pruebas, el MacBook Air M4 duró 18 horas. El M3 se quedó en 15, y un portátil promedio apenas llega a 9. Son el doble de horas que la media.",
+  aidCase: "comparison",
+  beats: [
+    {
+      phrase: "En las pruebas, el MacBook Air M4 duró 18 horas.",
+      action: "enter",
+      text: "MacBook Air M4",
+      value: "18",
+      unit: "h",
+      row: 1,
+    },
+    {
+      phrase: "El M3 se quedó en 15,",
+      action: "enter",
+      text: "MacBook Air M3",
+      value: "15",
+      unit: "h",
+      row: 1,
+    },
+    {
+      phrase: "y un portátil promedio apenas llega a 9.",
+      action: "enter",
+      text: "Portátil promedio",
+      value: "9",
+      unit: "h",
+      row: 1,
+    },
+    { phrase: "Son el doble de horas que la media.", action: "highlight", target: 0 },
+  ],
 };
 const sampleC: VisualAid = {
   kind: "C",
