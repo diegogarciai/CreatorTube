@@ -22,6 +22,10 @@ enum AppConfig {
         return url
     }
 
+    /// Adonde vuelve el inicio de sesión con Google. Debe estar en la lista de
+    /// "Redirect URLs" de Supabase (Authentication → URL Configuration).
+    static let oauthRedirect = URL(string: "planificador://auth-callback")!
+
     static var supabaseAnonKey: String? {
         guard let key = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String,
               !key.isEmpty else { return nil }

@@ -4,11 +4,12 @@ App nativa en SwiftUI que habla directo con la misma base de Supabase que la web
 
 ## Qué hace (v0.1)
 
-- **Entrar** con el código de 6 a 10 dígitos que llega por correo (el mismo correo del enlace mágico de la web). El registro sigue siendo solo por invitación.
+- **Entrar** con Google o con el código de 6 a 10 dígitos que llega por correo (el mismo correo del enlace mágico de la web). El registro sigue siendo solo por invitación.
 - **Canal**: recuerda el último canal usado o abre el primero por nombre, igual que `/app` en la web. Si no tienes canales, lista tus invitaciones pendientes.
 - **Inicio**: meta de la semana, racha, cobertura de las próximas 2 semanas, alertas, próximas fechas (14 días) y señales del canal.
-- **Episodios**: agrupados por estado, con búsqueda. En la ficha del episodio puedes cambiar el estado si tu rol lo permite.
-- **Calendario**: el mes con puntos por día (relleno = publicar, contorno = grabar). Al tocar un día ves sus episodios; debajo aparecen los que no tienen fecha.
+- **Episodios**: agrupados por estado, con búsqueda. Crear (+), editar (título, formato, pilar, fechas y notas), archivar y cambiar el estado, según tu rol.
+- **Calendario**: el mes con puntos por día (relleno = publicar, contorno = grabar). Al tocar un día ves sus episodios y puedes crear uno en esa fecha; debajo aparecen los que no tienen fecha.
+- **Avisos** (menú de cuenta → Avisos…): un resumen diario, a la hora que elijas, con las alertas críticas y de atención del canal para los próximos 7 días. Se recalculan cada vez que abres la app.
 
 ## Estructura
 
@@ -48,7 +49,7 @@ Cada vez que agregues o borres archivos `.swift`, vuelve a correr `xcodegen gene
 
 - Usa `SUPABASE_URL` y `SUPABASE_ANON_KEY`, los mismos valores que `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` de la web. **Nunca** la clave `service_role`.
 - La plantilla del correo de acceso (Supabase → Authentication → Email Templates → Magic Link) debe incluir el código `{{ .Token }}`. La web ya lo usa, así que no hay que cambiar nada.
-- Entrar con Google todavía no está en la app. Para agregarlo hay que registrar una URL de retorno propia de la app (por ejemplo `planificador://auth-callback`) en Supabase → Authentication → URL Configuration.
+- **Entrar con Google** necesita que `planificador://auth-callback` esté en Supabase → Authentication → URL Configuration → **Redirect URLs**. Sin eso, Google devuelve a la web en lugar de a la app.
 
 ## Publicar en TestFlight
 

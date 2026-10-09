@@ -1,9 +1,10 @@
+import AuthenticationServices
 import Supabase
 import SwiftUI
 
-/// Entrar con el código que llega por correo (el mismo correo del enlace
-/// mágico de la web). No necesita URL de retorno, así que funciona sin
-/// configurar nada más en Supabase.
+/// Entrar con Google o con el código que llega por correo (el mismo correo del
+/// enlace mágico de la web). Google vuelve a la app por `AppConfig.oauthRedirect`,
+/// que debe estar en Supabase → Authentication → URL Configuration.
 struct LoginView: View {
     private enum Step {
         case email, code
@@ -26,8 +27,17 @@ struct LoginView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Entrar")
                         .font(.largeTitle.bold())
-                    Text("Recibe un código por correo para entrar.")
+                    Text("Usa tu cuenta de Google o recibe un código por correo.")
                         .foregroundStyle(Palette.muted)
+                }
+
+                if step == .email {
+                    googleButton
+                    HStack {
+                        Rectangle().fill(Palette.border).frame(height: 1)
+                        Text("o").font(.footnote).foregroundStyle(Palette.muted)
+                        Rectangle().fill(Palette.border).frame(height: 1)
+                    }
                 }
 
                 switch step {
@@ -48,6 +58,18 @@ struct LoginView: View {
             .padding(24)
         }
         .background(Palette.background)
+    }
+
+    private var googleButton: some View {
+        Button {
+            Task { await signInWithGoogle() }
+        } label: {
+            Label("Continuar con Google", systemImage: "person.crop.circle")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(isWorking)
     }
 
     private var emailStep: some View {
@@ -112,6 +134,33 @@ struct LoginView: View {
             }
             .font(.footnote)
         }
+    }
+
+    /// PKCE con `ASWebAuthenticationSession`; `AppModel` recibe la sesión por
+    /// `authStateChanges`.
+    private func signInWithGoogle() async {
+        guard let client = supabase else { return }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await client.auth.signInWithOAuth(provider: .google, redirectTo: AppConfig.oauthRedirect)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // La persona cerró la ventana de Google: no es un error.
+        } catch {
+            errorMessage = Self.googleErrorMessage(error)
+        }
+    }
+
+    static func googleErrorMessage(_ error: Error) -> String {
+        let message = "\(error.localizedDescription) \(String(describing: error))"
+        if message.range(of: "invit", options: .caseInsensitive) != nil {
+            return "Este correo no tiene invitación. Pide un enlace de invitación a quien administra la plataforma."
+        }
+        if message.range(of: "redirect", options: .caseInsensitive) != nil {
+            return "Falta autorizar \(AppConfig.oauthRedirect.absoluteString) en Supabase → Authentication → URL Configuration."
+        }
+        return "No se pudo entrar con Google. Intenta de nuevo o usa el código por correo."
     }
 
     private func sendCode() async {
