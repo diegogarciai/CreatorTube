@@ -55,6 +55,8 @@ struct ServerActionButton: View {
             do {
                 try await action()
                 await onDone?()
+            } catch is CancellationError {
+                // La persona cerró la hoja (por ejemplo, la de Google): no es un error.
             } catch {
                 errorMessage = error.localizedDescription
             }

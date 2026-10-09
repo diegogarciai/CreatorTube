@@ -22,7 +22,15 @@ struct CreateChannelView: View {
                         }
                     }
                 } footer: {
-                    Text("Se crea sin YouTube, con los pasos de checklist de siempre. Conectar YouTube se hace desde la web, en la configuración del canal.")
+                    Text("Se crea sin YouTube, con los pasos de checklist de siempre. Puedes conectarlo después en Configuración del canal.")
+                }
+                Section {
+                    ServerActionButton(title: "Crear desde mi canal de YouTube", systemImage: "play.rectangle",
+                                       action: { try await model.connectYouTube(workspaceId: workspaceId) },
+                                       onDone: { dismiss() })
+                        .disabled(workspaceId.isEmpty)
+                } footer: {
+                    Text("Se abre Google para que elijas la cuenta dueña del canal. Toma el nombre y la foto del canal y trae sus videos.")
                 }
                 if let errorMessage {
                     Section { Text(errorMessage).foregroundStyle(Palette.critical) }
