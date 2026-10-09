@@ -3,13 +3,18 @@ import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { canOnChannel, type Permission, type Role } from "@planificador/core";
 import type { Tables } from "@planificador/db";
+import { bearerSession } from "./supabase/bearer";
 import { createClient } from "./supabase/server";
 
 export const getSupabase = cache(createClient);
 
 export const getUser = cache(async () => {
   const supabase = await getSupabase();
-  const { data } = await supabase.auth.getUser();
+  // La app móvil no guarda sesión en el cliente: se valida su token.
+  const bearer = bearerSession.getStore();
+  const { data } = bearer
+    ? await supabase.auth.getUser(bearer.token)
+    : await supabase.auth.getUser();
   return data.user;
 });
 
