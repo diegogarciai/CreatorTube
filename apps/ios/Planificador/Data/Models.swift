@@ -455,13 +455,18 @@ struct IdeaRow: Decodable, Identifiable, Hashable {
     let status: IdeaStatus
     let signals: [IdeaSignal: Int]
     let createdAt: String
+    /// Las propuestas por IA traen por qué, el riesgo y su pilar.
+    let reasons: String?
+    let risk: String?
+    let pillarId: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, notes, origin, status, signals
+        case id, title, notes, origin, status, signals, reasons, risk
         case createdAt = "created_at"
+        case pillarId = "pillar_id"
     }
 
-    static let columns = "id, title, notes, origin, status, signals, created_at"
+    static let columns = "id, title, notes, origin, status, signals, created_at, reasons, risk, pillar_id"
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -472,6 +477,9 @@ struct IdeaRow: Decodable, Identifiable, Hashable {
         origin = (try? c.decode(IdeaOrigin.self, forKey: .origin)) ?? .recommendation
         status = try c.decode(IdeaStatus.self, forKey: .status)
         createdAt = try c.decode(String.self, forKey: .createdAt)
+        reasons = try? c.decodeIfPresent(String.self, forKey: .reasons)
+        risk = try? c.decodeIfPresent(String.self, forKey: .risk)
+        pillarId = try? c.decodeIfPresent(String.self, forKey: .pillarId)
         // jsonb {"demand": 3, ...}; claves desconocidas se ignoran.
         let raw = (try? c.decode([String: Int].self, forKey: .signals)) ?? [:]
         var parsed: [IdeaSignal: Int] = [:]

@@ -29,6 +29,16 @@ struct MoreView: View {
                     Label("Analítica", systemImage: "chart.bar.xaxis")
                 }
                 NavigationLink {
+                    AudienceView()
+                } label: {
+                    Label("Audiencia", systemImage: "person.2.wave.2")
+                }
+                NavigationLink {
+                    NewsletterView()
+                } label: {
+                    Label("Boletín", systemImage: "envelope")
+                }
+                NavigationLink {
                     TasksView()
                 } label: {
                     Label("Tareas en curso", systemImage: "gearshape.2")

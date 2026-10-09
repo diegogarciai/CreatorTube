@@ -43,7 +43,7 @@ public enum PrimaryAction: String, CaseIterable, Sendable {
 }
 
 /// Fase actual de la app (`CURRENT_PHASE`).
-public let currentPhase = 1
+public let currentPhase = 4
 public let evaluationDelayDays = 7
 
 public struct NextStep: Equatable, Sendable {

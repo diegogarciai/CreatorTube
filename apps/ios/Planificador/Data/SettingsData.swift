@@ -150,12 +150,17 @@ struct ConnectionInfo: Decodable, Hashable {
     let status: String?
     let lastSyncedAt: String?
     let lastError: String?
+    let scopes: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case status
+        case status, scopes
         case lastSyncedAt = "last_synced_at"
         case lastError = "last_error"
     }
+
+    /// Permiso de escritura para publicar respuestas a comentarios.
+    static let commentsScope = "https://www.googleapis.com/auth/youtube.force-ssl"
+    var canPublishReplies: Bool { scopes?.contains(Self.commentsScope) ?? false }
 
     var statusLabel: String {
         switch status {

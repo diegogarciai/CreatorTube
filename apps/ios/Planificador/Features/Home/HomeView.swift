@@ -6,6 +6,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @State private var isCreating = false
+    @State private var newIdeas: Int?
 
     private struct Overview {
         let week: WeekCoverage
@@ -41,6 +42,14 @@ struct HomeView: View {
                 if model.selectedChannel?.onboardingCompletedAt == nil {
                     OnboardingCard()
                 }
+                if let newIdeas, newIdeas < ideasLowBank, model.can(.writeScript) {
+                    Card(title: "Ideas") {
+                        Label("El banco de ideas tiene \(newIdeas) \(newIdeas == 1 ? "idea nueva" : "ideas nuevas"): propón más en Ideas.",
+                              systemImage: "lightbulb")
+                            .font(.callout)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
                 if model.episodes.isEmpty && !model.isLoadingEpisodes {
                     emptyState
                 } else if let overview = computeOverview() {
@@ -53,7 +62,11 @@ struct HomeView: View {
         .overlay {
             if model.isLoadingEpisodes && model.episodes.isEmpty { ProgressView() }
         }
-        .refreshable { await model.loadEpisodes() }
+        .refreshable {
+            await model.loadEpisodes()
+            newIdeas = await model.newIdeasCount()
+        }
+        .task(id: model.selectedChannelId) { newIdeas = await model.newIdeasCount() }
         .sheet(isPresented: $isCreating) {
             EpisodeFormView(mode: .create)
         }

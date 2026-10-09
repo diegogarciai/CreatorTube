@@ -30,6 +30,8 @@ struct ChannelSettingsView: View {
                     NavigationLink("Pasos de checklist") { ChecklistSettingsView() }
                     NavigationLink("Guía del guionista") { WriterGuideView() }
                     NavigationLink("Kit de marca") { BrandKitView() }
+                    NavigationLink("Redes") { SocialsSettingsView() }
+                    NavigationLink("Boletín") { NewsletterSettingsView() }
                 } footer: {
                     Text("Nombre, zona horaria, meta semanal, días de publicación y grabación, pilares, pasos de checklist, las reglas que usa la IA para escribir y la marca de las miniaturas.")
                 }
@@ -57,6 +59,19 @@ struct ChannelSettingsView: View {
                                                action: { try await model.disconnectYouTube() },
                                                onDone: { await load() })
                         }
+                    }
+                    if connection?.status == "active" {
+                        if connection?.canPublishReplies == true {
+                            Text("Respuestas a comentarios activadas: la app puede publicar las respuestas que confirmes.")
+                                .font(.caption).foregroundStyle(Palette.muted)
+                        } else if canEdit {
+                            ServerActionButton(title: "Activar respuestas a comentarios", systemImage: "text.bubble",
+                                               action: { try await model.enableCommentReplies() },
+                                               onDone: { await load() })
+                            Text("Google te pedirá un permiso de escritura (youtube.force-ssl) para publicar las respuestas que confirmes.")
+                                .font(.caption).foregroundStyle(Palette.muted)
+                        }
+                        NavigationLink("Competencia") { CompetitorsSettingsView() }
                     }
                     if canEdit {
                         ServerActionButton(title: connection?.status == "active" ? "Reconectar con YouTube" : "Conectar con YouTube",

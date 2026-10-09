@@ -64,3 +64,32 @@ public func ideaScore(_ signals: [IdeaSignal: Int]) -> Int? {
     let avg = values.reduce(0, +) / Double(values.count)
     return Int(((avg - 1) / 4 * 100).rounded())
 }
+
+/// Con menos ideas nuevas que esto, la app avisa que conviene proponer más.
+public let ideasLowBank = 10
+
+/// Un video atípico supera esta razón contra la mediana de su canal.
+public let outlierMinRatio = 3.0
+
+private let searchStopwords: Set<String> = Set(
+    "de la el los las un una unos unas y o en con sin para por que como cual cuál es vs del al mi tu su lo le se mas más"
+        .split(separator: " ").map(String.init)
+)
+
+private func importantWords(_ s: String) -> [String] {
+    let folded = s.folding(options: [.diacriticInsensitive], locale: nil).lowercased()
+    return folded.split(whereSeparator: { !($0.isASCII && ($0.isLetter || $0.isNumber)) })
+        .map(String.init)
+        .filter { $0.count >= 2 && !searchStopwords.contains($0) }
+}
+
+/// ¿Ya hay un video para esta búsqueda? Sí, si algún título o palabra clave
+/// del canal tiene todas sus palabras importantes (sin tildes ni mayúsculas).
+public func termCovered(_ term: String, texts: [String]) -> Bool {
+    let need = importantWords(term)
+    if need.isEmpty { return true }
+    return texts.contains { text in
+        let have = Set(importantWords(text))
+        return need.allSatisfy(have.contains)
+    }
+}
